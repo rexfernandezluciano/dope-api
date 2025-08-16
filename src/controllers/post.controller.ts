@@ -9,13 +9,18 @@ const prisma = new PrismaClient();
 const CreatePostSchema = z.object({
 	content: z.string().min(1).max(1000).optional(),
 	imageUrls: z.array(z.string().url()).max(10).optional(),
-}).refine((data) => data.content || (data.imageUrls && data.imageUrls.length > 0), {
-	message: "Either content or at least one image must be provided",
+	postType: z.enum(["text", "live_video"]).default("text"),
+}).refine((data) => {
+	if (data.postType === "live_video") return true;
+	return data.content || (data.imageUrls && data.imageUrls.length > 0);
+}, {
+	message: "Text posts must have either content or at least one image",
 });
 
 const UpdatePostSchema = z.object({
 	content: z.string().min(1).max(1000).optional(),
 	imageUrls: z.array(z.string().url()).max(10).optional(),
+	postType: z.enum(["text", "live_video"]).optional(),
 });
 
 // GET all posts
@@ -140,17 +145,13 @@ export const getPost = async (req: Request, res: Response) => {
 export const createPost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
-		const { content, imageUrls } = CreatePostSchema.parse(req.body);
-
-		// Validate that either content or images are provided
-		if (!content && (!imageUrls || imageUrls.length === 0)) {
-			return res.status(400).json({ message: "Either content or images must be provided" });
-		}
+		const { content, imageUrls, postType } = CreatePostSchema.parse(req.body);
 
 		const post = await prisma.post.create({
 			data: {
 				content: content || null,
 				imageUrls: imageUrls || [],
+				postType: postType || "text",
 				authorId: authUser.uid,
 			},
 			include: {
@@ -205,9 +206,10 @@ export const updatePost = async (req: Request, res: Response) => {
 		}
 
 		// Filter out undefined values to match Prisma's exact optional property types
-		const updateData: { content?: string | null; imageUrls?: string[] } = {};
+		const updateData: { content?: string | null; imageUrls?: string[]; postType?: "text" | "live_video" } = {};
 		if (data.content !== undefined) updateData.content = data.content;
 		if (data.imageUrls !== undefined) updateData.imageUrls = data.imageUrls;
+		if (data.postType !== undefined) updateData.postType = data.postType;
 
 		const post = await prisma.post.update({
 			where: { id },

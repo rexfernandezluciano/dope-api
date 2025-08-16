@@ -37,6 +37,7 @@ model Post {
   id        String   @id @default(cuid())
   content   String?
   imageUrls String[]
+  postType  PostType @default(text)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -44,6 +45,11 @@ model Post {
   authorId  String
   comments  Comment[]
   likes     Like[]
+}
+
+enum PostType {
+  text
+  live_video
 }
 
 model Comment {
