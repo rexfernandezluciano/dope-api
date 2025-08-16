@@ -1,4 +1,3 @@
-
 /** @format */
 
 import { Request, Response } from "express";
@@ -144,7 +143,7 @@ export const createPost = async (req: Request, res: Response) => {
 		const post = await prisma.post.create({
 			data: {
 				content,
-				imageUrl,
+				imageUrl: imageUrl ?? null,
 				authorId: authUser.uid,
 			},
 			include: {
