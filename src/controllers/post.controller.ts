@@ -75,6 +75,9 @@ export const getPosts = async (req: Request, res: Response) => {
 export const getPost = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
+		if (!id) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
 		const post = await prisma.post.findUnique({
 			where: { id },
 			include: {
@@ -177,6 +180,9 @@ export const updatePost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { id } = req.params;
+		if (!id) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
 		const data = UpdatePostSchema.parse(req.body);
 
 		const existingPost = await prisma.post.findUnique({
@@ -191,9 +197,14 @@ export const updatePost = async (req: Request, res: Response) => {
 			return res.status(403).json({ message: "Not authorized to update this post" });
 		}
 
+		// Filter out undefined values to match Prisma's exact optional property types
+		const updateData: { content?: string; imageUrl?: string } = {};
+		if (data.content !== undefined) updateData.content = data.content;
+		if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+
 		const post = await prisma.post.update({
 			where: { id },
-			data,
+			data: updateData,
 			include: {
 				author: {
 					select: {
@@ -227,6 +238,9 @@ export const deletePost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { id } = req.params;
+		if (!id) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
 
 		const existingPost = await prisma.post.findUnique({
 			where: { id },
@@ -255,6 +269,9 @@ export const toggleLike = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { id } = req.params;
+		if (!id) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
 
 		const post = await prisma.post.findUnique({
 			where: { id },
