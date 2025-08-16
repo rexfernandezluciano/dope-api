@@ -162,6 +162,7 @@ GET /api/posts
     "id": "post_id",
     "content": "Hello world!",
     "imageUrls": ["https://example.com/image.jpg"],
+    "liveVideoUrl": null,
     "postType": "text",
     "createdAt": "2024-01-01T00:00:00.000Z",
     "updatedAt": "2024-01-01T00:00:00.000Z",
@@ -198,13 +199,14 @@ Authorization: Bearer <jwt_token>
 {
   "content": "Hello world!", // optional for live_video posts
   "imageUrls": ["https://example.com/image.jpg"], // optional
+  "liveVideoUrl": "https://example.com/live-stream.m3u8", // required for live_video posts
   "postType": "text" // "text" | "live_video", defaults to "text"
 }
 ```
 
 **Post Types:**
 - `text`: Regular text posts (require either content or images)
-- `live_video`: Live video posts (no content/images required)
+- `live_video`: Live video posts (require liveVideoUrl)
 
 #### Update Post
 ```http
@@ -217,6 +219,7 @@ Authorization: Bearer <jwt_token>
 {
   "content": "Updated content",
   "imageUrls": ["https://example.com/new-image.jpg"],
+  "liveVideoUrl": "https://example.com/live-stream.m3u8",
   "postType": "live_video"
 }
 ```
@@ -339,6 +342,7 @@ Authorization: Bearer <jwt_token>
 - `id`: Unique identifier
 - `content`: Post content (optional)
 - `imageUrls`: Array of image URLs (optional)
+- `liveVideoUrl`: Live video stream URL (required for live_video posts)
 - `postType`: "text" | "live_video"
 - `authorId`: Reference to user
 - `createdAt`: Creation timestamp
