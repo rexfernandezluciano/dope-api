@@ -93,7 +93,7 @@ export const getComments = async (req: Request, res: Response) => {
 
 		const hasMore = comments.length > limitNum;
 		const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
-		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1].id : null;
+		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1]?.id : null;
 
 		res.json({
 			comments: commentsToReturn,
