@@ -139,7 +139,7 @@ export const getPosts = async (req: Request, res: Response) => {
 
 		const hasMore = posts.length > limitNum;
 		const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
-		const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1].id : null;
+		const nextCursor = hasMore && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1].id : null;
 
 		res.json({
 			posts: postsToReturn,
