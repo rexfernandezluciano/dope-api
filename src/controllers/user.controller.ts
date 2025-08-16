@@ -30,7 +30,7 @@ export const createUser = async (req: Request, res: Response) => {
 				email,
 				username,
 				photoURL,
-				subscription: (subscription as Subscription) || Subscription.free,
+				subscription: (subscription as Subscription) || "free",
 				privacy: privacy || { profile: "public", comments: "public", sharing: true, chat: "public" },
 			},
 		});

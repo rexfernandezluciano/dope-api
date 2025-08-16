@@ -1,3 +1,4 @@
+
 // prisma/schema.prisma
 
 generator client {
@@ -10,20 +11,26 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  name      String?
-  bio       String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  uid               String   @id @default(cuid()) @map("id")
+  username          String   @unique
+  email             String   @unique
+  password          String
+  name              String?
+  bio               String?
+  photoURL          String?
+  subscription      Subscription @default(free)
+  hasBlueCheck      Boolean @default(false)
+  privacy           Json?
+  hasVerifiedEmail  Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  posts     Post[]
-  comments  Comment[]
-  likes     Like[]
-  followers Follow[] @relation("followers")
-  following Follow[] @relation("following")
+  posts       Post[]
+  comments    Comment[]
+  likes       Like[]
+  followers   Follow[] @relation("followers")
+  following   Follow[] @relation("following")
+  credentials Credential[]
 }
 
 model Post {
@@ -33,7 +40,7 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  author    User     @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [uid])
   authorId  String
   comments  Comment[]
   likes     Like[]
@@ -47,7 +54,7 @@ model Comment {
 
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  author    User     @relation(fields: [authorId], references: [id])
+  author    User     @relation(fields: [authorId], references: [uid])
   authorId  String
 }
 
@@ -57,7 +64,7 @@ model Like {
 
   post      Post     @relation(fields: [postId], references: [id])
   postId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [uid])
   userId    String
 }
 
@@ -65,8 +72,36 @@ model Follow {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
-  follower  User @relation("following", fields: [followerId], references: [id])
+  follower  User @relation("following", fields: [followerId], references: [uid])
   followerId String
-  following User @relation("followers", fields: [followingId], references: [id])
+  following User @relation("followers", fields: [followingId], references: [uid])
   followingId String
+}
+
+model Credential {
+  id           String  @id @default(cuid())
+  userId       String
+  provider     String
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [uid])
+
+  @@unique([userId, provider])
+}
+
+model Email {
+  id             String   @id @default(cuid())
+  email          String
+  code           String
+  verificationId String   @unique
+  expireAt       DateTime
+  createdAt      DateTime @default(now())
+}
+
+enum Subscription {
+  free
+  premium
+  pro
 }
