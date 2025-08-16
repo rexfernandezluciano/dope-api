@@ -2,8 +2,8 @@
 
 import jwt, { JwtPayload as JsonWebTokenPayload } from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+const JWT_SECRET: string = process.env.JWT_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x";
+const JWT_EXPIRES_IN: number = parseInt(process.env.JWT_EXPIRES_IN || "604800"); // 7 days = 168 hours = 604800 seconds
 
 export interface JwtPayload {
 	uid: string;
