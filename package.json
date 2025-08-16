@@ -1,7 +1,8 @@
 {
 	"name": "dope-api",
+	"private": true,
 	"version": "1.0.0",
-	"description": "Backend for DOPE Network",
+	"description": "A comprehensive social media API for the DOPE Network platform, built with Node.js, Express, TypeScript, and Prisma.",
 	"keywords": [
 		"dope",
 		"dope-social",
@@ -34,7 +35,6 @@
 		"express": "^5.1.0",
 		"jsonwebtoken": "^9.0.2",
 		"nanoid": "^5.1.5",
-		"socket.io": "^4.8.1",
 		"zod": "^4.0.17"
 	},
 	"devDependencies": {
