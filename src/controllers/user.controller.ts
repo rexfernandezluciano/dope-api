@@ -1,4 +1,3 @@
-
 /** @format */
 
 import { Request, Response } from "express";
@@ -115,6 +114,10 @@ export const updateUser = async (req: Request, res: Response) => {
 		const authUser = (req as any).user as { uid: string };
 		const { username } = req.params;
 		const data = UpdateUserSchema.parse(req.body);
+
+		if (!username) {
+			return res.status(400).json({ message: "Username is required" });
+		}
 
 		const targetUser = await prisma.user.findUnique({
 			where: { username },

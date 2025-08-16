@@ -20,6 +20,10 @@ export const getComments = async (req: Request, res: Response) => {
 	try {
 		const { postId } = req.params;
 
+		if (!postId) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
+
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
 		});
@@ -58,6 +62,10 @@ export const createComment = async (req: Request, res: Response) => {
 		const authUser = (req as any).user as { uid: string };
 		const { postId } = req.params;
 		const { content } = CreateCommentSchema.parse(req.body);
+
+		if (!postId) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
 
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
@@ -102,6 +110,10 @@ export const updateComment = async (req: Request, res: Response) => {
 		const { id } = req.params;
 		const { content } = UpdateCommentSchema.parse(req.body);
 
+		if (!id) {
+			return res.status(400).json({ message: "Comment ID is required" });
+		}
+
 		const existingComment = await prisma.comment.findUnique({
 			where: { id },
 		});
@@ -144,6 +156,10 @@ export const deleteComment = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { id } = req.params;
+
+		if (!id) {
+			return res.status(400).json({ message: "Comment ID is required" });
+		}
 
 		const existingComment = await prisma.comment.findUnique({
 			where: { id },

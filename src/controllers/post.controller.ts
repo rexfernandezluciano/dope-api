@@ -179,10 +179,11 @@ export const updatePost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { id } = req.params;
+		const data = UpdatePostSchema.parse(req.body);
+
 		if (!id) {
 			return res.status(400).json({ message: "Post ID is required" });
 		}
-		const data = UpdatePostSchema.parse(req.body);
 
 		const existingPost = await prisma.post.findUnique({
 			where: { id },
