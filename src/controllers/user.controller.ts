@@ -138,7 +138,12 @@ export const updateUser = async (req: Request, res: Response) => {
 
 		const updatedUser = await prisma.user.update({
 			where: { uid: authUser.uid },
-			data,
+			data: {
+				...(data.name !== undefined && { name: data.name }),
+				...(data.bio !== undefined && { bio: data.bio }),
+				...(data.photoURL !== undefined && { photoURL: data.photoURL }),
+				...(data.privacy !== undefined && { privacy: data.privacy }),
+			},
 			select: {
 				uid: true,
 				name: true,
@@ -301,6 +306,7 @@ export const createUser = async (req: Request, res: Response) => {
 				name,
 				email,
 				username,
+				password: "temp_password", // Legacy function - consider requiring password in request
 				photoURL,
 				subscription: (subscription as Subscription) || "free",
 				privacy: privacy || { profile: "public", comments: "public", sharing: true, chat: "public" },
