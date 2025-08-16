@@ -15,10 +15,17 @@ const UpdateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
 });
 
-// GET comments for a post
+// GET comments for a post with pagination and filtering
 export const getComments = async (req: Request, res: Response) => {
 	try {
 		const { postId } = req.params;
+		const {
+			limit = "20",
+			cursor,
+			author,
+			search,
+			sortBy = "desc"
+		} = req.query;
 
 		if (!postId) {
 			return res.status(400).json({ message: "Post ID is required" });
@@ -32,8 +39,42 @@ export const getComments = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "Post not found" });
 		}
 
+		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 comments per request
+		
+		// Build where clause for filtering
+		const where: any = { postId };
+		
+		if (author) {
+			const authorUser = await prisma.user.findUnique({
+				where: { username: author as string },
+				select: { uid: true }
+			});
+			if (authorUser) {
+				where.authorId = authorUser.uid;
+			} else {
+				return res.json({ comments: [], nextCursor: null, hasMore: false });
+			}
+		}
+		
+		if (search) {
+			where.content = {
+				contains: search as string,
+				mode: "insensitive"
+			};
+		}
+
+		// Add cursor pagination
+		if (cursor) {
+			if (sortBy === "asc") {
+				where.id = { gt: cursor as string };
+			} else {
+				where.id = { lt: cursor as string };
+			}
+		}
+
 		const comments = await prisma.comment.findMany({
-			where: { postId },
+			where,
+			take: limitNum + 1, // Take one extra to check if there are more
 			include: {
 				author: {
 					select: {
@@ -46,11 +87,21 @@ export const getComments = async (req: Request, res: Response) => {
 				},
 			},
 			orderBy: {
-				createdAt: "desc",
+				createdAt: sortBy === "asc" ? "asc" : "desc",
 			},
 		});
 
-		res.json(comments);
+		const hasMore = comments.length > limitNum;
+		const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
+		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1].id : null;
+
+		res.json({
+			comments: commentsToReturn,
+			nextCursor,
+			hasMore,
+			limit: limitNum,
+			sortBy,
+		});
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching comments" });
 	}

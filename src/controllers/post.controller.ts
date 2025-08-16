@@ -27,10 +27,67 @@ const UpdatePostSchema = z.object({
 	postType: z.enum(["text", "live_video"]).optional(),
 });
 
-// GET all posts
+// GET all posts with pagination and filtering
 export const getPosts = async (req: Request, res: Response) => {
 	try {
+		const {
+			limit = "20",
+			cursor,
+			author,
+			postType,
+			hasImages,
+			hasLiveVideo,
+			search
+		} = req.query;
+
+		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 posts per request
+		
+		// Build where clause for filtering
+		const where: any = {};
+		
+		if (author) {
+			const authorUser = await prisma.user.findUnique({
+				where: { username: author as string },
+				select: { uid: true }
+			});
+			if (authorUser) {
+				where.authorId = authorUser.uid;
+			} else {
+				return res.json({ posts: [], nextCursor: null, hasMore: false });
+			}
+		}
+		
+		if (postType && (postType === "text" || postType === "live_video")) {
+			where.postType = postType;
+		}
+		
+		if (hasImages === "true") {
+			where.imageUrls = { isEmpty: false };
+		} else if (hasImages === "false") {
+			where.imageUrls = { isEmpty: true };
+		}
+		
+		if (hasLiveVideo === "true") {
+			where.liveVideoUrl = { not: null };
+		} else if (hasLiveVideo === "false") {
+			where.liveVideoUrl = null;
+		}
+		
+		if (search) {
+			where.content = {
+				contains: search as string,
+				mode: "insensitive"
+			};
+		}
+
+		// Add cursor pagination
+		if (cursor) {
+			where.id = { lt: cursor as string };
+		}
+
 		const posts = await prisma.post.findMany({
+			where,
+			take: limitNum + 1, // Take one extra to check if there are more
 			include: {
 				author: {
 					select: {
@@ -42,6 +99,7 @@ export const getPosts = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
+					take: 3, // Only show first 3 comments in list view
 					include: {
 						author: {
 							select: {
@@ -52,6 +110,9 @@ export const getPosts = async (req: Request, res: Response) => {
 								hasBlueCheck: true,
 							},
 						},
+					},
+					orderBy: {
+						createdAt: "desc",
 					},
 				},
 				likes: {
@@ -75,7 +136,17 @@ export const getPosts = async (req: Request, res: Response) => {
 				createdAt: "desc",
 			},
 		});
-		res.json(posts);
+
+		const hasMore = posts.length > limitNum;
+		const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
+		const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1].id : null;
+
+		res.json({
+			posts: postsToReturn,
+			nextCursor,
+			hasMore,
+			limit: limitNum,
+		});
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching posts" });
 	}

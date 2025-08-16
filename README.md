@@ -155,32 +155,51 @@ Authorization: Bearer <jwt_token>
 GET /api/posts
 ```
 
+**Query Parameters:**
+- `limit` (optional): Number of posts to return (max 100, default 20)
+- `cursor` (optional): Cursor for pagination (post ID)
+- `author` (optional): Filter by author username
+- `postType` (optional): Filter by post type ("text" | "live_video")
+- `hasImages` (optional): Filter posts with images ("true" | "false")
+- `hasLiveVideo` (optional): Filter posts with live video ("true" | "false")
+- `search` (optional): Search in post content
+
+**Example:**
+```http
+GET /api/posts?limit=10&author=johndoe&postType=text&hasImages=true&search=hello
+```
+
 **Response:**
 ```json
-[
-  {
-    "id": "post_id",
-    "content": "Hello world!",
-    "imageUrls": ["https://example.com/image.jpg"],
-    "liveVideoUrl": null,
-    "postType": "text",
-    "createdAt": "2024-01-01T00:00:00.000Z",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
-    "author": {
-      "uid": "user_id",
-      "name": "John Doe",
-      "username": "johndoe",
-      "photoURL": "https://example.com/photo.jpg",
-      "hasBlueCheck": false
-    },
-    "comments": [],
-    "likes": [],
-    "_count": {
-      "comments": 0,
-      "likes": 0
+{
+  "posts": [
+    {
+      "id": "post_id",
+      "content": "Hello world!",
+      "imageUrls": ["https://example.com/image.jpg"],
+      "liveVideoUrl": null,
+      "postType": "text",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "author": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false
+      },
+      "comments": [], // First 3 comments only
+      "likes": [],
+      "_count": {
+        "comments": 5,
+        "likes": 10
+      }
     }
-  }
-]
+  ],
+  "nextCursor": "next_post_id",
+  "hasMore": true,
+  "limit": 10
+}
 ```
 
 #### Get Single Post
@@ -241,6 +260,42 @@ Authorization: Bearer <jwt_token>
 #### Get Comments for Post
 ```http
 GET /api/comments/post/:postId
+```
+
+**Query Parameters:**
+- `limit` (optional): Number of comments to return (max 100, default 20)
+- `cursor` (optional): Cursor for pagination (comment ID)
+- `author` (optional): Filter by author username
+- `search` (optional): Search in comment content
+- `sortBy` (optional): Sort order ("asc" | "desc", default "desc")
+
+**Example:**
+```http
+GET /api/comments/post/post123?limit=10&author=johndoe&search=great&sortBy=asc
+```
+
+**Response:**
+```json
+{
+  "comments": [
+    {
+      "id": "comment_id",
+      "content": "Great post!",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "author": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false
+      }
+    }
+  ],
+  "nextCursor": "next_comment_id",
+  "hasMore": true,
+  "limit": 10,
+  "sortBy": "asc"
+}
 ```
 
 #### Create Comment
