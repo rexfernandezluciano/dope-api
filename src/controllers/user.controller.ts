@@ -82,6 +82,16 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 								hasBlueCheck: true,
 							},
 						},
+						likes: {
+							include: {
+								user: {
+									select: {
+										uid: true,
+										username: true,
+									},
+								},
+							},
+						},
 						_count: {
 							select: {
 								comments: true,
