@@ -7,13 +7,15 @@ import { z } from "zod";
 const prisma = new PrismaClient();
 
 const CreatePostSchema = z.object({
-	content: z.string().min(1).max(1000),
-	imageUrl: z.string().url().optional(),
+	content: z.string().min(1).max(1000).optional(),
+	imageUrls: z.array(z.string().url()).max(10).optional(),
+}).refine((data) => data.content || (data.imageUrls && data.imageUrls.length > 0), {
+	message: "Either content or at least one image must be provided",
 });
 
 const UpdatePostSchema = z.object({
 	content: z.string().min(1).max(1000).optional(),
-	imageUrl: z.string().url().optional(),
+	imageUrls: z.array(z.string().url()).max(10).optional(),
 });
 
 // GET all posts
@@ -138,12 +140,17 @@ export const getPost = async (req: Request, res: Response) => {
 export const createPost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
-		const { content, imageUrl } = CreatePostSchema.parse(req.body);
+		const { content, imageUrls } = CreatePostSchema.parse(req.body);
+
+		// Validate that either content or images are provided
+		if (!content && (!imageUrls || imageUrls.length === 0)) {
+			return res.status(400).json({ message: "Either content or images must be provided" });
+		}
 
 		const post = await prisma.post.create({
 			data: {
-				content,
-				imageUrl: imageUrl ?? null,
+				content: content || null,
+				imageUrls: imageUrls || [],
 				authorId: authUser.uid,
 			},
 			include: {
@@ -198,9 +205,9 @@ export const updatePost = async (req: Request, res: Response) => {
 		}
 
 		// Filter out undefined values to match Prisma's exact optional property types
-		const updateData: { content?: string; imageUrl?: string } = {};
+		const updateData: { content?: string | null; imageUrls?: string[] } = {};
 		if (data.content !== undefined) updateData.content = data.content;
-		if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+		if (data.imageUrls !== undefined) updateData.imageUrls = data.imageUrls;
 
 		const post = await prisma.post.update({
 			where: { id },

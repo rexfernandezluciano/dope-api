@@ -55,6 +55,11 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getUserByUsername = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
+
+		if (!username) {
+			return res.status(400).json({ message: "Username is required" });
+		}
+
 		const user = await prisma.user.findUnique({
 			where: { username },
 			select: {
@@ -162,6 +167,10 @@ export const toggleFollow = async (req: Request, res: Response) => {
 		const authUser = (req as any).user as { uid: string };
 		const { username } = req.params;
 
+		if (!username) {
+			return res.status(400).json({ message: "Username is required" });
+		}
+
 		const targetUser = await prisma.user.findUnique({
 			where: { username },
 		});
@@ -207,6 +216,10 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
 
+		if (!username) {
+			return res.status(400).json({ message: "Username is required" });
+		}
+
 		const user = await prisma.user.findUnique({
 			where: { username },
 		});
@@ -240,6 +253,10 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 export const getUserFollowing = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
+
+		if (!username) {
+			return res.status(400).json({ message: "Username is required" });
+		}
 
 		const user = await prisma.user.findUnique({
 			where: { username },
