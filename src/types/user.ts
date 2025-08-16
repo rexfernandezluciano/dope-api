@@ -10,7 +10,7 @@ export interface PrivacySettings {
 export type Subscription = "free" | "premium" | "pro";
 
 export interface User {
-	uid: number;
+	uid: string;
 	name: string;
 	email: string;
 	username: string;

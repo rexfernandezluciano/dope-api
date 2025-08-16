@@ -47,6 +47,7 @@ export const register = async (req: Request, res: Response) => {
 				email,
 				username,
 				photoURL,
+				password: passwordHash,
 				subscription,
 				hasBlueCheck: computeBlueCheck(subscription),
 				privacy,
@@ -183,7 +184,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const me = async (req: Request, res: Response) => {
-	const authUser = (req as any).user as { uid: number };
+	const authUser = (req as any).user as { uid: string };
 	const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 	if (!user) return res.status(404).json({ message: "User not found" });
 	return res.json(user);
