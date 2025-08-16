@@ -5,6 +5,9 @@ import cors from "cors";
 import * as dotenv from "dotenv";
 
 import authRoutes from "./routes/auth.routes";
+import postRoutes from "./routes/post.routes";
+import commentRoutes from "./routes/comment.routes";
+import userRoutes from "./routes/user.routes";
 
 dotenv.config();
 const app: Application = express();
@@ -19,6 +22,9 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/comments", commentRoutes);
+app.use("/api/users", userRoutes);
 
 app.listen(PORT, () => {
 	console.log(`Server running on http://localhost:${PORT}`);
