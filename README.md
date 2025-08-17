@@ -190,7 +190,7 @@ GET /api/posts?limit=10&author=johndoe&postType=text&hasImages=true&search=hello
       },
       "comments": [], // First 3 comments only
       "likes": [],
-      "_count": {
+      "stats": {
         "comments": 5,
         "likes": 10
       }
