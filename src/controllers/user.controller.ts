@@ -45,9 +45,29 @@ export const getUsers = async (req: Request, res: Response) => {
 				createdAt: "desc",
 			},
 		});
-		res.json(users);
+
+		const userList = users.map((i) => {
+			const user = {
+				uid: i.uid,
+				name: i.name,
+				username: i.username,
+				bio: i.bio,
+				photoURL: i.photoURL,
+				hasBlueCheck: i.hasBlueCheck,
+				subscription: i.subscription,
+				createdAt: i.createdAt,
+				stats: {
+					posts: i._count.posts,
+					followers: i._count.followers,
+					following: i._count.following,
+				},
+			};
+			return user;
+		});
+
+		res.json({ status: "ok", users: userList });
 	} catch (error) {
-		res.status(500).json({ error: "Error fetching users" });
+		res.status(500).json({ error: "Error fetcing users" });
 	}
 };
 
@@ -117,7 +137,56 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "User not found" });
 		}
 
-		res.json(user);
+		const output = {
+			uid: user.uid,
+			name: user.name,
+			username: user.username,
+			bio: user.bio,
+			photoURL: user.photoURL,
+			hasBlueCheck: user.hasBlueCheck,
+			subscription: user.subscription,
+			createdAt: user.createdAt,
+			posts: user.posts.map((p) => {
+				return {
+					id: p.id,
+					content: p.content,
+					imageUrls: p.imageUrls,
+					createdAt: p.createdAt,
+					updatedAt: p.updatedAt,
+					stats: {
+						comments: p._count.comments,
+						likes: p._count.likes,
+					},
+					likes: p.likes.map((l) => {
+						return {
+							user: {
+								uid: l.user.uid,
+								username: l.user.username,
+							},
+						};
+					}),
+					postType: p.postType,
+					liveVideoUrl: p.liveVideoUrl,
+					privacy: p.privacy,
+					author: {
+						...p.author,
+					},
+				};
+			}),
+			likes: {
+				user: {
+					uid: user.uid,
+					username: user.username,
+				},
+			},
+			stats: {
+				posts: user._count.posts,
+				followers: user._count.followers,
+				following: user._count.following,
+			},
+		};
+
+		res.json({ status: "ok", user: output });
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching user" });
 	}
@@ -143,7 +212,9 @@ export const updateUser = async (req: Request, res: Response) => {
 		}
 
 		if (targetUser.uid !== authUser.uid) {
-			return res.status(403).json({ message: "Not authorized to update this profile" });
+			return res
+				.status(403)
+				.json({ message: "Not authorized to update this profile" });
 		}
 
 		const updatedUser = await prisma.user.update({
@@ -170,7 +241,9 @@ export const updateUser = async (req: Request, res: Response) => {
 		res.json(updatedUser);
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error updating user" });
 	}
@@ -319,7 +392,12 @@ export const createUser = async (req: Request, res: Response) => {
 				password: "temp_password", // Legacy function - consider requiring password in request
 				photoURL,
 				subscription: (subscription as Subscription) || "free",
-				privacy: privacy || { profile: "public", comments: "public", sharing: true, chat: "public" },
+				privacy: privacy || {
+					profile: "public",
+					comments: "public",
+					sharing: true,
+					chat: "public",
+				},
 			},
 		});
 

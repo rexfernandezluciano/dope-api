@@ -39,6 +39,7 @@ model Post {
   imageUrls    String[]
   liveVideoUrl String?
   postType     PostType @default(text)
+  privacy      Privacy  @default(public)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -111,4 +112,10 @@ enum Subscription {
   free
   premium
   pro
+}
+
+enum Privacy {
+  public
+  private
+  followers
 }

@@ -6,25 +6,33 @@ import { z } from "zod";
 
 const prisma = new PrismaClient();
 
-const CreatePostSchema = z.object({
-	content: z.string().min(1).max(1000).optional(),
-	imageUrls: z.array(z.string().url()).max(10).optional(),
-	liveVideoUrl: z.string().url().optional(),
-	postType: z.enum(["text", "live_video"]).default("text"),
-}).refine((data) => {
-	if (data.postType === "live_video") {
-		return data.liveVideoUrl; // Live video posts must have a video URL
-	}
-	return data.content || (data.imageUrls && data.imageUrls.length > 0);
-}, {
-	message: "Text posts must have either content or at least one image. Live video posts must have a video URL.",
-});
+const CreatePostSchema = z
+	.object({
+		content: z.string().min(1).max(1000).optional(),
+		imageUrls: z.array(z.string().url()).max(10).optional(),
+		liveVideoUrl: z.string().url().optional(),
+		postType: z.enum(["text", "live_video"]).default("text"),
+		privacy: z.enum(["public", "private", "followers"]).default("public"),
+	})
+	.refine(
+		(data) => {
+			if (data.postType === "live_video") {
+				return data.liveVideoUrl; // Live video posts must have a video URL
+			}
+			return data.content || (data.imageUrls && data.imageUrls.length > 0);
+		},
+		{
+			message:
+				"Text posts must have either content or at least one image. Live video posts must have a video URL.",
+		},
+	);
 
 const UpdatePostSchema = z.object({
 	content: z.string().min(1).max(1000).optional(),
 	imageUrls: z.array(z.string().url()).max(10).optional(),
 	liveVideoUrl: z.string().url().optional(),
 	postType: z.enum(["text", "live_video"]).optional(),
+	privacy: z.enum(["public", "private", "followers"]),
 });
 
 // GET all posts with pagination and filtering
@@ -37,18 +45,18 @@ export const getPosts = async (req: Request, res: Response) => {
 			postType,
 			hasImages,
 			hasLiveVideo,
-			search
+			search,
 		} = req.query;
 
 		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 posts per request
-		
+
 		// Build where clause for filtering
 		const where: any = {};
-		
+
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
 				where: { username: author as string },
-				select: { uid: true }
+				select: { uid: true },
 			});
 			if (authorUser) {
 				where.authorId = authorUser.uid;
@@ -56,27 +64,27 @@ export const getPosts = async (req: Request, res: Response) => {
 				return res.json({ posts: [], nextCursor: null, hasMore: false });
 			}
 		}
-		
+
 		if (postType && (postType === "text" || postType === "live_video")) {
 			where.postType = postType;
 		}
-		
+
 		if (hasImages === "true") {
 			where.imageUrls = { isEmpty: false };
 		} else if (hasImages === "false") {
 			where.imageUrls = { isEmpty: true };
 		}
-		
+
 		if (hasLiveVideo === "true") {
 			where.liveVideoUrl = { not: null };
 		} else if (hasLiveVideo === "false") {
 			where.liveVideoUrl = null;
 		}
-		
+
 		if (search) {
 			where.content = {
 				contains: search as string,
-				mode: "insensitive"
+				mode: "insensitive",
 			};
 		}
 
@@ -139,10 +147,52 @@ export const getPosts = async (req: Request, res: Response) => {
 
 		const hasMore = posts.length > limitNum;
 		const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
-		const nextCursor = hasMore && postsToReturn && postsToReturn.length > 0 ? postsToReturn[postsToReturn.length - 1]?.id : null;
+		const nextCursor =
+			hasMore && postsToReturn && postsToReturn.length > 0
+				? postsToReturn[postsToReturn.length - 1]?.id
+				: null;
+
+		const output = postsToReturn.map((p) => {
+			return {
+				id: p.id,
+				content: p.content,
+				imageUrls: p.imageUrls,
+				createdAt: p.createdAt,
+				updatedAt: p.updatedAt,
+				stats: {
+					comments: p._count.comments,
+					likes: p._count.likes,
+				},
+				author: {
+					...p.author,
+				},
+				comments: p.comments.map((c) => {
+					return {
+						id: c.id,
+						content: c.content,
+						createdAt: c.createdAt,
+						author: {
+							...c.author,
+						},
+					};
+				}),
+				likes: p.likes.map((l) => {
+					return {
+						user: {
+							uid: l.user.uid,
+							username: l.user.username,
+						},
+					};
+				}),
+				postType: p.postType,
+				liveVideoUrl: p.liveVideoUrl,
+				privacy: p.privacy,
+			};
+		});
 
 		res.json({
-			posts: postsToReturn,
+			status: "ok",
+			posts: output,
 			nextCursor,
 			hasMore,
 			limit: limitNum,
@@ -210,7 +260,43 @@ export const getPost = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "Post not found" });
 		}
 
-		res.json(post);
+		const output = {
+			id: post.id,
+			content: post.content,
+			imageUrls: post.imageUrls,
+			createdAt: post.createdAt,
+			updatedAt: post.updatedAt,
+			stats: {
+				comments: post._count.comments,
+				likes: post._count.likes,
+			},
+			author: {
+				...post.author,
+			},
+			comments: post.comments.map((c) => {
+				return {
+					id: c.id,
+					content: c.content,
+					createdAt: c.createdAt,
+					author: {
+						...c.author,
+					},
+				};
+			}),
+			likes: post.likes.map((l) => {
+				return {
+					user: {
+						uid: l.user.uid,
+						username: l.user.username,
+					},
+				};
+			}),
+			postType: post.postType,
+			liveVideoUrl: post.liveVideoUrl,
+			privacy: post.privacy,
+		};
+
+		res.json({ status: "ok", post: output });
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching post" });
 	}
@@ -220,7 +306,8 @@ export const getPost = async (req: Request, res: Response) => {
 export const createPost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
-		const { content, imageUrls, liveVideoUrl, postType } = CreatePostSchema.parse(req.body);
+		const { content, imageUrls, liveVideoUrl, postType, privacy } =
+			CreatePostSchema.parse(req.body);
 
 		const post = await prisma.post.create({
 			data: {
@@ -229,6 +316,7 @@ export const createPost = async (req: Request, res: Response) => {
 				liveVideoUrl: liveVideoUrl || null,
 				postType: postType || "text",
 				authorId: authUser.uid,
+				privacy: privacy || "public",
 			},
 			include: {
 				author: {
@@ -252,7 +340,9 @@ export const createPost = async (req: Request, res: Response) => {
 		res.status(201).json(post);
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error creating post" });
 	}
@@ -278,15 +368,26 @@ export const updatePost = async (req: Request, res: Response) => {
 		}
 
 		if (existingPost.authorId !== authUser.uid) {
-			return res.status(403).json({ message: "Not authorized to update this post" });
+			return res
+				.status(403)
+				.json({ message: "Not authorized to update this post" });
 		}
 
 		// Filter out undefined values to match Prisma's exact optional property types
-		const updateData: { content?: string | null; imageUrls?: string[]; liveVideoUrl?: string | null; postType?: "text" | "live_video" } = {};
+		const updateData: {
+			content?: string | null;
+			imageUrls?: string[];
+			liveVideoUrl?: string | null;
+			postType?: "text" | "live_video";
+			privacy?: "public" | "private" | "followers";
+		} = {};
 		if (data.content !== undefined) updateData.content = data.content;
 		if (data.imageUrls !== undefined) updateData.imageUrls = data.imageUrls;
-		if (data.liveVideoUrl !== undefined) updateData.liveVideoUrl = data.liveVideoUrl;
+		if (data.liveVideoUrl !== undefined)
+			updateData.liveVideoUrl = data.liveVideoUrl;
 		if (data.postType !== undefined) updateData.postType = data.postType;
+
+		if (data.privacy !== undefined) updateData.privacy = data.privacy;
 
 		const post = await prisma.post.update({
 			where: { id },
@@ -313,7 +414,9 @@ export const updatePost = async (req: Request, res: Response) => {
 		res.json(post);
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error updating post" });
 	}
@@ -337,7 +440,9 @@ export const deletePost = async (req: Request, res: Response) => {
 		}
 
 		if (existingPost.authorId !== authUser.uid) {
-			return res.status(403).json({ message: "Not authorized to delete this post" });
+			return res
+				.status(403)
+				.json({ message: "Not authorized to delete this post" });
 		}
 
 		await prisma.post.delete({
