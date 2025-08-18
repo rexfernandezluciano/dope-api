@@ -12,6 +12,7 @@ import {
 	trackPostView,
 } from "../controllers/post.controller";
 import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
+import { verifyAppCheck } from "../middleware/firebase.middleware";
 
 const router = Router();
 
@@ -22,9 +23,9 @@ router.get("/:id", optionalAuth, getPost);
 router.post("/:id/view", trackPostView);
 
 // Authenticated routes
-router.post("/", requireAuth, createPost);
-router.put("/:id", requireAuth, updatePost);
-router.delete("/:id", requireAuth, deletePost);
-router.post("/:id/like", requireAuth, toggleLike);
+router.post("/", requireAuth, verifyAppCheck, createPost);
+router.put("/:id", requireAuth, verifyAppCheck, updatePost);
+router.delete("/:id", requireAuth, verifyAppCheck, deletePost);
+router.post("/:id/like", requireAuth, verifyAppCheck, toggleLike);
 
 export default router;

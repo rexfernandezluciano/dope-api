@@ -10,14 +10,15 @@ import {
 	me,
 } from "../controllers/auth.controller";
 import { requireAuth } from "../middleware/auth.middleware";
+import { verifyAppCheck } from "../middleware/firebase.middleware";
 
 const router = Router();
 
-router.post("/register", register);
-router.post("/verify-email", verifyEmail);
-router.post("/resend-code", resendCode);
-router.post("/login", login);
-router.post("/google", googleLogin);
-router.get("/me", requireAuth, me);
+router.post("/register", verifyAppCheck, register);
+router.post("/verify-email", verifyAppCheck, verifyEmail);
+router.post("/resend-code", verifyAppCheck, resendCode);
+router.post("/login", verifyAppCheck, login);
+router.post("/google", verifyAppCheck, googleLogin);
+router.get("/me", requireAuth, verifyAppCheck, me);
 
 export default router;

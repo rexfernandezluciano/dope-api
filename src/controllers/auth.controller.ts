@@ -234,7 +234,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 			});
 		} else {
 			// If user doesn't exist, create a new user
-			let username = email.split("@")[0]; // Basic username generation
+			let username = email.split("@")[0] ?? ""; // Basic username generation
 			
 			// Ensure username is unique by checking if it exists
 			let existingUser = await prisma.user.findUnique({ where: { username } });

@@ -1,7 +1,7 @@
 /** @format */
 
 import { Request, Response } from "express";
-import { PrismaClient, User } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 
 const prisma = new PrismaClient();
@@ -663,9 +663,9 @@ export const trackPostView = async (req: Request, res: Response) => {
     const { id } = req.params;
     
     await prisma.postAnalytics.upsert({
-      where: { postId: id },
+      where: { postId: id ?? "" },
       update: { views: { increment: 1 } },
-      create: { postId: id, views: 1 },
+      create: { postId: id ?? "", views: 1 },
     });
 
     res.json({ message: "View tracked" });

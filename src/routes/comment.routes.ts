@@ -1,4 +1,3 @@
-
 /** @format */
 
 import { Router } from "express";
@@ -9,6 +8,7 @@ import {
 	deleteComment,
 } from "../controllers/comment.controller";
 import { requireAuth } from "../middleware/auth.middleware";
+import { verifyAppCheck } from "../middleware/firebase.middleware";
 
 const router = Router();
 
@@ -16,8 +16,8 @@ const router = Router();
 router.get("/post/:postId", getComments);
 
 // Authenticated routes
-router.post("/post/:postId", requireAuth, createComment);
-router.put("/:id", requireAuth, updateComment);
-router.delete("/:id", requireAuth, deleteComment);
+router.post("/post/:postId", requireAuth, verifyAppCheck, createComment);
+router.put("/:id", requireAuth, verifyAppCheck, updateComment);
+router.delete("/:id", requireAuth, verifyAppCheck, deleteComment);
 
 export default router;

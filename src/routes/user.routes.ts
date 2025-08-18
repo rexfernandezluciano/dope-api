@@ -1,4 +1,3 @@
-
 /** @format */
 
 import { Router } from "express";
@@ -9,9 +8,9 @@ import {
 	toggleFollow,
 	getUserFollowers,
 	getUserFollowing,
-	createUser,
 } from "../controllers/user.controller";
 import { requireAuth } from "../middleware/auth.middleware";
+import { verifyAppCheck } from "../middleware/firebase.middleware";
 
 const router = Router();
 
@@ -20,10 +19,9 @@ router.get("/", getUsers);
 router.get("/:username", getUserByUsername);
 router.get("/:username/followers", getUserFollowers);
 router.get("/:username/following", getUserFollowing);
-router.post("/", createUser); // Legacy route
 
 // Authenticated routes
-router.put("/:username", requireAuth, updateUser);
-router.post("/:username/follow", requireAuth, toggleFollow);
+router.put("/:username", requireAuth, verifyAppCheck, updateUser);
+router.post("/:username/follow", requireAuth, verifyAppCheck, toggleFollow);
 
 export default router;
