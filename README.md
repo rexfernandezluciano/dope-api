@@ -1,4 +1,106 @@
 
+# Social Media API
+
+## Authentication
+
+#### Register
+```http
+POST /api/auth/register
+```
+
+**Body:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "username": "johndoe",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "User registered successfully. Please verify your email.",
+  "verificationId": "verification_uuid",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "hasVerifiedEmail": false,
+    "subscription": "free",
+    "nextBillingDate": null
+  }
+}
+```
+
+#### Google Login/Signup
+```http
+POST /api/auth/google
+```
+
+**Body:**
+```json
+{
+  "idToken": "google_id_token"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Google authentication successful",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe_abc123",
+    "email": "john@gmail.com",
+    "photoURL": "https://lh3.googleusercontent.com/...",
+    "hasBlueCheck": false,
+    "subscription": "free",
+    "nextBillingDate": null
+  },
+  "accessToken": "jwt_access_token",
+  "refreshToken": "jwt_refresh_token"
+}
+```
+
+#### Login
+```http
+POST /api/auth/login
+```
+
+**Body:**
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Login successful",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "hasVerifiedEmail": true,
+    "subscription": "premium",
+    "nextBillingDate": "2024-02-01T00:00:00.000Z"
+  },
+  "accessToken": "jwt_access_token",
+  "refreshToken": "jwt_refresh_token"
+}
+```
+
+## Posts
+
+
+
 # DOPE Network API
 
 A comprehensive social media API for the DOPE Network platform, built with Node.js, Express, TypeScript, and Prisma.
@@ -220,6 +322,74 @@ Authorization: Bearer <jwt_token>
   "imageUrls": ["https://example.com/image.jpg"], // optional
   "liveVideoUrl": "https://example.com/live-stream.m3u8", // required for live_video posts
   "postType": "text" // "text" | "live_video", defaults to "text"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "post_id",
+  "content": "Hello world!",
+  "imageUrls": ["https://example.com/image.jpg"],
+  "postType": "text",
+  "privacy": "public",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  },
+  "_count": {
+    "comments": 0,
+    "likes": 0
+  }
+}
+```
+
+#### Get Following Feed
+```http
+GET /api/posts/feed/following
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "posts": [
+    {
+      "id": "post_id",
+      "content": "Hello world!",
+      "imageUrls": [],
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "stats": {
+        "comments": 5,
+        "likes": 10,
+        "views": 100,
+        "shares": 3
+      },
+      "author": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false,
+        "isFollowedByCurrentUser": true
+      },
+      "comments": [],
+      "likes": [],
+      "postType": "text",
+      "liveVideoUrl": null,
+      "privacy": "public"
+    }
+  ],
+  "nextCursor": "next_post_id",
+  "hasMore": true,
+  "limit": 20
 }
 ```
 

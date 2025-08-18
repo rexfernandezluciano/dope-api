@@ -152,6 +152,17 @@ export const getPosts = async (req: Request, res: Response) => {
 				? postsToReturn[postsToReturn.length - 1]?.id
 				: null;
 
+		// Get current user's following list for isFollowedByCurrentUser check
+		const authUser = (req as any).user as { uid: string } | undefined;
+		let followingIds: string[] = [];
+		if (authUser) {
+			const following = await prisma.follow.findMany({
+				where: { followerId: authUser.uid },
+				select: { followingId: true },
+			});
+			followingIds = following.map(f => f.followingId);
+		}
+
 		const output = postsToReturn.map((p) => {
 			return {
 				id: p.id,
@@ -165,6 +176,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				},
 				author: {
 					...p.author,
+					isFollowedByCurrentUser: authUser ? followingIds.includes(p.author.uid) : false,
 				},
 				comments: p.comments.map((c) => {
 					return {
@@ -260,6 +272,19 @@ export const getPost = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "Post not found" });
 		}
 
+		// Check if current user follows the post author
+		const authUser = (req as any).user as { uid: string } | undefined;
+		let isFollowedByCurrentUser = false;
+		if (authUser) {
+			const follow = await prisma.follow.findFirst({
+				where: {
+					followerId: authUser.uid,
+					followingId: post.author.uid,
+				},
+			});
+			isFollowedByCurrentUser = !!follow;
+		}
+
 		const output = {
 			id: post.id,
 			content: post.content,
@@ -272,6 +297,7 @@ export const getPost = async (req: Request, res: Response) => {
 			},
 			author: {
 				...post.author,
+				isFollowedByCurrentUser,
 			},
 			comments: post.comments.map((c) => {
 				return {
@@ -498,4 +524,152 @@ export const toggleLike = async (req: Request, res: Response) => {
 	} catch (error) {
 		res.status(500).json({ error: "Error toggling like" });
 	}
+};
+
+
+
+// GET posts from users that current user follows
+export const getFollowingFeed = async (req: Request, res: Response) => {
+  try {
+    const authUser = (req as any).user as { uid: string };
+    const { limit = "20", cursor } = req.query;
+    const limitNum = Math.min(parseInt(limit as string), 100);
+
+    // Get users that current user follows
+    const following = await prisma.follow.findMany({
+      where: { followerId: authUser.uid },
+      select: { followingId: true },
+    });
+
+    const followingIds = following.map(f => f.followingId);
+
+    if (followingIds.length === 0) {
+      return res.json({ posts: [], nextCursor: null, hasMore: false });
+    }
+
+    const where: any = {
+      authorId: { in: followingIds },
+      privacy: { in: ["public", "followers"] },
+    };
+
+    if (cursor) {
+      where.id = { lt: cursor as string };
+    }
+
+    const posts = await prisma.post.findMany({
+      where,
+      take: limitNum + 1,
+      include: {
+        author: {
+          select: {
+            uid: true,
+            name: true,
+            username: true,
+            photoURL: true,
+            hasBlueCheck: true,
+          },
+        },
+        comments: {
+          take: 3,
+          include: {
+            author: {
+              select: {
+                uid: true,
+                name: true,
+                username: true,
+                photoURL: true,
+                hasBlueCheck: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        likes: {
+          include: {
+            user: {
+              select: {
+                uid: true,
+                username: true,
+              },
+            },
+          },
+        },
+        analytics: true,
+        _count: {
+          select: {
+            comments: true,
+            likes: true,
+          },
+        },
+      },
+      orderBy: [
+        { analytics: { views: "desc" } },
+        { createdAt: "desc" },
+      ],
+    });
+
+    const hasMore = posts.length > limitNum;
+    const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
+    const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1]?.id : null;
+
+    const output = postsToReturn.map((p) => ({
+      id: p.id,
+      content: p.content,
+      imageUrls: p.imageUrls,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      stats: {
+        comments: p._count.comments,
+        likes: p._count.likes,
+        views: p.analytics?.views || 0,
+        shares: p.analytics?.shares || 0,
+      },
+      author: {
+        ...p.author,
+        isFollowedByCurrentUser: true,
+      },
+      comments: p.comments.map((c) => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.createdAt,
+        author: c.author,
+      })),
+      likes: p.likes.map((l) => ({
+        user: {
+          uid: l.user.uid,
+          username: l.user.username,
+        },
+      })),
+      postType: p.postType,
+      liveVideoUrl: p.liveVideoUrl,
+      privacy: p.privacy,
+    }));
+
+    res.json({
+      status: "ok",
+      posts: output,
+      nextCursor,
+      hasMore,
+      limit: limitNum,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching following feed" });
+  }
+};
+
+// Track post view for analytics
+export const trackPostView = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.postAnalytics.upsert({
+      where: { postId: id },
+      update: { views: { increment: 1 } },
+      create: { postId: id, views: 1 },
+    });
+
+    res.json({ message: "View tracked" });
+  } catch (error) {
+    res.status(500).json({ error: "Error tracking view" });
+  }
 };

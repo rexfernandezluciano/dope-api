@@ -1,4 +1,3 @@
-
 /** @format */
 
 import { Router } from "express";
@@ -9,14 +8,18 @@ import {
 	updatePost,
 	deletePost,
 	toggleLike,
+	getFollowingFeed,
+	trackPostView,
 } from "../controllers/post.controller";
-import { requireAuth } from "../middleware/auth.middleware";
+import { authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
-router.get("/", getPosts);
-router.get("/:id", getPost);
+router.get("/", optionalAuth, getPosts);
+router.get("/feed/following", authenticateJWT, getFollowingFeed);
+router.get("/:id", optionalAuth, getPost);
+router.post("/:id/view", trackPostView);
 
 // Authenticated routes
 router.post("/", requireAuth, createPost);

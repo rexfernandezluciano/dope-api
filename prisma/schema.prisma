@@ -19,6 +19,7 @@ model User {
   bio               String?
   photoURL          String?
   subscription      Subscription @default(free)
+  nextBillingDate   DateTime?
   hasBlueCheck      Boolean @default(false)
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
@@ -47,6 +48,7 @@ model Post {
   authorId  String
   comments  Comment[]
   likes     Like[]
+  analytics PostAnalytics?
 }
 
 enum PostType {
@@ -112,6 +114,18 @@ enum Subscription {
   free
   premium
   pro
+}
+
+model PostAnalytics {
+  id        String   @id @default(cuid())
+  postId    String   @unique
+  views     Int      @default(0)
+  shares    Int      @default(0)
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id])
 }
 
 enum Privacy {

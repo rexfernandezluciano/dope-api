@@ -8,6 +8,7 @@ import { customAlphabet } from "nanoid";
 import { RegisterSchema, LoginSchema, VerifyEmailSchema, ResendCodeSchema } from "../utils/validate";
 import { sendVerificationEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
+import { OAuth2Client } from "google-auth-library"; // Import OAuth2Client
 
 const prisma = new PrismaClient();
 const makeCode = customAlphabet("0123456789", 6); // 6-digit numeric
@@ -25,6 +26,12 @@ const DEFAULT_PRIVACY = {
 	sharing: true,
 	chat: "public",
 };
+
+// Initialize Google OAuth2 client
+const googleClient = new OAuth2Client(
+	process.env.GOOGLE_CLIENT_ID,
+	process.env.GOOGLE_CLIENT_SECRET
+);
 
 export const register = async (req: Request, res: Response) => {
 	try {
@@ -75,7 +82,7 @@ export const register = async (req: Request, res: Response) => {
 
 		return res.status(201).json({
 			message: "Registered. Check your email for the verification code.",
-			verificationId,
+			verificationId, // Include verificationId in the response
 			uid: user.uid,
 		});
 	} catch (err: any) {
@@ -180,6 +187,95 @@ export const login = async (req: Request, res: Response) => {
 	} catch (err: any) {
 		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
 		return res.status(500).json({ message: "Login failed" });
+	}
+};
+
+// Google Sign-in Controller
+export const googleLogin = async (req: Request, res: Response) => {
+	try {
+		const { token: idToken } = req.body; // Get the ID token from the request body
+
+		// Verify the ID token
+		const ticket = await googleClient.verifyIdToken({
+			idToken: idToken,
+			audience: process.env.GOOGLE_CLIENT_ID,
+		});
+
+		const payload = ticket.getPayload();
+		if (!payload || !payload.email || !payload.name) {
+			return res.status(400).json({ message: "Invalid Google token" });
+		}
+
+		const { email, name, picture: photoURL } = payload;
+
+		// Check if user already exists
+		let user = await prisma.user.findUnique({ where: { email } });
+
+		if (user) {
+			// If user exists, log them in
+			const token = signToken({ uid: user.uid, email: user.email, username: user.username });
+			return res.json({
+				token,
+				user: {
+					uid: user.uid,
+					name: user.name,
+					email: user.email,
+					username: user.username,
+					photoURL: user.photoURL,
+					hasBlueCheck: user.hasBlueCheck,
+					subscription: user.subscription,
+					privacy: user.privacy,
+					hasVerifiedEmail: user.hasVerifiedEmail,
+				},
+			});
+		} else {
+			// If user doesn't exist, create a new user
+			const username = email.split("@")[0]; // Basic username generation
+			const subscription = "free" as Subscription; // Default to free subscription
+			const privacy = DEFAULT_PRIVACY;
+
+			user = await prisma.user.create({
+				data: {
+					name,
+					email,
+					username,
+					photoURL: photoURL || "",
+					password: "", // No password for Google login
+					subscription,
+					hasBlueCheck: computeBlueCheck(subscription),
+					privacy,
+					hasVerifiedEmail: true, // Email is verified by Google
+				},
+			});
+
+			await prisma.credential.create({
+				data: {
+					userId: user.uid,
+					provider: "google",
+					googleId: payload.sub, // Store Google user ID
+				},
+			});
+
+			const token = signToken({ uid: user.uid, email: user.email, username: user.username });
+			return res.status(201).json({
+				token,
+				user: {
+					uid: user.uid,
+					name: user.name,
+					email: user.email,
+					username: user.username,
+					photoURL: user.photoURL,
+					hasBlueCheck: user.hasBlueCheck,
+					subscription: user.subscription,
+					privacy: user.privacy,
+					hasVerifiedEmail: user.hasVerifiedEmail,
+				},
+			});
+		}
+	} catch (err: any) {
+		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		console.error("Google login error:", err); // Log the error for debugging
+		return res.status(500).json({ message: "Google login failed" });
 	}
 };
 
