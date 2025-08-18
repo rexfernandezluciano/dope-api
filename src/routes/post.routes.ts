@@ -11,7 +11,7 @@ import {
 	getFollowingFeed,
 	trackPostView,
 } from "../controllers/post.controller";
-import { authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
+import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
