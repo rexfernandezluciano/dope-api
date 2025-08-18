@@ -1,27 +1,71 @@
+# DOPE Network API Documentation
 
-# Social Media API
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Authentication](#authentication)
+  - [Register User](#register-user)
+  - [Google Login/Signup](#google-loginsignup)
+  - [Email Login](#email-login)
+  - [Verify Email](#verify-email)
+  - [Get Current User](#get-current-user)
+- [Posts](#posts)
+  - [Create Post](#create-post)
+  - [Get Posts](#get-posts)
+  - [Get Following Feed](#get-following-feed)
+- [Comments](#comments)
+  - [Create Comment](#create-comment)
+  - [Get Comments](#get-comments)
+- [Users](#users)
+  - [Get User Profile](#get-user-profile)
+  - [Follow User](#follow-user)
+- [Data Models](#data-models)
+- [Error Handling](#error-handling)
+- [Authentication](#authentication-1)
+
+## Overview
+A comprehensive social media API for the DOPE Network platform supporting user profiles, posts, comments, and social interactions.
+
+## Features
+- User registration and authentication
+- Text and live video posts
+- Comments and likes system
+- User following system
+- Email verification
+- Subscription tiers (Free, Premium, Pro)
+- Verified badges (Blue Check)
 
 ## Authentication
 
-#### Register
+### Register User
 ```http
 POST /api/auth/register
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
   "name": "John Doe",
   "email": "john@example.com",
   "username": "johndoe",
-  "password": "password123"
+  "password": "password123",
+  "photoURL": "https://example.com/photo.jpg",
+  "subscription": "free",
+  "privacy": {
+    "profile": "public",
+    "comments": "public",
+    "sharing": true,
+    "chat": "public"
+  }
 }
 ```
 
-**Response:**
+Success Response:
+
 ```json
 {
-  "message": "User registered successfully. Please verify your email.",
+  "message": "User registered successfully",
   "verificationId": "verification_uuid",
   "user": {
     "uid": "user_id",
@@ -29,25 +73,27 @@ POST /api/auth/register
     "username": "johndoe",
     "email": "john@example.com",
     "hasVerifiedEmail": false,
-    "subscription": "free",
-    "nextBillingDate": null
+    "subscription": "free"
   }
 }
 ```
 
-#### Google Login/Signup
+Google Login/Signup
+
 ```http
 POST /api/auth/google
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
   "idToken": "google_id_token"
 }
 ```
 
-**Response:**
+Success Response:
+
 ```json
 {
   "message": "Google authentication successful",
@@ -58,20 +104,21 @@ POST /api/auth/google
     "email": "john@gmail.com",
     "photoURL": "https://lh3.googleusercontent.com/...",
     "hasBlueCheck": false,
-    "subscription": "free",
-    "nextBillingDate": null
+    "subscription": "free"
   },
-  "accessToken": "jwt_access_token",
+  "accessToken": "jwt_token",
   "refreshToken": "jwt_refresh_token"
 }
 ```
 
-#### Login
+Email Login
+
 ```http
 POST /api/auth/login
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
   "email": "john@example.com",
@@ -79,7 +126,8 @@ POST /api/auth/login
 }
 ```
 
-**Response:**
+Success Response:
+
 ```json
 {
   "message": "Login successful",
@@ -89,110 +137,21 @@ POST /api/auth/login
     "username": "johndoe",
     "email": "john@example.com",
     "hasVerifiedEmail": true,
-    "subscription": "premium",
-    "nextBillingDate": "2024-02-01T00:00:00.000Z"
+    "subscription": "premium"
   },
-  "accessToken": "jwt_access_token",
+  "accessToken": "jwt_token",
   "refreshToken": "jwt_refresh_token"
 }
 ```
 
-## Posts
+Verify Email
 
-
-
-# DOPE Network API
-
-A comprehensive social media API for the DOPE Network platform, built with Node.js, Express, TypeScript, and Prisma.
-
-## Features
-
-- **User Management**: Registration, authentication, profile management
-- **Posts**: Create text and live video posts with optional images
-- **Comments**: Comment on posts with full CRUD operations
-- **Likes**: Like/unlike posts
-- **Follow System**: Follow/unfollow users
-- **Email Verification**: Secure email verification system
-- **Subscription Tiers**: Free, Premium, and Pro subscriptions
-- **Blue Check Verification**: Verified badges for premium users
-
-## Tech Stack
-
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Express.js
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: JWT tokens
-- **Validation**: Zod schemas
-- **Email**: Custom mailer utility
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database
-- npm or yarn
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Set up environment variables in `.env`:
-```env
-DATABASE_URL="your_postgresql_connection_string"
-JWT_SECRET="your_jwt_secret"
-JWT_EXPIRES_IN="604800"
-```
-
-4. Run database migrations:
-```bash
-npm run migrate
-```
-
-5. Start the development server:
-```bash
-npm run dev
-```
-
-The API will be available at `http://localhost:5000`
-
-## API Endpoints
-
-### Authentication
-
-#### Register User
-```http
-POST /api/auth/register
-```
-
-**Body:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "username": "johndoe",
-  "password": "password123",
-  "photoURL": "https://example.com/photo.jpg",
-  "subscription": "free", // optional: "free" | "premium" | "pro"
-  "privacy": { // optional
-    "profile": "public",
-    "comments": "public",
-    "sharing": true,
-    "chat": "public"
-  }
-}
-```
-
-#### Verify Email
 ```http
 POST /api/auth/verify-email
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
   "email": "john@example.com",
@@ -201,453 +160,158 @@ POST /api/auth/verify-email
 }
 ```
 
-#### Resend Verification Code
-```http
-POST /api/auth/resend-code
-```
+Get Current User
 
-**Body:**
-```json
-{
-  "email": "john@example.com"
-}
-```
-
-#### Login
-```http
-POST /api/auth/login
-```
-
-**Body:**
-```json
-{
-  "email": "john@example.com",
-  "password": "password123"
-}
-```
-
-**Response:**
-```json
-{
-  "token": "jwt_token_here",
-  "user": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "email": "john@example.com",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false,
-    "subscription": "free",
-    "privacy": {},
-    "hasVerifiedEmail": true
-  }
-}
-```
-
-#### Get Current User
 ```http
 GET /api/auth/me
 Authorization: Bearer <jwt_token>
 ```
 
-### Posts
+Posts
 
-#### Get All Posts
-```http
-GET /api/posts
-```
+Create Post
 
-**Query Parameters:**
-- `limit` (optional): Number of posts to return (max 100, default 20)
-- `cursor` (optional): Cursor for pagination (post ID)
-- `author` (optional): Filter by author username
-- `postType` (optional): Filter by post type ("text" | "live_video")
-- `hasImages` (optional): Filter posts with images ("true" | "false")
-- `hasLiveVideo` (optional): Filter posts with live video ("true" | "false")
-- `search` (optional): Search in post content
-
-**Example:**
-```http
-GET /api/posts?limit=10&author=johndoe&postType=text&hasImages=true&search=hello
-```
-
-**Response:**
-```json
-{
-  "posts": [
-    {
-      "id": "post_id",
-      "content": "Hello world!",
-      "imageUrls": ["https://example.com/image.jpg"],
-      "liveVideoUrl": null,
-      "postType": "text",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z",
-      "author": {
-        "uid": "user_id",
-        "name": "John Doe",
-        "username": "johndoe",
-        "photoURL": "https://example.com/photo.jpg",
-        "hasBlueCheck": false
-      },
-      "comments": [], // First 3 comments only
-      "likes": [],
-      "stats": {
-        "comments": 5,
-        "likes": 10
-      }
-    }
-  ],
-  "nextCursor": "next_post_id",
-  "hasMore": true,
-  "limit": 10
-}
-```
-
-#### Get Single Post
-```http
-GET /api/posts/:id
-```
-
-#### Create Post
 ```http
 POST /api/posts
 Authorization: Bearer <jwt_token>
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
-  "content": "Hello world!", // optional for live_video posts
-  "imageUrls": ["https://example.com/image.jpg"], // optional
-  "liveVideoUrl": "https://example.com/live-stream.m3u8", // required for live_video posts
-  "postType": "text" // "text" | "live_video", defaults to "text"
+  "content": "Hello world!",
+  "imageUrls": ["https://example.com/image.jpg"],
+  "liveVideoUrl": "https://example.com/live-stream.m3u8",
+  "postType": "text"
 }
 ```
 
-**Response:**
+Success Response:
+
 ```json
 {
   "id": "post_id",
   "content": "Hello world!",
   "imageUrls": ["https://example.com/image.jpg"],
   "postType": "text",
-  "privacy": "public",
-  "createdAt": "2024-01-01T00:00:00.000Z",
-  "updatedAt": "2024-01-01T00:00:00.000Z",
   "author": {
     "uid": "user_id",
     "name": "John Doe",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false
-  },
-  "_count": {
-    "comments": 0,
-    "likes": 0
+    "username": "johndoe"
   }
 }
 ```
 
-#### Get Following Feed
+Get Posts
+
+```http
+GET /api/posts
+```
+
+Query Parameters:
+
+· limit: Number of posts (default: 20)
+· cursor: Pagination cursor
+· author: Filter by username
+· postType: "text" or "live_video"
+· search: Search term
+
+Get Following Feed
+
 ```http
 GET /api/posts/feed/following
 Authorization: Bearer <jwt_token>
 ```
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "posts": [
-    {
-      "id": "post_id",
-      "content": "Hello world!",
-      "imageUrls": [],
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z",
-      "stats": {
-        "comments": 5,
-        "likes": 10,
-        "views": 100,
-        "shares": 3
-      },
-      "author": {
-        "uid": "user_id",
-        "name": "John Doe",
-        "username": "johndoe",
-        "photoURL": "https://example.com/photo.jpg",
-        "hasBlueCheck": false,
-        "isFollowedByCurrentUser": true
-      },
-      "comments": [],
-      "likes": [],
-      "postType": "text",
-      "liveVideoUrl": null,
-      "privacy": "public"
-    }
-  ],
-  "nextCursor": "next_post_id",
-  "hasMore": true,
-  "limit": 20
-}
-```
+Comments
 
-**Post Types:**
-- `text`: Regular text posts (require either content or images)
-- `live_video`: Live video posts (require liveVideoUrl)
+Create Comment
 
-#### Update Post
-```http
-PUT /api/posts/:id
-Authorization: Bearer <jwt_token>
-```
-
-**Body:**
-```json
-{
-  "content": "Updated content",
-  "imageUrls": ["https://example.com/new-image.jpg"],
-  "liveVideoUrl": "https://example.com/live-stream.m3u8",
-  "postType": "live_video"
-}
-```
-
-#### Delete Post
-```http
-DELETE /api/posts/:id
-Authorization: Bearer <jwt_token>
-```
-
-#### Like/Unlike Post
-```http
-POST /api/posts/:id/like
-Authorization: Bearer <jwt_token>
-```
-
-### Comments
-
-#### Get Comments for Post
-```http
-GET /api/comments/post/:postId
-```
-
-**Query Parameters:**
-- `limit` (optional): Number of comments to return (max 100, default 20)
-- `cursor` (optional): Cursor for pagination (comment ID)
-- `author` (optional): Filter by author username
-- `search` (optional): Search in comment content
-- `sortBy` (optional): Sort order ("asc" | "desc", default "desc")
-
-**Example:**
-```http
-GET /api/comments/post/post123?limit=10&author=johndoe&search=great&sortBy=asc
-```
-
-**Response:**
-```json
-{
-  "comments": [
-    {
-      "id": "comment_id",
-      "content": "Great post!",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "author": {
-        "uid": "user_id",
-        "name": "John Doe",
-        "username": "johndoe",
-        "photoURL": "https://example.com/photo.jpg",
-        "hasBlueCheck": false
-      }
-    }
-  ],
-  "nextCursor": "next_comment_id",
-  "hasMore": true,
-  "limit": 10,
-  "sortBy": "asc"
-}
-```
-
-#### Create Comment
 ```http
 POST /api/comments/post/:postId
 Authorization: Bearer <jwt_token>
 ```
 
-**Body:**
+Request Body:
+
 ```json
 {
   "content": "Great post!"
 }
 ```
 
-#### Update Comment
+Get Comments
+
 ```http
-PUT /api/comments/:id
-Authorization: Bearer <jwt_token>
+GET /api/comments/post/:postId
 ```
 
-**Body:**
-```json
-{
-  "content": "Updated comment"
-}
-```
+Query Parameters:
 
-#### Delete Comment
-```http
-DELETE /api/comments/:id
-Authorization: Bearer <jwt_token>
-```
+· limit: Number of comments (default: 20)
+· sortBy: "asc" or "desc"
 
-### Users
+Users
 
-#### Get All Users
-```http
-GET /api/users
-```
+Get User Profile
 
-#### Get User by Username
 ```http
 GET /api/users/:username
 ```
 
-#### Get User Followers
-```http
-GET /api/users/:username/followers
-```
+Follow User
 
-#### Get User Following
-```http
-GET /api/users/:username/following
-```
-
-#### Update User Profile
-```http
-PUT /api/users/:username
-Authorization: Bearer <jwt_token>
-```
-
-**Body:**
-```json
-{
-  "name": "Updated Name",
-  "bio": "Updated bio",
-  "photoURL": "https://example.com/new-photo.jpg",
-  "privacy": {
-    "profile": "private",
-    "comments": "followers",
-    "sharing": false,
-    "chat": "private"
-  }
-}
-```
-
-#### Follow/Unfollow User
 ```http
 POST /api/users/:username/follow
 Authorization: Bearer <jwt_token>
 ```
 
-## Data Models
+Data Models
 
-### User
-- `uid`: Unique identifier
-- `username`: Unique username
-- `email`: Unique email address
-- `name`: Display name
-- `bio`: User biography
-- `photoURL`: Profile picture URL
-- `subscription`: "free" | "premium" | "pro"
-- `hasBlueCheck`: Verification status
-- `privacy`: Privacy settings object
-- `hasVerifiedEmail`: Email verification status
+User
 
-### Post
-- `id`: Unique identifier
-- `content`: Post content (optional)
-- `imageUrls`: Array of image URLs (optional)
-- `liveVideoUrl`: Live video stream URL (required for live_video posts)
-- `postType`: "text" | "live_video"
-- `authorId`: Reference to user
-- `createdAt`: Creation timestamp
-- `updatedAt`: Last update timestamp
+```typescript
+interface User {
+  uid: string;
+  username: string;
+  email: string;
+  name: string;
+  photoURL?: string;
+  subscription: "free" | "premium" | "pro";
+  hasBlueCheck: boolean;
+  hasVerifiedEmail: boolean;
+}
+```
 
-### Comment
-- `id`: Unique identifier
-- `content`: Comment content
-- `postId`: Reference to post
-- `authorId`: Reference to user
-- `createdAt`: Creation timestamp
-- `updatedAt`: Last update timestamp
+Post
 
-## Authentication
+```typescript
+interface Post {
+  id: string;
+  content?: string;
+  imageUrls: string[];
+  liveVideoUrl?: string;
+  postType: "text" | "live_video";
+  authorId: string;
+}
+```
 
-The API uses JWT (JSON Web Tokens) for authentication. Include the token in the Authorization header:
+Error Handling
+
+Standard HTTP status codes with JSON response:
+
+```json
+{
+  "message": "Error description",
+  "errors": ["validation_error_details"]
+}
+```
+
+Authentication
+
+Include JWT in Authorization header:
 
 ```
 Authorization: Bearer <your_jwt_token>
 ```
-
-Tokens expire after 7 days by default.
-
-## Subscription Tiers
-
-- **Free**: Basic access
-- **Premium**: Blue check verification + enhanced features
-- **Pro**: Blue check verification + premium features + advanced tools
-
-Premium and Pro users automatically receive blue check verification.
-
-## Error Responses
-
-The API returns standard HTTP status codes:
-
-- `200`: Success
-- `201`: Created
-- `400`: Bad Request (validation errors)
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `500`: Internal Server Error
-
-Error response format:
-```json
-{
-  "message": "Error description",
-  "errors": [] // Validation errors (if applicable)
-}
-```
-
-## Development
-
-### Scripts
-
-- `npm run dev`: Start development server with hot reload
-- `npm run build`: Build for production
-- `npm start`: Start production server
-- `npm run migrate`: Run database migrations
-
-### Project Structure
-
-```
-src/
-├── controllers/     # Route handlers
-├── middleware/      # Express middleware
-├── routes/         # Route definitions
-├── types/          # TypeScript type definitions
-├── utils/          # Utility functions
-└── index.ts        # Application entry point
-```
-
-## License
-
-Apache-2.0
-
-## Author
-
-Rex Luciano
-
-## Repository
-
-[GitHub Repository](https://github.com/rexfernandezluciano/dope-api)
