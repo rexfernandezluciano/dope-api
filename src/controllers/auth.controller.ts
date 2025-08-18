@@ -234,7 +234,17 @@ export const googleLogin = async (req: Request, res: Response) => {
 			});
 		} else {
 			// If user doesn't exist, create a new user
-			const username = email.split("@")[0]; // Basic username generation
+			let username = email.split("@")[0]; // Basic username generation
+			
+			// Ensure username is unique by checking if it exists
+			let existingUser = await prisma.user.findUnique({ where: { username } });
+			let counter = 1;
+			while (existingUser) {
+				username = `${email.split("@")[0]}_${counter}`;
+				existingUser = await prisma.user.findUnique({ where: { username } });
+				counter++;
+			}
+			
 			const subscription = "free" as Subscription; // Default to free subscription
 			const privacy = DEFAULT_PRIVACY;
 

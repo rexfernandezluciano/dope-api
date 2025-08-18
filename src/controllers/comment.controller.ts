@@ -15,6 +15,10 @@ const UpdateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
 });
 
+const UpdateCommentSchema = z.object({
+	content: z.string().min(1).max(500),
+});
+
 // GET comments for a post with pagination and filtering
 export const getComments = async (req: Request, res: Response) => {
 	try {
