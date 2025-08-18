@@ -361,6 +361,7 @@ export const me = async (req: Request, res: Response) => {
 		uid: user.uid,
 		name: user.name,
 		email: user.email,
+		bio: user.bio,
 		username: user.username,
 		photoURL: user.photoURL,
 		hasBlueCheck: user.hasBlueCheck,
