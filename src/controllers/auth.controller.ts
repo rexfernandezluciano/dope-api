@@ -166,7 +166,9 @@ export const resendCode = async (req: Request, res: Response) => {
 			return res
 				.status(400)
 				.json({ message: "Invalid payload", errors: err.errors });
-		return res.status(500).json({ message: "Failed to resend code" });
+		return res
+			.status(500)
+			.json({ message: "Failed to resend code", error: err.message });
 	}
 };
 
