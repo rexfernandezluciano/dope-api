@@ -4,13 +4,13 @@
 import nodemailer from "nodemailer";
 
 // Brevo SMTP configuration
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
 	host: "smtp-relay.brevo.com",
 	port: 587,
-	secure: false, // true for 465, false for other ports
+	secure: false,
 	auth: {
-		user: "rexluciano@yahoo.com",
-		pass: "2hMnctfK07xa1dsq",
+		user: process.env.BREVO_EMAIL_ADDRESS,
+		pass: process.env.BREVO_EMAIL_PASSWORD,
 	},
 });
 
@@ -38,7 +38,7 @@ export async function sendVerificationEmail(to: string, code: string, verificati
 					</p>
 					<hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 					<p style="color: #999; font-size: 12px; text-align: center;">
-						© 2024 DOPE Network. All rights reserved.
+						© 2025 DOPE Network. All rights reserved.
 					</p>
 				</div>
 			`,
