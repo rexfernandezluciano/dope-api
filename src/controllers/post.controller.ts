@@ -133,6 +133,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 					},
 				},
+				analytics: true,
 				_count: {
 					select: {
 						comments: true,
@@ -196,6 +197,10 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 					};
 				}),
+				analytics: {
+					views: p.analytics?.views || 0,
+					shares: p.analytics?.shares || 0
+				},
 				postType: p.postType,
 				liveVideoUrl: p.liveVideoUrl,
 				privacy: p.privacy,
@@ -259,6 +264,7 @@ export const getPost = async (req: Request, res: Response) => {
 						},
 					},
 				},
+				analytics: true,
 				_count: {
 					select: {
 						comments: true,
@@ -317,6 +323,10 @@ export const getPost = async (req: Request, res: Response) => {
 					},
 				};
 			}),
+			analytics: {
+					views: post.analytics?.views || 0,
+					shares: post.analytics?.shares || 0
+				},
 			postType: post.postType,
 			liveVideoUrl: post.liveVideoUrl,
 			privacy: post.privacy,

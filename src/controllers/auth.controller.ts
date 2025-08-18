@@ -5,14 +5,22 @@ import { PrismaClient, Subscription, Credential } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import { customAlphabet } from "nanoid";
-import { RegisterSchema, LoginSchema, VerifyEmailSchema, ResendCodeSchema } from "../utils/validate";
+import {
+	RegisterSchema,
+	LoginSchema,
+	VerifyEmailSchema,
+	ResendCodeSchema,
+} from "../utils/validate";
 import { sendVerificationEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library"; // Import OAuth2Client
 
 const prisma = new PrismaClient();
 const makeCode = customAlphabet("0123456789", 6); // 6-digit numeric
-const makeVerificationId = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
+const makeVerificationId = customAlphabet(
+	"abcdefghijklmnopqrstuvwxyz0123456789",
+	24,
+);
 
 // Helper: decide BlueCheck from subscription
 function computeBlueCheck(sub: Subscription) {
@@ -30,7 +38,7 @@ const DEFAULT_PRIVACY = {
 // Initialize Google OAuth2 client
 const googleClient = new OAuth2Client(
 	process.env.GOOGLE_CLIENT_ID,
-	process.env.GOOGLE_CLIENT_SECRET
+	process.env.GOOGLE_CLIENT_SECRET,
 );
 
 export const register = async (req: Request, res: Response) => {
@@ -41,10 +49,12 @@ export const register = async (req: Request, res: Response) => {
 		const privacy = parsed.privacy ?? DEFAULT_PRIVACY;
 
 		const exists = await prisma.user.findUnique({ where: { email } });
-		if (exists) return res.status(409).json({ message: "Email already registered" });
+		if (exists)
+			return res.status(409).json({ message: "Email already registered" });
 
 		const unameExists = await prisma.user.findUnique({ where: { username } });
-		if (unameExists) return res.status(409).json({ message: "Username already taken" });
+		if (unameExists)
+			return res.status(409).json({ message: "Username already taken" });
 
 		const passwordHash = await bcrypt.hash(password, 12);
 
@@ -82,11 +92,14 @@ export const register = async (req: Request, res: Response) => {
 
 		return res.status(201).json({
 			message: "Registered. Check your email for the verification code.",
-			verificationId, // Include verificationId in the response
+			verificationId,
 			uid: user.uid,
 		});
 	} catch (err: any) {
-		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		if (err.name === "ZodError")
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		return res.status(500).json({ message: "Registration failed" });
 	}
 };
@@ -117,7 +130,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
 		return res.json({ message: "Email verified successfully" });
 	} catch (err: any) {
-		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		if (err.name === "ZodError")
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		return res.status(500).json({ message: "Verification failed" });
 	}
 };
@@ -127,7 +143,8 @@ export const resendCode = async (req: Request, res: Response) => {
 		const { email } = ResendCodeSchema.parse(req.body);
 		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user) return res.status(404).json({ message: "User not found" });
-		if (user.hasVerifiedEmail) return res.status(400).json({ message: "Email already verified" });
+		if (user.hasVerifiedEmail)
+			return res.status(400).json({ message: "Email already verified" });
 
 		// Invalidate old codes
 		await prisma.email.deleteMany({ where: { email } });
@@ -145,7 +162,10 @@ export const resendCode = async (req: Request, res: Response) => {
 
 		return res.json({ message: "Verification code resent", verificationId });
 	} catch (err: any) {
-		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		if (err.name === "ZodError")
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		return res.status(500).json({ message: "Failed to resend code" });
 	}
 };
@@ -154,11 +174,17 @@ export const login = async (req: Request, res: Response) => {
 	try {
 		const { email, password } = LoginSchema.parse(req.body);
 
-		const user = await prisma.user.findUnique({ where: { email }, include: { credentials: true } });
+		const user = await prisma.user.findUnique({
+			where: { email },
+			include: { credentials: true },
+		});
 		if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-		const cred = user.credentials.find((c: Credential) => c.provider === "local");
-		if (!cred?.passwordHash) return res.status(401).json({ message: "Invalid credentials" });
+		const cred = user.credentials.find(
+			(c: Credential) => c.provider === "local",
+		);
+		if (!cred?.passwordHash)
+			return res.status(401).json({ message: "Invalid credentials" });
 
 		const ok = await bcrypt.compare(password, cred.passwordHash);
 		if (!ok) return res.status(401).json({ message: "Invalid credentials" });
@@ -168,7 +194,11 @@ export const login = async (req: Request, res: Response) => {
 			return res.status(403).json({ message: "Email not verified" });
 		}
 
-		const token = signToken({ uid: user.uid, email: user.email, username: user.username });
+		const token = signToken({
+			uid: user.uid,
+			email: user.email,
+			username: user.username,
+		});
 
 		return res.json({
 			token,
@@ -179,13 +209,21 @@ export const login = async (req: Request, res: Response) => {
 				username: user.username,
 				photoURL: user.photoURL,
 				hasBlueCheck: user.hasBlueCheck,
-				subscription: user.subscription,
+				membership: {
+					subscription: user.subscription,
+					nextBillingDate: user.nextBillingDate,
+				},
 				privacy: user.privacy,
 				hasVerifiedEmail: user.hasVerifiedEmail,
+				createdAt: user.createdAt,
+				updatedAt: user.updatedAt,
 			},
 		});
 	} catch (err: any) {
-		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		if (err.name === "ZodError")
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		return res.status(500).json({ message: "Login failed" });
 	}
 };
@@ -196,7 +234,9 @@ export const googleLogin = async (req: Request, res: Response) => {
 		const { token: idToken } = req.body; // Get the ID token from the request body
 
 		if (!process.env.GOOGLE_CLIENT_ID) {
-			return res.status(500).json({ message: "Google Client ID not configured" });
+			return res
+				.status(500)
+				.json({ message: "Google Client ID not configured" });
 		}
 
 		// Verify the ID token
@@ -217,7 +257,11 @@ export const googleLogin = async (req: Request, res: Response) => {
 
 		if (user) {
 			// If user exists, log them in
-			const token = signToken({ uid: user.uid, email: user.email, username: user.username });
+			const token = signToken({
+				uid: user.uid,
+				email: user.email,
+				username: user.username,
+			});
 			return res.json({
 				token,
 				user: {
@@ -227,15 +271,20 @@ export const googleLogin = async (req: Request, res: Response) => {
 					username: user.username,
 					photoURL: user.photoURL,
 					hasBlueCheck: user.hasBlueCheck,
-					subscription: user.subscription,
+					membership: {
+						subscription: user.subscription,
+						nextBillingDate: user.nextBillingDate,
+					},
 					privacy: user.privacy,
 					hasVerifiedEmail: user.hasVerifiedEmail,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
 				},
 			});
 		} else {
 			// If user doesn't exist, create a new user
 			let username = email.split("@")[0] ?? ""; // Basic username generation
-			
+
 			// Ensure username is unique by checking if it exists
 			let existingUser = await prisma.user.findUnique({ where: { username } });
 			let counter = 1;
@@ -244,7 +293,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 				existingUser = await prisma.user.findUnique({ where: { username } });
 				counter++;
 			}
-			
+
 			const subscription = "free" as Subscription; // Default to free subscription
 			const privacy = DEFAULT_PRIVACY;
 
@@ -269,7 +318,11 @@ export const googleLogin = async (req: Request, res: Response) => {
 				},
 			});
 
-			const token = signToken({ uid: user.uid, email: user.email, username: user.username });
+			const token = signToken({
+				uid: user.uid,
+				email: user.email,
+				username: user.username,
+			});
 			return res.status(201).json({
 				token,
 				user: {
@@ -279,14 +332,22 @@ export const googleLogin = async (req: Request, res: Response) => {
 					username: user.username,
 					photoURL: user.photoURL,
 					hasBlueCheck: user.hasBlueCheck,
-					subscription: user.subscription,
+					membership: {
+						subscription: user.subscription,
+						nextBillingDate: user.nextBillingDate,
+					},
 					privacy: user.privacy,
 					hasVerifiedEmail: user.hasVerifiedEmail,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
 				},
 			});
 		}
 	} catch (err: any) {
-		if (err.name === "ZodError") return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+		if (err.name === "ZodError")
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		console.error("Google login error:", err); // Log the error for debugging
 		return res.status(500).json({ message: "Google login failed" });
 	}
@@ -296,5 +357,21 @@ export const me = async (req: Request, res: Response) => {
 	const authUser = (req as any).user as { uid: string };
 	const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 	if (!user) return res.status(404).json({ message: "User not found" });
-	return res.json(user);
+	const output = {
+		uid: user.uid,
+		name: user.name,
+		email: user.email,
+		username: user.username,
+		photoURL: user.photoURL,
+		hasBlueCheck: user.hasBlueCheck,
+		membership: {
+			subscription: user.subscription,
+			nextBillingDate: user.nextBillingDate,
+		},
+		privacy: user.privacy,
+		hasVerifiedEmail: user.hasVerifiedEmail,
+		createdAt: user.createdAt,
+		updatedAt: user.updatedAt,
+	};
+	return res.json({ status: "ok", user: output });
 };
