@@ -15,7 +15,7 @@ export const verifyAppCheck = async (
   next: NextFunction,
 ) => {
   try {
-    const appCheckToken = req.headers["X-Firebase-AppCheck"] as string;
+    const appCheckToken = req.headers["x-firebase-appcheck"] as string;
 
     if (!appCheckToken) {
       return res.status(401).json({ error: "App Check token required" });
