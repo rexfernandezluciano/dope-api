@@ -195,6 +195,10 @@ export const googleLogin = async (req: Request, res: Response) => {
 	try {
 		const { token: idToken } = req.body; // Get the ID token from the request body
 
+		if (!process.env.GOOGLE_CLIENT_ID) {
+			return res.status(500).json({ message: "Google Client ID not configured" });
+		}
+
 		// Verify the ID token
 		const ticket = await googleClient.verifyIdToken({
 			idToken: idToken,
@@ -252,7 +256,6 @@ export const googleLogin = async (req: Request, res: Response) => {
 				data: {
 					userId: user.uid,
 					provider: "google",
-					googleId: payload.sub, // Store Google user ID
 				},
 			});
 
