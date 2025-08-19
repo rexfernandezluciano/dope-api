@@ -34,7 +34,7 @@ export async function sendVerificationEmail(to: string, code: string, verificati
 						This code will expire in 15 minutes. If you didn't request this verification, please ignore this email.
 					</p>
 					<p style="color: #666; font-size: 14px;">
-						Verification ID: <code>${verificationId}</code>
+						Verification Link: <a href="https://www.dopp.eu.org/auth/verify/${verificationId}?code=${code}">https://www.dopp.eu.org/auth/verify/${verificationId}?code=${code}</a>
 					</p>
 					<hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
 					<p style="color: #999; font-size: 12px; text-align: center;">
@@ -51,7 +51,7 @@ export async function sendVerificationEmail(to: string, code: string, verificati
 				
 				This code will expire in 15 minutes. If you didn't request this verification, please ignore this email.
 				
-				Verification ID: ${verificationId}
+				Verification Link: https://dopp.eu.org/auth/verify/${verificationId}?code=${code}
 			`,
 		};
 
