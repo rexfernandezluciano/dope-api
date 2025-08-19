@@ -381,8 +381,15 @@ export const me = async (req: Request, res: Response) => {
 
 export const validateVerificationId = async (req: Request, res: Response) => {
 	const { verificationId } = req.params;
+
+	if (!verificationId) {
+		return res.status(400).json({
+			message: "Verification ID is required",
+		});
+	}
+
 	const record = await prisma.email.findUnique({
-		where: { verificationId: verificationId ?? "" },
+		where: { verificationId },
 	});
 
 	if (!record) {
