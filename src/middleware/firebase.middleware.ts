@@ -4,8 +4,8 @@ import { Request, Response, NextFunction } from "express";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAppCheck } from "firebase-admin/app-check";
 
-// Initialize Firebase Admin (you'll need to add your service account key)
-const firebaseApp = initializeApp({
+// Initialize Firebase Admin
+initializeApp({
   credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!)),
 });
 

@@ -9,6 +9,11 @@ export interface PrivacySettings {
 
 export type Subscription = "free" | "premium" | "pro";
 
+export interface Membership {
+	subscription: Subscription;
+	nextBillingDate?: Date;
+}
+
 export interface User {
 	uid: string;
 	name: string;
@@ -16,7 +21,7 @@ export interface User {
 	username: string;
 	photoURL: string;
 	hasBlueCheck: boolean;
-	subscription: Subscription;
+	membership: Membership;
 	privacy: PrivacySettings;
 	hasVerifiedEmail: boolean;
 }
