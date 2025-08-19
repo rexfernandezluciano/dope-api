@@ -9,13 +9,13 @@ import {
 	getUserFollowers,
 	getUserFollowing,
 } from "../controllers/user.controller";
-import { requireAuth } from "../middleware/auth.middleware";
+import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
-router.get("/", getUsers);
-router.get("/:username", getUserByUsername);
+router.get("/", optionalAuth, getUsers);
+router.get("/:username", optionalAuth, getUserByUsername);
 router.get("/:username/followers", getUserFollowers);
 router.get("/:username/following", getUserFollowing);
 

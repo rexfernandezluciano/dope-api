@@ -46,6 +46,17 @@ export const getUsers = async (req: Request, res: Response) => {
 			},
 		});
 
+		// Get current user's following list for isFollowedByCurrentUser check
+		const authUser = (req as any).user as { uid: string } | undefined;
+		let followingIds: string[] = [];
+		if (authUser) {
+			const following = await prisma.follow.findMany({
+				where: { followerId: authUser.uid },
+				select: { followingId: true },
+			});
+			followingIds = following.map((f) => f.followingId);
+		}
+
 		const userList = users.map((i) => {
 			const user = {
 				uid: i.uid,
@@ -54,13 +65,18 @@ export const getUsers = async (req: Request, res: Response) => {
 				bio: i.bio,
 				photoURL: i.photoURL,
 				hasBlueCheck: i.hasBlueCheck,
-				subscription: i.subscription,
+				membership: {
+					subscription: i.subscription,
+				},
 				createdAt: i.createdAt,
 				stats: {
 					posts: i._count.posts,
 					followers: i._count.followers,
 					following: i._count.following,
 				},
+				isFollowedByCurrentUser: authUser
+					? followingIds.includes(i.uid)
+					: false,
 			};
 			return user;
 		});
@@ -137,6 +153,17 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "User not found" });
 		}
 
+		// Get current user's following list for isFollowedByCurrentUser check
+		const authUser = (req as any).user as { uid: string } | undefined;
+		let followingIds: string[] = [];
+		if (authUser) {
+			const following = await prisma.follow.findMany({
+				where: { followerId: authUser.uid },
+				select: { followingId: true },
+			});
+			followingIds = following.map((f) => f.followingId);
+		}
+
 		const output = {
 			uid: user.uid,
 			name: user.name,
@@ -144,7 +171,9 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			bio: user.bio,
 			photoURL: user.photoURL,
 			hasBlueCheck: user.hasBlueCheck,
-			subscription: user.subscription,
+			membership: {
+				subscription: user.subscription,
+			},
 			createdAt: user.createdAt,
 			posts: user.posts.map((p) => {
 				return {
@@ -184,6 +213,9 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				followers: user._count.followers,
 				following: user._count.following,
 			},
+			isFollowedByCurrentUser: authUser
+				? followingIds.includes(user.uid)
+				: false,
 		};
 
 		res.json({ status: "ok", user: output });
@@ -331,7 +363,17 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.json(followers.map((f) => f.follower));
+		const userFollowers = followers.map((f) => {
+			return {
+				uid: f.follower.uid,
+				name: f.follower.name,
+				username: f.follower.username,
+				photoURL: f.follower.photoURL,
+				hasBlueCheck: f.follower.hasBlueCheck,
+			};
+		});
+
+		res.json({ status: "ok", followers: userFollowers });
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching followers" });
 	}
@@ -369,40 +411,18 @@ export const getUserFollowing = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.json(following.map((f) => f.following));
-	} catch (error) {
-		res.status(500).json({ error: "Error fetching following" });
-	}
-};
-
-// CREATE user (legacy function, keeping for compatibility)
-export const createUser = async (req: Request, res: Response) => {
-	try {
-		const { name, email, username, photoURL, subscription, privacy } = req.body;
-
-		if (!name || !email || !username || !photoURL) {
-			return res.status(400).json({ message: "Missing required fields" });
-		}
-
-		const newUser = await prisma.user.create({
-			data: {
-				name,
-				email,
-				username,
-				password: "temp_password", // Legacy function - consider requiring password in request
-				photoURL,
-				subscription: (subscription as Subscription) || "free",
-				privacy: privacy || {
-					profile: "public",
-					comments: "public",
-					sharing: true,
-					chat: "public",
-				},
-			},
+		const userFollowings = following.map((f) => {
+			return {
+				uid: f.following.uid,
+				name: f.following.name,
+				username: f.following.username,
+				photoURL: f.following.photoURL,
+				hasBlueCheck: f.following.hasBlueCheck,
+			};
 		});
 
-		res.status(201).json(newUser);
+		res.json({ status: "ok", following: userFollowings });
 	} catch (error) {
-		res.status(500).json({ error: "Error creating user" });
+		res.status(500).json({ error: "Error fetching following" });
 	}
 };
