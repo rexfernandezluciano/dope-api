@@ -378,3 +378,28 @@ export const me = async (req: Request, res: Response) => {
 	};
 	return res.json({ status: "ok", user: output });
 };
+
+export const validateVerificationId = async (req: Request, res: Response) => {
+	const { verificationId } = req.params;
+	const record = await prisma.email.findUnique({
+		where: { verificationId: verificationId ?? "" },
+	});
+
+	if (!record) {
+		return res.status(404).json({
+			message: "Verification ID not found",
+		});
+	}
+
+	const isExpired = dayjs(record.expireAt).isBefore(dayjs());
+
+	if (isExpired)
+		return res.status(400).json({
+			message: "Verification code expired",
+		});
+
+	return res.json({
+		message: "Verification ID is valid",
+		email: record.email,
+	});
+};
