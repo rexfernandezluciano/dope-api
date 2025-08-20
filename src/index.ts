@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5000;
 // CORS configuration to allow all requests from any host
 app.use(
 	cors({
-		origin: "*",
+		origin: true,
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: [
@@ -25,16 +25,26 @@ app.use(
 			"X-CSRF-Token",
 			"X-Requested-With",
 			"Accept",
-			"Access-Control-Allow-Origin",
-			"Access-Control-Allow-Methods",
-			"Access-Control-Allow-Headers",
-			"Access-Control-Allow-Credentials",
+			"Origin",
+			"X-Firebase-AppCheck",
 		],
+		exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+		preflightContinue: false,
+		optionsSuccessStatus: 204,
 	}),
 );
 
 app.use(express.json());
 app.set("json spaces", 2);
+
+// Handle preflight requests
+app.options("*", (req: Request, res: Response) => {
+	res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+	res.header("Access-Control-Allow-Credentials", "true");
+	res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+	res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Firebase-AppCheck");
+	res.sendStatus(204);
+});
 
 app.get("/", (req: Request, res: Response) => {
 	res.json({ status: "ok", message: "API is running." });
