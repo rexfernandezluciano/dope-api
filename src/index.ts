@@ -13,30 +13,10 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Handle preflight requests
-app.use((req: Request, res: Response, next: NextFunction) => {
-	res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-	res.header("Access-Control-Allow-Credentials", "true");
-	res.header(
-		"Access-Control-Allow-Methods",
-		"GET, POST, PUT, DELETE, PATCH, OPTIONS",
-	);
-	res.header(
-		"Access-Control-Allow-Headers",
-		"Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Firebase-AppCheck",
-	);
-
-	if (req.method === "OPTIONS") {
-		res.sendStatus(204);
-	}
-
-	next();
-});
-
 // CORS configuration to allow all requests from any host
 app.use(
 	cors({
-		origin: true,
+		origin: ["https://dopp.eu.org", "https://www.dopp.eu.org"],
 		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: [
@@ -48,7 +28,7 @@ app.use(
 			"Origin",
 			"X-Firebase-AppCheck",
 		],
-		exposedHeaders: ["Content-Length", "X-Api"],
+		exposedHeaders: ["Content-Length", "X-Api-Version"],
 		preflightContinue: false,
 		optionsSuccessStatus: 204,
 	}),
