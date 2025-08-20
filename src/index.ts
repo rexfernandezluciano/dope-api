@@ -15,8 +15,8 @@ const PORT = process.env.PORT || 5000;
 
 // Define the CORS middleware
 const corsOptions = {
-	origin: "*",
-	methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+	origin: "www.dopp.eu.org",
+	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 	allowedHeaders: [
 		"Content-Type",
 		"Authorization",
@@ -33,9 +33,6 @@ const corsOptions = {
 
 // Use CORS globally for all routes
 app.use(cors(corsOptions));
-
-// Handle OPTIONS requests specifically for /api/** routes
-app.options("{/*api}", cors(corsOptions));
 
 app.use(express.json());
 app.set("json spaces", 2);
