@@ -13,7 +13,27 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.options("*", cors());
+
+app.use(
+	cors({
+		origin: "*",
+		credentials: true,
+		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+		allowedHeaders: [
+			"Content-Type",
+			"Authorization",
+			"X-CSRF-Token",
+			"X-Requested-With",
+			"Accept",
+			"Access-Control-Allow-Origin",
+			"Access-Control-Allow-Methods",
+			"Access-Control-Allow-Headers",
+			"Access-Control-Allow-Credentials",
+		],
+	}),
+);
+
 app.use(express.json());
 app.set("json spaces", 2);
 
