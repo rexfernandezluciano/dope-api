@@ -12,7 +12,8 @@ import {
 	trackPostView,
 	trackEarnings,
 	updatePostEngagement,
-	getCurrentUserPosts
+	getCurrentUserPosts,
+	sharePost
 } from "../controllers/post.controller";
 import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
 
@@ -32,5 +33,8 @@ router.put("/:id", requireAuth, updatePost);
 router.delete("/:id", requireAuth, deletePost);
 router.post("/:id/like", requireAuth, toggleLike);
 router.get("/user/me", requireAuth, getCurrentUserPosts);
+
+// Share post route
+router.post('/api/posts/share/:id', sharePost);
 
 export default router;

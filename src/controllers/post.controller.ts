@@ -845,6 +845,27 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 	}
 };
 
+// SHARE post (authenticated only)
+export const sharePost = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+
+		if (!id) {
+			return res.status(400).json({ message: "Post ID is required" });
+		}
+
+		// Increment the shares count in post analytics
+		await prisma.postAnalytics.update({
+			where: { postId: id },
+			data: { shares: { increment: 1 } },
+		});
+
+		res.json({ message: "Post shared successfully" });
+	} catch (error) {
+		res.status(500).json({ error: "Error sharing post" });
+	}
+};
+
 // Get current user's posts
 export const getCurrentUserPosts = async (req: Request, res: Response) => {
 	try {
