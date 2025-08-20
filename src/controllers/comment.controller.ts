@@ -4,6 +4,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { calculatePostEarnings } from "./post.controller";
 
 const prisma = new PrismaClient();
 
@@ -46,6 +47,12 @@ export const getComments = async (req: Request, res: Response) => {
 		
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
+
+
+// Add this after comment creation in createComment function
+// You'll need to add this line after the comment is created:
+// await calculatePostEarnings(postId);
+
 				where: { username: author as string },
 				select: { uid: true }
 			});

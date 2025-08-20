@@ -524,6 +524,8 @@ export const toggleLike = async (req: Request, res: Response) => {
 			await prisma.like.delete({
 				where: { id: existingLike.id },
 			});
+			// Recalculate earnings after unlike
+			await calculatePostEarnings(id);
 			res.json({ message: "Post unliked", liked: false });
 		} else {
 			// Like
@@ -533,6 +535,8 @@ export const toggleLike = async (req: Request, res: Response) => {
 					userId: authUser.uid,
 				},
 			});
+			// Recalculate earnings after like
+			await calculatePostEarnings(id);
 			res.json({ message: "Post liked", liked: true });
 		}
 	} catch (error) {
@@ -679,32 +683,117 @@ export const trackPostView = async (req: Request, res: Response) => {
 			create: { postId: id ?? "", views: 1 },
 		});
 
-		res.json({ message: "View tracked" });
+		// Auto-calculate earnings after view increment
+		await calculatePostEarnings(id ?? "");
+
+		res.json({ message: "View tracked and earnings updated" });
 	} catch (error) {
 		res.status(500).json({ error: "Error tracking view" });
+	}
+};
+
+// Calculate earnings based on engagement metrics
+export const calculatePostEarnings = async (postId: string) => {
+	try {
+		// Get post with all engagement data
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			include: {
+				analytics: true,
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+		});
+
+		if (!post) return 0;
+
+		const views = post.analytics?.views || 0;
+		const shares = post.analytics?.shares || 0;
+		const likes = post._count.likes || 0;
+		const comments = post._count.comments || 0;
+
+		// Calculate total engagement score
+		// Weighted formula: views * 1 + likes * 5 + comments * 10 + shares * 15
+		const engagementScore = (views * 1) + (likes * 5) + (comments * 10) + (shares * 15);
+
+		// Earnings calculation: $0.01 per post if engagement >= 1,000,000
+		let earnings = 0;
+		if (engagementScore >= 1000000) {
+			earnings = 0.01; // $0.01 in dollars (you can store as cents: 1)
+		}
+
+		// Update earnings in database
+		await prisma.postAnalytics.upsert({
+			where: { postId },
+			update: { earnings: Math.round(earnings * 100) }, // Store as cents
+			create: { 
+				postId, 
+				views,
+				shares,
+				earnings: Math.round(earnings * 100)
+			},
+		});
+
+		return earnings;
+	} catch (error) {
+		console.error("Error calculating earnings:", error);
+		return 0;
 	}
 };
 
 export const trackEarnings = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		const { amount } = req.body;
 		
-		if (!amount || typeof amount !== "number") {
-			return res.status(400).json({ message: "Invalid amount" });
-		}
-		
-		await prisma.postAnalytics.upsert({
-			where: { postId: id ?? "" },
-			update: {
-				earnings: {
-					increment: amount,
-				},
-			},
-		});
+		// Calculate earnings based on current engagement
+		const earnings = await calculatePostEarnings(id);
 
-		res.json({ message: "Earnings tracked" });
+		res.json({ 
+			message: "Earnings calculated and tracked",
+			earnings: earnings,
+			earningsInCents: Math.round(earnings * 100)
+		});
 	} catch (error) {
 		res.status(500).json({ error: "Error tracking earnings" });
+	}
+};
+
+// Auto-calculate earnings when engagement metrics are updated
+export const updatePostEngagement = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const { action } = req.body; // 'like', 'comment', 'share', 'view'
+
+		// Update the specific metric based on action
+		switch (action) {
+			case 'view':
+				await prisma.postAnalytics.upsert({
+					where: { postId: id },
+					update: { views: { increment: 1 } },
+					create: { postId: id, views: 1 },
+				});
+				break;
+			case 'share':
+				await prisma.postAnalytics.upsert({
+					where: { postId: id },
+					update: { shares: { increment: 1 } },
+					create: { postId: id, shares: 1 },
+				});
+				break;
+		}
+
+		// Recalculate earnings after any engagement update
+		const earnings = await calculatePostEarnings(id);
+
+		res.json({ 
+			message: `${action} tracked and earnings updated`,
+			earnings: earnings
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Error updating engagement" });
 	}
 };

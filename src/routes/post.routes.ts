@@ -10,6 +10,8 @@ import {
 	toggleLike,
 	getFollowingFeed,
 	trackPostView,
+	trackEarnings,
+	updatePostEngagement,
 } from "../controllers/post.controller";
 import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
 
@@ -20,6 +22,8 @@ router.get("/", optionalAuth, getPosts);
 router.get("/feed/following", authenticateJWT, getFollowingFeed);
 router.get("/:id", optionalAuth, getPost);
 router.post("/:id/view", trackPostView);
+router.post("/:id/earnings", trackEarnings);
+router.post("/:id/engagement", updatePostEngagement);
 
 // Authenticated routes
 router.post("/", requireAuth, createPost);
