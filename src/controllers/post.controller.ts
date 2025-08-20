@@ -112,7 +112,7 @@ export const getPosts = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
-					take: 3, // Only show first 3 comments in list view
+					take: 3,
 					include: {
 						author: {
 							select: {
@@ -646,7 +646,7 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 			? postsToReturn[postsToReturn.length - 1]?.id
 			: null;
 
-		const output = postsToReturn.map((p) => ({
+		const output = postsToReturn.map((p: any) => ({
 			id: p.id,
 			content: p.content,
 			imageUrls: p.imageUrls,
@@ -662,13 +662,13 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 				...p.author,
 				isFollowedByCurrentUser: true,
 			},
-			comments: p.comments.map((c) => ({
+			comments: p.comments.map((c: any) => ({
 				id: c.id,
 				content: c.content,
 				createdAt: c.createdAt,
 				author: c.author,
 			})),
-			likes: p.likes.map((l) => ({
+			likes: p.likes.map((l: any) => ({
 				user: {
 					uid: l.user.uid,
 					username: l.user.username,
