@@ -58,10 +58,10 @@ export const getUsers = async (req: Request, res: Response) => {
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
-			followingIds = following.map((f) => f.followingId);
+			followingIds = following.map((f: any) => f.followingId);
 		}
 
-		const userList = users.map((i) => {
+		const userList = users.map((i: any) => {
 			const user = {
 				uid: i.uid,
 				name: i.name,
@@ -167,7 +167,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
-			followingIds = following.map((f) => f.followingId);
+			followingIds = following.map((f: any) => f.followingId);
 		}
 
 		const output = {
@@ -181,7 +181,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				subscription: user.subscription,
 			},
 			createdAt: user.createdAt,
-			posts: user.posts.map((p) => {
+			posts: user.posts.map((p: any) => {
 				return {
 					id: p.id,
 					content: p.content,
@@ -192,7 +192,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 						comments: p._count.comments,
 						likes: p._count.likes,
 					},
-					likes: p.likes.map((l) => {
+					likes: p.likes.map((l: any) => {
 						return {
 							user: {
 								uid: l.user.uid,
@@ -369,7 +369,7 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 			},
 		});
 
-		const userFollowers = followers.map((f) => {
+		const userFollowers = followers.map((f: any) => {
 			return {
 				uid: f.follower.uid,
 				name: f.follower.name,
@@ -417,7 +417,7 @@ export const getUserFollowing = async (req: Request, res: Response) => {
 			},
 		});
 
-		const userFollowings = following.map((f) => {
+		const userFollowings = following.map((f: any) => {
 			return {
 				uid: f.following.uid,
 				name: f.following.name,
@@ -444,7 +444,7 @@ export const getTotalUserEarnings = async (req: Request, res: Response) => {
 			},
 		});
 		// Calculate total earnings
-		const totalEarnings = posts.reduce((total, post) => {
+		const totalEarnings = posts.reduce((total: number, post: any) => {
 			return total + (post.analytics?.earnings || 0);
 		}, 0);
 		res.json({

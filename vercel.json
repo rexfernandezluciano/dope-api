@@ -24,7 +24,7 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "env": {
-    "DATABASE_URL": "postgresql://neondb_owner:npg_tQ5Px9blAJYN@ep-odd-hat-a1mxpgj9.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+    "DATABASE_URL": "prisma+postgres://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19nb0tjVU9RdFozclJTSzFUZXREZU0iLCJhcGlfa2V5IjoiMDFLMzRBMVlGRTU3TjdGTVMzRE1YMjY5UlkiLCJ0ZW5hbnRfaWQiOiIxN2EzMjAxMTQyNzYyNDRmMWFkYWNhMmU4Y2YxNWY1ZDU1ZWVmYmI5YTkxYjMzMWRiOTQ3MTFkMDM3N2ViMTk4IiwiaW50ZXJuYWxfc2VjcmV0IjoiMzc1NWRjNzMtZmE1ZC00YzA0LWE1NjItZTk3ZTdiMTc1OWE3In0.rqLEO-DjZmOuqAmxIAbKTetHtNNG96ueiyOukTkElFY",
     "JWT_SECRET": "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
     "JWT_EXPIRES_IN": "638708",
     "EMAIL_FROM": "noreply@dopp.eu.org",

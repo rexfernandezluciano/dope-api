@@ -3,6 +3,7 @@
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
+import type Comment from "../types/types.comments";
 
 let prisma: any;
 
@@ -191,7 +192,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						? followingIds.includes(p.author.uid)
 						: false,
 				},
-				comments: p.comments.map((c: any) => {
+				comments: p.comments.map((c: Comment) => {
 					return {
 						id: c.id,
 						content: c.content,
@@ -316,7 +317,7 @@ export const getPost = async (req: Request, res: Response) => {
 				...post.author,
 				isFollowedByCurrentUser,
 			},
-			comments: post.comments.map((c: any) => {
+			comments: post.comments.map((c: Comment) => {
 				return {
 					id: c.id,
 					content: c.content,
@@ -578,7 +579,7 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 			select: { followingId: true },
 		});
 
-		const followingIds = following.map((f) => f.followingId);
+		const followingIds = following.map((f: any) => f.followingId);
 
 		if (followingIds.length === 0) {
 			return res.json({ posts: [], nextCursor: null, hasMore: false });
@@ -664,7 +665,8 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 				...p.author,
 				isFollowedByCurrentUser: true,
 			},
-			comments: p.comments.map((c: any) => ({
+			comments: p.comments.map((c: 
+																Comment) => ({
 				id: c.id,
 				content: c.content,
 				createdAt: c.createdAt,
@@ -930,7 +932,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 			},
 		});
 
-		const output = posts.map((p) => {
+		const output = posts.map((p: any) => {
 			return {
 				id: p.id,
 				content: p.content,
@@ -949,7 +951,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 					...p.author,
 					isFollowedByCurrentUser: false,
 				},
-				likes: p.likes.map((l) => {
+				likes: p.likes.map((l: any) => {
 					return {
 						user: {
 							uid: l.user.uid,
@@ -957,7 +959,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 						},
 					};
 				}),
-				comments: p.comments.map((c) => {
+				comments: p.comments.map((c: Comment) => {
 					return {
 						id: c.id,
 						content: c.content,
