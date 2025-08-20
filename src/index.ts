@@ -1,6 +1,6 @@
 /** @format */
 
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 
@@ -38,12 +38,12 @@ app.use(express.json());
 app.set("json spaces", 2);
 
 // Handle preflight requests
-app.options("/*", (req: Request, res: Response) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
 	res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
 	res.header("Access-Control-Allow-Credentials", "true");
 	res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
 	res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Firebase-AppCheck");
-	res.sendStatus(204);
+	next();
 });
 
 app.get("/", (req: Request, res: Response) => {
