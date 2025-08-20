@@ -550,7 +550,7 @@ export const toggleLike = async (req: Request, res: Response) => {
 
 		if (postWithCounts) {
 			const newEarnings = calculatePostEarnings(postWithCounts);
-			await prisma.post.update({
+			await prisma.postAnalytics.update({
 				where: { id },
 				data: { earnings: newEarnings },
 			});
@@ -716,7 +716,7 @@ export const trackPostView = async (req: Request, res: Response) => {
 
 		if (postWithCounts) {
 			const newEarnings = calculatePostEarnings(postWithCounts);
-			await prisma.post.update({
+			await prisma.postAnalytics.update({
 				where: { id: id ?? "" },
 				data: { earnings: newEarnings },
 			});
@@ -776,7 +776,7 @@ export const trackEarnings = async (req: Request, res: Response) => {
 		}
 
 		const earnings = calculatePostEarnings(post);
-		await prisma.post.update({
+		await prisma.postAnalytics.update({
 			where: { id: id ?? "" },
 			data: { earnings: earnings },
 		});
@@ -831,7 +831,7 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 
 		if (postWithCounts) {
 			const earnings = calculatePostEarnings(postWithCounts);
-			await prisma.post.update({
+			await prisma.postAnalytics.update({
 				where: { id: id ?? "" },
 				data: { earnings: earnings },
 			});

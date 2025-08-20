@@ -426,3 +426,27 @@ export const getUserFollowing = async (req: Request, res: Response) => {
 		res.status(500).json({ error: "Error fetching following" });
 	}
 };
+
+export const getTotalUserEarnings = async (req: Request, res: Response) => {
+	try {
+		const authUser = (req as any).user as { uid: string };
+		// Find all posts by the user
+		const posts = await prisma.post.findMany({
+			where: { authorId: authUser.uid },
+			include: {
+				analytics: true, // include analytics to get earnings
+			},
+		});
+		// Calculate total earnings
+		const totalEarnings = posts.reduce((total, post) => {
+			return total + (post.analytics?.earnings || 0);
+		}, 0);
+		res.json({
+			message: "Total earnings fetched successfully",
+			totalEarnings: totalEarnings / 100, // Return in dollars
+			totalEarningsInCents: totalEarnings,
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Error fetching total earnings" });
+	}
+};

@@ -8,6 +8,7 @@ import {
 	toggleFollow,
 	getUserFollowers,
 	getUserFollowing,
+	getTotalUserEarnings
 } from "../controllers/user.controller";
 import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
@@ -22,5 +23,9 @@ router.get("/:username/following", getUserFollowing);
 // Authenticated routes
 router.put("/:username", requireAuth, updateUser);
 router.post("/:username/follow", requireAuth, toggleFollow);
+
+// Get User total earnings
+router.get("/analytics/earnings", requireAuth, getTotalUserEarnings);
+
 
 export default router;

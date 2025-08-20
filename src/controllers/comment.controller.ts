@@ -178,7 +178,7 @@ export const createComment = async (req: Request, res: Response) => {
 			const totalEngagement = views + (shares * 2) + (likes * 1.5) + (comments * 3);
 			const newEarnings = totalEngagement >= 1000000 ? 0.01 : 0;
 			
-			await prisma.post.update({
+			await prisma.postAnalytics.update({
 				where: { id: postId },
 				data: { earnings: newEarnings },
 			});
