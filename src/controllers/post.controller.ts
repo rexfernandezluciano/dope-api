@@ -161,7 +161,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
-			followingIds = following.map(f => f.followingId);
+			followingIds = following.map((f) => f.followingId);
 		}
 
 		const output = postsToReturn.map((p) => {
@@ -177,7 +177,9 @@ export const getPosts = async (req: Request, res: Response) => {
 				},
 				author: {
 					...p.author,
-					isFollowedByCurrentUser: authUser ? followingIds.includes(p.author.uid) : false,
+					isFollowedByCurrentUser: authUser
+						? followingIds.includes(p.author.uid)
+						: false,
 				},
 				comments: p.comments.map((c) => {
 					return {
@@ -199,7 +201,8 @@ export const getPosts = async (req: Request, res: Response) => {
 				}),
 				analytics: {
 					views: p.analytics?.views || 0,
-					shares: p.analytics?.shares || 0
+					shares: p.analytics?.shares || 0,
+					earnings: p.analytics?.earnings || 0,
 				},
 				postType: p.postType,
 				liveVideoUrl: p.liveVideoUrl,
@@ -324,9 +327,10 @@ export const getPost = async (req: Request, res: Response) => {
 				};
 			}),
 			analytics: {
-					views: post.analytics?.views || 0,
-					shares: post.analytics?.shares || 0
-				},
+				views: post.analytics?.views || 0,
+				shares: post.analytics?.shares || 0,
+				earnings: post.analytics?.earnings || 0,
+			},
 			postType: post.postType,
 			liveVideoUrl: post.liveVideoUrl,
 			privacy: post.privacy,
@@ -536,150 +540,171 @@ export const toggleLike = async (req: Request, res: Response) => {
 	}
 };
 
-
-
 // GET posts from users that current user follows
 export const getFollowingFeed = async (req: Request, res: Response) => {
-  try {
-    const authUser = (req as any).user as { uid: string };
-    const { limit = "20", cursor } = req.query;
-    const limitNum = Math.min(parseInt(limit as string), 100);
+	try {
+		const authUser = (req as any).user as { uid: string };
+		const { limit = "20", cursor } = req.query;
+		const limitNum = Math.min(parseInt(limit as string), 100);
 
-    // Get users that current user follows
-    const following = await prisma.follow.findMany({
-      where: { followerId: authUser.uid },
-      select: { followingId: true },
-    });
+		// Get users that current user follows
+		const following = await prisma.follow.findMany({
+			where: { followerId: authUser.uid },
+			select: { followingId: true },
+		});
 
-    const followingIds = following.map(f => f.followingId);
+		const followingIds = following.map((f) => f.followingId);
 
-    if (followingIds.length === 0) {
-      return res.json({ posts: [], nextCursor: null, hasMore: false });
-    }
+		if (followingIds.length === 0) {
+			return res.json({ posts: [], nextCursor: null, hasMore: false });
+		}
 
-    const where: any = {
-      authorId: { in: followingIds },
-      privacy: { in: ["public", "followers"] },
-    };
+		const where: any = {
+			authorId: { in: followingIds },
+			privacy: { in: ["public", "followers"] },
+		};
 
-    if (cursor) {
-      where.id = { lt: cursor as string };
-    }
+		if (cursor) {
+			where.id = { lt: cursor as string };
+		}
 
-    const posts = await prisma.post.findMany({
-      where,
-      take: limitNum + 1,
-      include: {
-        author: {
-          select: {
-            uid: true,
-            name: true,
-            username: true,
-            photoURL: true,
-            hasBlueCheck: true,
-          },
-        },
-        comments: {
-          take: 3,
-          include: {
-            author: {
-              select: {
-                uid: true,
-                name: true,
-                username: true,
-                photoURL: true,
-                hasBlueCheck: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-        },
-        likes: {
-          include: {
-            user: {
-              select: {
-                uid: true,
-                username: true,
-              },
-            },
-          },
-        },
-        analytics: true,
-        _count: {
-          select: {
-            comments: true,
-            likes: true,
-          },
-        },
-      },
-      orderBy: [
-        { analytics: { views: "desc" } },
-        { createdAt: "desc" },
-      ],
-    });
+		const posts = await prisma.post.findMany({
+			where,
+			take: limitNum + 1,
+			include: {
+				author: {
+					select: {
+						uid: true,
+						name: true,
+						username: true,
+						photoURL: true,
+						hasBlueCheck: true,
+					},
+				},
+				comments: {
+					take: 3,
+					include: {
+						author: {
+							select: {
+								uid: true,
+								name: true,
+								username: true,
+								photoURL: true,
+								hasBlueCheck: true,
+							},
+						},
+					},
+					orderBy: { createdAt: "desc" },
+				},
+				likes: {
+					include: {
+						user: {
+							select: {
+								uid: true,
+								username: true,
+							},
+						},
+					},
+				},
+				analytics: true,
+				_count: {
+					select: {
+						comments: true,
+						likes: true,
+					},
+				},
+			},
+			orderBy: [{ analytics: { views: "desc" } }, { createdAt: "desc" }],
+		});
 
-    const hasMore = posts.length > limitNum;
-    const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
-    const nextCursor = hasMore ? postsToReturn[postsToReturn.length - 1]?.id : null;
+		const hasMore = posts.length > limitNum;
+		const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
+		const nextCursor = hasMore
+			? postsToReturn[postsToReturn.length - 1]?.id
+			: null;
 
-    const output = postsToReturn.map((p) => ({
-      id: p.id,
-      content: p.content,
-      imageUrls: p.imageUrls,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-      stats: {
-        comments: p._count.comments,
-        likes: p._count.likes,
-        views: p.analytics?.views || 0,
-        shares: p.analytics?.shares || 0,
-      },
-      author: {
-        ...p.author,
-        isFollowedByCurrentUser: true,
-      },
-      comments: p.comments.map((c) => ({
-        id: c.id,
-        content: c.content,
-        createdAt: c.createdAt,
-        author: c.author,
-      })),
-      likes: p.likes.map((l) => ({
-        user: {
-          uid: l.user.uid,
-          username: l.user.username,
-        },
-      })),
-      postType: p.postType,
-      liveVideoUrl: p.liveVideoUrl,
-      privacy: p.privacy,
-    }));
+		const output = postsToReturn.map((p) => ({
+			id: p.id,
+			content: p.content,
+			imageUrls: p.imageUrls,
+			createdAt: p.createdAt,
+			updatedAt: p.updatedAt,
+			stats: {
+				comments: p._count.comments,
+				likes: p._count.likes,
+				views: p.analytics?.views || 0,
+				shares: p.analytics?.shares || 0,
+			},
+			author: {
+				...p.author,
+				isFollowedByCurrentUser: true,
+			},
+			comments: p.comments.map((c) => ({
+				id: c.id,
+				content: c.content,
+				createdAt: c.createdAt,
+				author: c.author,
+			})),
+			likes: p.likes.map((l) => ({
+				user: {
+					uid: l.user.uid,
+					username: l.user.username,
+				},
+			})),
+			postType: p.postType,
+			liveVideoUrl: p.liveVideoUrl,
+			privacy: p.privacy,
+		}));
 
-    res.json({
-      status: "ok",
-      posts: output,
-      nextCursor,
-      hasMore,
-      limit: limitNum,
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching following feed" });
-  }
+		res.json({
+			status: "ok",
+			posts: output,
+			nextCursor,
+			hasMore,
+			limit: limitNum,
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Error fetching following feed" });
+	}
 };
 
 // Track post view for analytics
 export const trackPostView = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    
-    await prisma.postAnalytics.upsert({
-      where: { postId: id ?? "" },
-      update: { views: { increment: 1 } },
-      create: { postId: id ?? "", views: 1 },
-    });
+	try {
+		const { id } = req.params;
 
-    res.json({ message: "View tracked" });
-  } catch (error) {
-    res.status(500).json({ error: "Error tracking view" });
-  }
+		await prisma.postAnalytics.upsert({
+			where: { postId: id ?? "" },
+			update: { views: { increment: 1 } },
+			create: { postId: id ?? "", views: 1 },
+		});
+
+		res.json({ message: "View tracked" });
+	} catch (error) {
+		res.status(500).json({ error: "Error tracking view" });
+	}
+};
+
+export const trackEarnings = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const { amount } = req.body;
+		
+		if (!amount || typeof amount !== "number") {
+			return res.status(400).json({ message: "Invalid amount" });
+		}
+		
+		await prisma.postAnalytics.upsert({
+			where: { postId: id ?? "" },
+			update: {
+				earnings: {
+					increment: amount,
+				},
+			},
+		});
+
+		res.json({ message: "Earnings tracked" });
+	} catch (error) {
+		res.status(500).json({ error: "Error tracking earnings" });
+	}
 };

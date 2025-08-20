@@ -357,7 +357,22 @@ export const googleLogin = async (req: Request, res: Response) => {
 
 export const me = async (req: Request, res: Response) => {
 	const authUser = (req as any).user as { uid: string };
-	const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
+	const user = await prisma.user.findUnique({
+		where: { uid: authUser.uid },
+		include: {
+			followers: true,
+			following: true,
+			_count: {
+				select: {
+					posts: true,
+					followers: true,
+					following: true,
+					likes: true
+				},
+			},
+		},
+	});
+
 	if (!user) return res.status(404).json({ message: "User not found" });
 	const output = {
 		uid: user.uid,
@@ -370,6 +385,12 @@ export const me = async (req: Request, res: Response) => {
 		membership: {
 			subscription: user.subscription,
 			nextBillingDate: user.nextBillingDate,
+		},
+		stats: {
+			posts: user._count.posts,
+			followers: user._count.followers,
+			followings: user._count.following,
+			likes: user._count.likes
 		},
 		privacy: user.privacy,
 		hasVerifiedEmail: user.hasVerifiedEmail,
