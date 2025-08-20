@@ -202,7 +202,6 @@ export const getPosts = async (req: Request, res: Response) => {
 				analytics: {
 					views: p.analytics?.views || 0,
 					shares: p.analytics?.shares || 0,
-					earnings: p.analytics?.earnings || 0,
 				},
 				postType: p.postType,
 				liveVideoUrl: p.liveVideoUrl,
@@ -329,7 +328,6 @@ export const getPost = async (req: Request, res: Response) => {
 			analytics: {
 				views: post.analytics?.views || 0,
 				shares: post.analytics?.shares || 0,
-				earnings: post.analytics?.earnings || 0,
 			},
 			postType: post.postType,
 			liveVideoUrl: post.liveVideoUrl,
@@ -524,20 +522,38 @@ export const toggleLike = async (req: Request, res: Response) => {
 			await prisma.like.delete({
 				where: { id: existingLike.id },
 			});
-			// Recalculate earnings after unlike
-			await calculatePostEarnings(id);
 			res.json({ message: "Post unliked", liked: false });
 		} else {
 			// Like
 			await prisma.like.create({
 				data: {
-					postId: id,
 					userId: authUser.uid,
+					postId: id,
 				},
 			});
-			// Recalculate earnings after like
-			await calculatePostEarnings(id);
 			res.json({ message: "Post liked", liked: true });
+		}
+
+		// Recalculate earnings based on new like count
+		const postWithCounts = await prisma.post.findUnique({
+			where: { id },
+			include: {
+				analytics: true,
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+		});
+
+		if (postWithCounts) {
+			const newEarnings = calculatePostEarnings(postWithCounts);
+			await prisma.post.update({
+				where: { id },
+				data: { earnings: newEarnings },
+			});
 		}
 	} catch (error) {
 		res.status(500).json({ error: "Error toggling like" });
@@ -677,27 +693,16 @@ export const trackPostView = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
 
-		await prisma.postAnalytics.upsert({
+		// Update analytics
+		const updatedAnalytics = await prisma.postAnalytics.upsert({
 			where: { postId: id ?? "" },
 			update: { views: { increment: 1 } },
 			create: { postId: id ?? "", views: 1 },
 		});
 
-		// Auto-calculate earnings after view increment
-		await calculatePostEarnings(id ?? "");
-
-		res.json({ message: "View tracked and earnings updated" });
-	} catch (error) {
-		res.status(500).json({ error: "Error tracking view" });
-	}
-};
-
-// Calculate earnings based on engagement metrics
-export const calculatePostEarnings = async (postId: string) => {
-	try {
-		// Get post with all engagement data
-		const post = await prisma.post.findUnique({
-			where: { id: postId },
+		// Recalculate earnings based on new engagement
+		const postWithCounts = await prisma.post.findUnique({
+			where: { id: id ?? "" },
 			include: {
 				analytics: true,
 				_count: {
@@ -709,8 +714,23 @@ export const calculatePostEarnings = async (postId: string) => {
 			},
 		});
 
-		if (!post) return 0;
+		if (postWithCounts) {
+			const newEarnings = calculatePostEarnings(postWithCounts);
+			await prisma.post.update({
+				where: { id: id ?? "" },
+				data: { earnings: newEarnings },
+			});
+		}
 
+		res.json({ message: "View tracked and earnings updated" });
+	} catch (error) {
+		res.status(500).json({ error: "Error tracking view" });
+	}
+};
+
+// Calculate earnings based on engagement metrics
+export const calculatePostEarnings = (post: any) => {
+	try {
 		const views = post.analytics?.views || 0;
 		const shares = post.analytics?.shares || 0;
 		const likes = post._count.likes || 0;
@@ -726,19 +746,7 @@ export const calculatePostEarnings = async (postId: string) => {
 			earnings = 0.01; // $0.01 in dollars (you can store as cents: 1)
 		}
 
-		// Update earnings in database
-		await prisma.postAnalytics.upsert({
-			where: { postId },
-			update: { earnings: Math.round(earnings * 100) }, // Store as cents
-			create: { 
-				postId, 
-				views,
-				shares,
-				earnings: Math.round(earnings * 100)
-			},
-		});
-
-		return earnings;
+		return Math.round(earnings * 100); // Store as cents
 	} catch (error) {
 		console.error("Error calculating earnings:", error);
 		return 0;
@@ -748,14 +756,35 @@ export const calculatePostEarnings = async (postId: string) => {
 export const trackEarnings = async (req: Request, res: Response) => {
 	try {
 		const { id } = req.params;
-		
-		// Calculate earnings based on current engagement
-		const earnings = await calculatePostEarnings(id ?? "");
 
-		res.json({ 
+		// Calculate earnings based on current engagement
+		const post = await prisma.post.findUnique({
+			where: { id: id ?? "" },
+			include: {
+				analytics: true,
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+		});
+
+		if (!post) {
+			return res.status(404).json({ message: "Post not found" });
+		}
+
+		const earnings = calculatePostEarnings(post);
+		await prisma.post.update({
+			where: { id: id ?? "" },
+			data: { earnings: earnings },
+		});
+
+		res.json({
 			message: "Earnings calculated and tracked",
-			earnings: earnings,
-			earningsInCents: Math.round(earnings * 100)
+			earnings: earnings / 100, // Return in dollars
+			earningsInCents: earnings,
 		});
 	} catch (error) {
 		res.status(500).json({ error: "Error tracking earnings" });
@@ -787,12 +816,32 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 		}
 
 		// Recalculate earnings after any engagement update
-		const earnings = await calculatePostEarnings(id ?? "");
-
-		res.json({ 
-			message: `${action} tracked and earnings updated`,
-			earnings: earnings
+		const postWithCounts = await prisma.post.findUnique({
+			where: { id: id ?? "" },
+			include: {
+				analytics: true,
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
 		});
+
+		if (postWithCounts) {
+			const earnings = calculatePostEarnings(postWithCounts);
+			await prisma.post.update({
+				where: { id: id ?? "" },
+				data: { earnings: earnings },
+			});
+			res.json({
+				message: `${action} tracked and earnings updated`,
+				earnings: earnings / 100, // Return in dollars
+			});
+		} else {
+			res.status(404).json({ message: "Post not found" });
+		}
 	} catch (error) {
 		res.status(500).json({ error: "Error updating engagement" });
 	}

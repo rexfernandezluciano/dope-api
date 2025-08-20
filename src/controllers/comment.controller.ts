@@ -153,6 +153,36 @@ export const createComment = async (req: Request, res: Response) => {
 		});
 
 		res.status(201).json(comment);
+
+		// Update post earnings based on new comment
+		const postWithCounts = await prisma.post.findUnique({
+			where: { id: postId },
+			include: {
+				analytics: true,
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+		});
+
+		if (postWithCounts) {
+			// Calculate earnings based on engagement metrics
+			const views = postWithCounts.analytics?.views || 0;
+			const shares = postWithCounts.analytics?.shares || 0;
+			const likes = postWithCounts._count?.likes || 0;
+			const comments = postWithCounts._count?.comments || 0;
+			
+			const totalEngagement = views + (shares * 2) + (likes * 1.5) + (comments * 3);
+			const newEarnings = totalEngagement >= 1000000 ? 0.01 : 0;
+			
+			await prisma.post.update({
+				where: { id: postId },
+				data: { earnings: newEarnings },
+			});
+		}
 	} catch (err: any) {
 		if (err.name === "ZodError") {
 			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
