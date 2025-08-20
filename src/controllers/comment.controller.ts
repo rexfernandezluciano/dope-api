@@ -4,8 +4,10 @@ import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
 
-const prisma = await (async () => {
-	return await connect();
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
 })();
 
 const CreateCommentSchema = z.object({

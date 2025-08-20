@@ -4,8 +4,10 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { connect } from "../database/database";
 
-const prisma = await (async () => {
-	return await connect();
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
 })();
 
 const UpdateUserSchema = z.object({
