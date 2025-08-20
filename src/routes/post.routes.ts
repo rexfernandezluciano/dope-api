@@ -35,6 +35,6 @@ router.post("/:id/like", requireAuth, toggleLike);
 router.get("/user/me", requireAuth, getCurrentUserPosts);
 
 // Share post route
-router.post('/api/posts/share/:id', sharePost);
+router.post('/share/:id', sharePost);
 
 export default router;
