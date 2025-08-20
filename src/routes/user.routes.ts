@@ -8,8 +8,7 @@ import {
 	toggleFollow,
 	getUserFollowers,
 	getUserFollowing,
-	getTotalUserEarnings,
-	getCurrentUserPosts,
+	getTotalUserEarnings
 } from "../controllers/user.controller";
 import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
@@ -27,7 +26,5 @@ router.post("/:username/follow", requireAuth, toggleFollow);
 
 // Get User total earnings
 router.get("/analytics/earnings", requireAuth, getTotalUserEarnings);
-// Get user posts
-router.get("/posts", requireAuth, getCurrentUserPosts);
 
 export default router;

@@ -177,7 +177,6 @@ export const getPosts = async (req: Request, res: Response) => {
 					views: p.analytics?.views || 0,
 					shares: p.analytics?.shares || 0,
 					clicks: p.analytics?.clicks || 0,
-					earnings: p.analytics?.earnings || 0,
 				},
 				author: {
 					...p.author,
@@ -302,6 +301,9 @@ export const getPost = async (req: Request, res: Response) => {
 			stats: {
 				comments: post._count.comments,
 				likes: post._count.likes,
+				views: post.analytics?.views || 0,
+				shares: post.analytics?.shares || 0,
+				clicks: post.analytics?.clicks || 0,
 			},
 			author: {
 				...post.author,
@@ -325,10 +327,6 @@ export const getPost = async (req: Request, res: Response) => {
 					},
 				};
 			}),
-			analytics: {
-				views: post.analytics?.views || 0,
-				shares: post.analytics?.shares || 0,
-			},
 			postType: post.postType,
 			liveVideoUrl: post.liveVideoUrl,
 			privacy: post.privacy,
@@ -844,5 +842,111 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 		}
 	} catch (error) {
 		res.status(500).json({ error: "Error updating engagement" });
+	}
+};
+
+// Get current user's posts
+export const getCurrentUserPosts = async (req: Request, res: Response) => {
+	try {
+		const authUser = (req as any).user as { uid: string };
+
+		// Fetch posts authored by the current user
+		const posts = await prisma.post.findMany({
+			where: { authorId: authUser.uid },
+			include: {
+				author: {
+					select: {
+						uid: true,
+						name: true,
+						username: true,
+						photoURL: true,
+						hasBlueCheck: true,
+					},
+				},
+				likes: {
+					select: {
+						user: {
+							select: {
+								uid: true,
+								username: true,
+							},
+						},
+					},
+				},
+				comments: {
+					select: {
+						id: true,
+						content: true,
+						createdAt: true,
+						author: {
+							select: {
+								uid: true,
+								name: true,
+								username: true,
+								photoURL: true,
+								hasBlueCheck: true,
+							},
+						},
+					},
+				},
+				analytics: true, // Include analytics data if needed
+				_count: {
+					select: {
+						comments: true,
+						likes: true,
+					},
+				},
+			},
+			orderBy: {
+				createdAt: "desc", // Order posts by creation date
+			},
+		});
+
+		const output = posts.map((p) => {
+			return {
+				id: p.id,
+				content: p.content,
+				imageUrls: p.imageUrls,
+				createdAt: p.createdAt,
+				updatedAt: p.updatedAt,
+				stats: {
+					comments: p._count.comments,
+					likes: p._count.likes,
+					earnings: p.analytics?.earnings || 0,
+					views: p.analytics?.views || 0,
+					shares: p.analytics?.shares || 0,
+					clicks: p.analytics?.clicks || 0,
+				},
+				author: {
+					...p.author,
+					isFollowedByCurrentUser: false,
+				},
+				likes: p.likes.map((l) => {
+					return {
+						user: {
+							uid: l.user.uid,
+							username: l.user.username,
+						},
+					};
+				}),
+				comments: p.comments.map((c) => {
+					return {
+						id: c.id,
+						content: c.content,
+						createdAt: c.createdAt,
+						author: {
+							...c.author,
+						},
+					};
+				}),
+				postType: p.postType,
+				liveVideoUrl: p.liveVideoUrl,
+				privacy: p.privacy,
+			};
+		});
+
+		res.json({ status: "ok", posts: output });
+	} catch (error) {
+		res.status(500).json({ error: "Error fetching user posts" });
 	}
 };

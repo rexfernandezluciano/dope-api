@@ -12,6 +12,7 @@ import {
 	trackPostView,
 	trackEarnings,
 	updatePostEngagement,
+	getCurrentUserPosts
 } from "../controllers/post.controller";
 import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
 
@@ -30,5 +31,6 @@ router.post("/", requireAuth, createPost);
 router.put("/:id", requireAuth, updatePost);
 router.delete("/:id", requireAuth, deletePost);
 router.post("/:id/like", requireAuth, toggleLike);
+router.get("/user/me", requireAuth, getCurrentUserPosts);
 
 export default router;
