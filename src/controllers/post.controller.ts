@@ -750,7 +750,7 @@ export const trackEarnings = async (req: Request, res: Response) => {
 		const { id } = req.params;
 		
 		// Calculate earnings based on current engagement
-		const earnings = await calculatePostEarnings(id);
+		const earnings = await calculatePostEarnings(id ?? "");
 
 		res.json({ 
 			message: "Earnings calculated and tracked",
@@ -772,22 +772,22 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 		switch (action) {
 			case 'view':
 				await prisma.postAnalytics.upsert({
-					where: { postId: id },
+					where: { postId: id ?? ""},
 					update: { views: { increment: 1 } },
-					create: { postId: id, views: 1 },
+					create: { postId: id ?? "", views: 1 },
 				});
 				break;
 			case 'share':
 				await prisma.postAnalytics.upsert({
-					where: { postId: id },
+					where: { postId: id ?? "" },
 					update: { shares: { increment: 1 } },
-					create: { postId: id, shares: 1 },
+					create: { postId: id ?? "", shares: 1 },
 				});
 				break;
 		}
 
 		// Recalculate earnings after any engagement update
-		const earnings = await calculatePostEarnings(id);
+		const earnings = await calculatePostEarnings(id ?? "");
 
 		res.json({ 
 			message: `${action} tracked and earnings updated`,
