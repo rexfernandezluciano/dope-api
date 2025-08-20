@@ -67,7 +67,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 
 // Import error handlers
-import { errorHandler, notFoundHandler } from "./middleware/errormiddleware";
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
