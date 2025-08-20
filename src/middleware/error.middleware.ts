@@ -42,7 +42,7 @@ export const errorHandler = (
 			success: false,
 			error: "Validation Error",
 			message,
-			details: err.errors.map(e => ({
+			details: err.issues.map((e: any) => ({
 				field: e.path.join('.'),
 				message: e.message
 			}))
