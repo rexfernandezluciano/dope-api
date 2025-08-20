@@ -16,6 +16,22 @@
       "dest": "src/index.ts"
     }
   ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization"
+        }
+      ]
+    }
+  ],
   "env": {
     "PORT": "5000",
     "GOOGLE_CLIENT_ID": "171033182022-q5s7u27t4s7idqq7mepqkcp3jjsev8pb.apps.googleusercontent.com",
