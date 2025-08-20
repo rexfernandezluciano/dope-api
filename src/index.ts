@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 5000;
 // Define the CORS middleware
 const corsOptions = {
 	origin: "*",
+	credentials: true,
 	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 	allowedHeaders: [
 		"Content-Type",
@@ -37,14 +38,16 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.set("json spaces", 2);
 
+const BASE_PATH = "/v1";
+
 app.get("/", (req: Request, res: Response) => {
 	res.json({ status: "ok", message: "API is running." });
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api/posts", postRoutes);
-app.use("/api/comments", commentRoutes);
-app.use("/api/users", userRoutes);
+app.use(`${BASE_PATH}/auth`, authRoutes);
+app.use(`${BASE_PATH}/posts`, postRoutes);
+app.use(`${BASE_PATH}/comments`, commentRoutes);
+app.use(`${BASE_PATH}/users`, userRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
