@@ -13,25 +13,29 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration to allow all requests from any host
-app.use(
-	cors({
-		origin: "*",
-		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-		allowedHeaders: [
-			"Content-Type",
-			"Authorization",
-			"X-CSRF-Token",
-			"X-Requested-With",
-			"Accept",
-			"Origin",
-			"X-Firebase-AppCheck",
-		],
-		exposedHeaders: ["Content-Length", "X-Api-Version"],
-		preflightContinue: false,
-		optionsSuccessStatus: 204,
-	}),
-);
+// Define the CORS middleware
+const corsOptions = {
+	origin: "*",
+	methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+	allowedHeaders: [
+		"Content-Type",
+		"Authorization",
+		"X-CSRF-Token",
+		"X-Requested-With",
+		"Accept",
+		"Origin",
+		"X-Firebase-AppCheck",
+	],
+	exposedHeaders: ["Content-Length", "X-Api-Version"],
+	preflightContinue: false,
+	optionsSuccessStatus: 204,
+};
+
+// Use CORS globally for all routes
+app.use(cors(corsOptions));
+
+// Handle OPTIONS requests specifically for /api/** routes
+app.options("{/*api}", cors(corsOptions));
 
 app.use(express.json());
 app.set("json spaces", 2);
