@@ -1,10 +1,10 @@
 /** @format */
 
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { connect } from "../database/database";
 import { z } from "zod";
 
-const prisma = new PrismaClient();
+const prisma = await connect();
 
 const CreatePostSchema = z
 	.object({

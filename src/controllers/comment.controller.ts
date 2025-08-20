@@ -1,12 +1,11 @@
-
 /** @format */
 
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { connect } from "../database/database";
 import { z } from "zod";
 import { calculatePostEarnings } from "./post.controller";
 
-const prisma = new PrismaClient();
+const prisma = await connect();
 
 const CreateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
@@ -41,10 +40,10 @@ export const getComments = async (req: Request, res: Response) => {
 		}
 
 		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 comments per request
-		
+
 		// Build where clause for filtering
 		const where: any = { postId };
-		
+
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
 
@@ -62,7 +61,7 @@ export const getComments = async (req: Request, res: Response) => {
 				return res.json({ comments: [], nextCursor: null, hasMore: false });
 			}
 		}
-		
+
 		if (search) {
 			where.content = {
 				contains: search as string,
@@ -174,10 +173,10 @@ export const createComment = async (req: Request, res: Response) => {
 			const shares = postWithCounts.analytics?.shares || 0;
 			const likes = postWithCounts._count?.likes || 0;
 			const comments = postWithCounts._count?.comments || 0;
-			
+
 			const totalEngagement = views + (shares * 2) + (likes * 1.5) + (comments * 3);
 			const newEarnings = totalEngagement >= 1000000 ? 0.01 : 0;
-			
+
 			await prisma.postAnalytics.update({
 				where: { id: postId },
 				data: { earnings: newEarnings },
