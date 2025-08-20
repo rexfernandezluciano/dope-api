@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 
 // Define the CORS middleware
 const corsOptions = {
-	origin: "www.dopp.eu.org",
+	origin: "*",
 	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 	allowedHeaders: [
 		"Content-Type",
