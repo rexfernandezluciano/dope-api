@@ -13,10 +13,10 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS configuration to allow all requests from any host
 app.use(
 	cors({
 		origin: "*",
-		credentials: true,
 		methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 		allowedHeaders: [
 			"Content-Type",
