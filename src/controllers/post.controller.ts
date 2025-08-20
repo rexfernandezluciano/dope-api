@@ -715,7 +715,7 @@ export const trackPostView = async (req: Request, res: Response) => {
 		if (postWithCounts) {
 			const newEarnings = calculatePostEarnings(postWithCounts);
 			await prisma.postAnalytics.update({
-				where: { id: id ?? "" },
+				where: { postId: id ?? "" },
 				data: { earnings: newEarnings },
 			});
 		}
@@ -740,8 +740,8 @@ export const calculatePostEarnings = (post: any) => {
 
 		// Earnings calculation: $0.01 per post if engagement >= 1,000,000
 		let earnings = 0;
-		if (engagementScore >= 1000000) {
-			earnings = 0.01; // $0.01 in dollars (you can store as cents: 1)
+		if (engagementScore >= 1000) {
+			earnings = 0.001; // $0.001 in dollars (you can store as cents: 0.01)
 		}
 
 		return Math.round(earnings * 100); // Store as cents
@@ -775,7 +775,7 @@ export const trackEarnings = async (req: Request, res: Response) => {
 
 		const earnings = calculatePostEarnings(post);
 		await prisma.postAnalytics.update({
-			where: { id: id ?? "" },
+			where: { postId: id ?? "" },
 			data: { earnings: earnings },
 		});
 
@@ -830,7 +830,7 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 		if (postWithCounts) {
 			const earnings = calculatePostEarnings(postWithCounts);
 			await prisma.postAnalytics.update({
-				where: { id: id ?? "" },
+				where: { postId: id ?? "" },
 				data: { earnings: earnings },
 			});
 			res.json({
