@@ -1,6 +1,6 @@
 /** @format */
 
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { PrismaClient, Subscription, Credential } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
@@ -111,7 +111,7 @@ export const register = async (req: Request, res: Response) => {
 	}
 };
 
-export const verifyEmail = async (req: Request, res: Response) => {
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { email, code, verificationId } = VerifyEmailSchema.parse(req.body);
 
@@ -141,7 +141,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 	}
 };
 
-export const resendCode = async (req: Request, res: Response) => {
+export const resendCode = async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { email } = ResendCodeSchema.parse(req.body);
 		const user = await prisma.user.findUnique({ where: { email } });
@@ -171,7 +171,7 @@ export const resendCode = async (req: Request, res: Response) => {
 	}
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { email, password } = LoginSchema.parse(req.body);
 
