@@ -890,7 +890,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 					},
 				},
 				likes: {
-					select: {
+					include: {
 						user: {
 							select: {
 								uid: true,
@@ -900,10 +900,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
-					select: {
-						id: true,
-						content: true,
-						createdAt: true,
+					include: {
 						author: {
 							select: {
 								uid: true,
@@ -914,8 +911,11 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 							},
 						},
 					},
+					orderBy: {
+						createdAt: "desc",
+					},
 				},
-				analytics: true, // Include analytics data if needed
+				analytics: true,
 				_count: {
 					select: {
 						comments: true,
@@ -924,7 +924,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 				},
 			},
 			orderBy: {
-				createdAt: "desc", // Order posts by creation date
+				createdAt: "desc",
 			},
 		});
 
