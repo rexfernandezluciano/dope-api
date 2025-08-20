@@ -12,7 +12,8 @@ import {
 } from "../utils/validate";
 import { sendVerificationEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
-import { OAuth2Client } from "google-auth-library"; // Import OAuth2Client
+import { OAuth2Client } from "google-auth-library";
+import { connect } from "../database/database";
 
 const prisma = new PrismaClient();
 
@@ -53,17 +54,19 @@ export const register = async (req: Request, res: Response) => {
 		const subscription = (parsed.subscription ?? "free") as Subscription;
 		const privacy = parsed.privacy ?? DEFAULT_PRIVACY;
 
-		const exists = await prisma.user.findUnique({ where: { email } });
+		const db = await connect();
+
+		const exists = await db.user.findUnique({ where: { email } });
 		if (exists)
 			return res.status(409).json({ message: "Email already registered" });
 
-		const unameExists = await prisma.user.findUnique({ where: { username } });
+		const unameExists = await db.user.findUnique({ where: { username } });
 		if (unameExists)
 			return res.status(409).json({ message: "Username already taken" });
 
 		const passwordHash = await bcrypt.hash(password, 12);
 
-		const user = await prisma.user.create({
+		const user = await db.user.create({
 			data: {
 				name,
 				email,
@@ -76,7 +79,7 @@ export const register = async (req: Request, res: Response) => {
 			},
 		});
 
-		await prisma.credential.create({
+		await db.credential.create({
 			data: {
 				userId: user.uid,
 				provider: "local",
@@ -91,7 +94,7 @@ export const register = async (req: Request, res: Response) => {
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
-		await prisma.email.create({
+		await db.email.create({
 			data: { email, code, verificationId, expireAt },
 		});
 

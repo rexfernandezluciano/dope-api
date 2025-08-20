@@ -1,8 +1,9 @@
 /** @format */
 
 import { Request, Response } from "express";
-import { PrismaClient, Subscription } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import { connect } from "../database/database";
 
 const prisma = new PrismaClient();
 
@@ -23,7 +24,8 @@ const UpdateUserSchema = z.object({
 // GET all users
 export const getUsers = async (req: Request, res: Response) => {
 	try {
-		const users = await prisma.user.findMany({
+		const db = await connect();
+		const users = await db.user.findMany({
 			select: {
 				uid: true,
 				name: true,
@@ -82,8 +84,10 @@ export const getUsers = async (req: Request, res: Response) => {
 		});
 
 		res.json({ status: "ok", users: userList });
-	} catch (error) {
-		res.status(500).json({ error: "Error fetcing users" });
+	} catch (error: any) {
+		res
+			.status(500)
+			.json({ error: "Error fetcing users", message: error?.message });
 	}
 };
 
