@@ -4,7 +4,6 @@ import { Request, Response } from "express";
 import { PrismaClient, Subscription, Credential } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
-import { customAlphabet } from "nanoid";
 import {
 	RegisterSchema,
 	LoginSchema,
@@ -16,11 +15,17 @@ import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library"; // Import OAuth2Client
 
 const prisma = new PrismaClient();
-const makeCode = customAlphabet("0123456789", 6); // 6-digit numeric
-const makeVerificationId = customAlphabet(
-	"abcdefghijklmnopqrstuvwxyz0123456789",
-	24,
-);
+
+// Dynamic import functions for nanoid
+const getMakeCode = async () => {
+	const { customAlphabet } = await import("nanoid");
+	return customAlphabet("0123456789", 6);
+};
+
+const getMakeVerificationId = async () => {
+	const { customAlphabet } = await import("nanoid");
+	return customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
+};
 
 // Helper: decide BlueCheck from subscription
 function computeBlueCheck(sub: Subscription) {
@@ -80,6 +85,8 @@ export const register = async (req: Request, res: Response) => {
 		});
 
 		// Create verification record
+		const makeCode = await getMakeCode();
+		const makeVerificationId = await getMakeVerificationId();
 		const code = makeCode();
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
@@ -150,6 +157,8 @@ export const resendCode = async (req: Request, res: Response) => {
 		await prisma.email.deleteMany({ where: { email } });
 
 		// Create new code
+		const makeCode = await getMakeCode();
+		const makeVerificationId = await getMakeVerificationId();
 		const code = makeCode();
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
