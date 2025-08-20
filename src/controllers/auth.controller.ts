@@ -1,7 +1,7 @@
 /** @format */
 
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient, Subscription, Credential } from "@prisma/client";
+import { Subscription, Credential } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import {
@@ -14,8 +14,6 @@ import { sendVerificationEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
-
-const prisma = new PrismaClient();
 
 // Dynamic import functions for nanoid
 const getMakeCode = async () => {
@@ -114,11 +112,17 @@ export const register = async (req: Request, res: Response) => {
 	}
 };
 
-export const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+export const verifyEmail = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
 	try {
 		const { email, code, verificationId } = VerifyEmailSchema.parse(req.body);
 
-		const record = await prisma.email.findUnique({ where: { verificationId } });
+		const db = await connect();
+
+		const record = await db.email.findUnique({ where: { verificationId } });
 		if (!record || record.email !== email) {
 			return res.status(400).json({ message: "Invalid verification request" });
 		}
@@ -129,14 +133,14 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
 			return res.status(400).json({ message: "Incorrect verification code" });
 		}
 
-		await prisma.user.update({
+		await db.user.update({
 			where: { email },
 			data: { hasVerifiedEmail: true },
 		});
 
 		// Clean up all codes for this email
-		await prisma.email.delete({ where: { verificationId } });
-		await prisma.email.deleteMany({ where: { email } });
+		await db.email.delete({ where: { verificationId } });
+		await db.email.deleteMany({ where: { email } });
 
 		return res.json({ message: "Email verified successfully" });
 	} catch (err: any) {
@@ -144,16 +148,23 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
 	}
 };
 
-export const resendCode = async (req: Request, res: Response, next: NextFunction) => {
+export const resendCode = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
 	try {
 		const { email } = ResendCodeSchema.parse(req.body);
-		const user = await prisma.user.findUnique({ where: { email } });
+
+		const db = await connect();
+
+		const user = await db.user.findUnique({ where: { email } });
 		if (!user) return res.status(404).json({ message: "User not found" });
 		if (user.hasVerifiedEmail)
 			return res.status(400).json({ message: "Email already verified" });
 
 		// Invalidate old codes
-		await prisma.email.deleteMany({ where: { email } });
+		await db.email.deleteMany({ where: { email } });
 
 		// Create new code
 		const makeCode = await getMakeCode();
@@ -162,7 +173,7 @@ export const resendCode = async (req: Request, res: Response, next: NextFunction
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
-		await prisma.email.create({
+		await db.email.create({
 			data: { email, code, verificationId, expireAt },
 		});
 
@@ -174,11 +185,17 @@ export const resendCode = async (req: Request, res: Response, next: NextFunction
 	}
 };
 
-export const login = async (req: Request, res: Response, next: NextFunction) => {
+export const login = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
 	try {
 		const { email, password } = LoginSchema.parse(req.body);
 
-		const user = await prisma.user.findUnique({
+		const db = await connect();
+
+		const user = await db.user.findUnique({
 			where: { email },
 			include: { credentials: true },
 		});
@@ -233,6 +250,8 @@ export const googleLogin = async (req: Request, res: Response) => {
 	try {
 		const { token: idToken } = req.body; // Get the ID token from the request body
 
+		const db = await connect();
+
 		if (!process.env.GOOGLE_CLIENT_ID) {
 			return res
 				.status(500)
@@ -253,7 +272,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 		const { email, name, picture: photoURL } = payload;
 
 		// Check if user already exists
-		let user = await prisma.user.findUnique({ where: { email } });
+		let user = await db.user.findUnique({ where: { email } });
 
 		if (user) {
 			// If user exists, log them in
@@ -286,18 +305,18 @@ export const googleLogin = async (req: Request, res: Response) => {
 			let username = email.split("@")[0] ?? ""; // Basic username generation
 
 			// Ensure username is unique by checking if it exists
-			let existingUser = await prisma.user.findUnique({ where: { username } });
+			let existingUser = await db.user.findUnique({ where: { username } });
 			let counter = 1;
 			while (existingUser) {
 				username = `${email.split("@")[0]}_${counter}`;
-				existingUser = await prisma.user.findUnique({ where: { username } });
+				existingUser = await db.user.findUnique({ where: { username } });
 				counter++;
 			}
 
 			const subscription = "free" as Subscription; // Default to free subscription
 			const privacy = DEFAULT_PRIVACY;
 
-			user = await prisma.user.create({
+			user = await db.user.create({
 				data: {
 					name,
 					email,
@@ -311,7 +330,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 				},
 			});
 
-			await prisma.credential.create({
+			await db.credential.create({
 				data: {
 					userId: user.uid,
 					provider: "google",
@@ -355,7 +374,10 @@ export const googleLogin = async (req: Request, res: Response) => {
 
 export const me = async (req: Request, res: Response) => {
 	const authUser = (req as any).user as { uid: string };
-	const user = await prisma.user.findUnique({
+
+	const db = await connect();
+
+	const user = await db.user.findUnique({
 		where: { uid: authUser.uid },
 		include: {
 			followers: true,
@@ -365,7 +387,7 @@ export const me = async (req: Request, res: Response) => {
 					posts: true,
 					followers: true,
 					following: true,
-					likes: true
+					likes: true,
 				},
 			},
 		},
@@ -388,7 +410,7 @@ export const me = async (req: Request, res: Response) => {
 			posts: user._count.posts,
 			followers: user._count.followers,
 			followings: user._count.following,
-			likes: user._count.likes
+			likes: user._count.likes,
 		},
 		privacy: user.privacy,
 		hasVerifiedEmail: user.hasVerifiedEmail,
@@ -401,13 +423,15 @@ export const me = async (req: Request, res: Response) => {
 export const validateVerificationId = async (req: Request, res: Response) => {
 	const { verificationId } = req.params;
 
+	const db = await connect();
+
 	if (!verificationId) {
 		return res.status(400).json({
 			message: "Verification ID is required",
 		});
 	}
 
-	const record = await prisma.email.findUnique({
+	const record = await db.email.findUnique({
 		where: { verificationId },
 	});
 

@@ -4,13 +4,18 @@ import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
 
-const prisma = await connect();
+const prisma = await (async () => {
+	return await connect();
+})();
 
 const CreatePostSchema = z
 	.object({
 		content: z.string().min(1).max(1000).optional(),
 		imageUrls: z.array(z.string().url()).max(10).optional(),
-		liveVideoUrl: z.string().url().optional(),
+		liveVideoUrl: z
+			.string()
+			.regex(new RegExp(/^https?:\/\/.*/))
+			.optional(),
 		postType: z.enum(["text", "live_video"]).default("text"),
 		privacy: z.enum(["public", "private", "followers"]).default("public"),
 	})

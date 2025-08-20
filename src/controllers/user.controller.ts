@@ -1,16 +1,17 @@
 /** @format */
 
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { connect } from "../database/database";
 
-const prisma = new PrismaClient();
+const prisma = await (async () => {
+	return await connect();
+})();
 
 const UpdateUserSchema = z.object({
 	name: z.string().min(1).optional(),
 	bio: z.string().max(500).optional(),
-	photoURL: z.string().url().optional(),
+	photoURL: z.string().regex(new RegExp(/^https?:\/\/.*/)).optional(),
 	privacy: z
 		.object({
 			profile: z.enum(["public", "private"]).optional(),
@@ -24,8 +25,7 @@ const UpdateUserSchema = z.object({
 // GET all users
 export const getUsers = async (req: Request, res: Response) => {
 	try {
-		const db = await connect();
-		const users = await db.user.findMany({
+		const users = await prisma.user.findMany({
 			select: {
 				uid: true,
 				name: true,
@@ -38,8 +38,8 @@ export const getUsers = async (req: Request, res: Response) => {
 				_count: {
 					select: {
 						posts: true,
-						followers: true,
 						following: true,
+						followers: true
 					},
 				},
 			},

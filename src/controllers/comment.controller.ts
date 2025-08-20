@@ -3,9 +3,10 @@
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
-import { calculatePostEarnings } from "./post.controller";
 
-const prisma = await connect();
+const prisma = await (async () => {
+	return await connect();
+})();
 
 const CreateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
@@ -46,15 +47,10 @@ export const getComments = async (req: Request, res: Response) => {
 
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
-
-
-// Add this after comment creation in createComment function
-// You'll need to add this line after the comment is created:
-// await calculatePostEarnings(postId);
-
 				where: { username: author as string },
 				select: { uid: true }
 			});
+			
 			if (authorUser) {
 				where.authorId = authorUser.uid;
 			} else {
