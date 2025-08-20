@@ -2,24 +2,28 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/index.js",
+      "src": "src/index.ts",
       "use": "@vercel/node"
     }
   ],
-  "headers": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "X-CSRF-Token, X-Requested-With, Accept, Content-Type, Authorization"
-        }
-      ]
+      "src": "/api/(.*)",
+      "dest": "/src/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "src/index.ts"
     }
-  ]
+  ],
+  "build": {
+    "env": {
+      "NODE_ENV": "production"
+    },
+    "commands": {
+      "install": "npm install",
+      "build": "npm run build",
+      "deploy": "npm run start"
+    }
+  }
 }
