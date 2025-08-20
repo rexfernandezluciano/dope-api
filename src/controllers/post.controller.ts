@@ -174,6 +174,10 @@ export const getPosts = async (req: Request, res: Response) => {
 				stats: {
 					comments: p._count.comments,
 					likes: p._count.likes,
+					views: p.analytics?.views || 0,
+					shares: p.analytics?.shares || 0,
+					clicks: p.analytics?.clicks || 0,
+					earnings: p.analytics?.earnings || 0,
 				},
 				author: {
 					...p.author,
@@ -199,10 +203,6 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 					};
 				}),
-				analytics: {
-					views: p.analytics?.views || 0,
-					shares: p.analytics?.shares || 0,
-				},
 				postType: p.postType,
 				liveVideoUrl: p.liveVideoUrl,
 				privacy: p.privacy,
@@ -694,7 +694,7 @@ export const trackPostView = async (req: Request, res: Response) => {
 		const { id } = req.params;
 
 		// Update analytics
-		const updatedAnalytics = await prisma.postAnalytics.upsert({
+		await prisma.postAnalytics.upsert({
 			where: { postId: id ?? "" },
 			update: { views: { increment: 1 } },
 			create: { postId: id ?? "", views: 1 },
@@ -723,8 +723,8 @@ export const trackPostView = async (req: Request, res: Response) => {
 		}
 
 		res.json({ message: "View tracked and earnings updated" });
-	} catch (error) {
-		res.status(500).json({ error: "Error tracking view" });
+	} catch (error: any) {
+		res.status(500).json({ error: "Error tracking view: " + error?.message });
 	}
 };
 
@@ -738,7 +738,7 @@ export const calculatePostEarnings = (post: any) => {
 
 		// Calculate total engagement score
 		// Weighted formula: views * 1 + likes * 5 + comments * 10 + shares * 15
-		const engagementScore = (views * 1) + (likes * 5) + (comments * 10) + (shares * 15);
+		const engagementScore = views * 1 + likes * 5 + comments * 10 + shares * 15;
 
 		// Earnings calculation: $0.01 per post if engagement >= 1,000,000
 		let earnings = 0;
@@ -799,14 +799,14 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 
 		// Update the specific metric based on action
 		switch (action) {
-			case 'view':
+			case "view":
 				await prisma.postAnalytics.upsert({
-					where: { postId: id ?? ""},
+					where: { postId: id ?? "" },
 					update: { views: { increment: 1 } },
 					create: { postId: id ?? "", views: 1 },
 				});
 				break;
-			case 'share':
+			case "share":
 				await prisma.postAnalytics.upsert({
 					where: { postId: id ?? "" },
 					update: { shares: { increment: 1 } },
