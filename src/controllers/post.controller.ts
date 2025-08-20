@@ -161,10 +161,10 @@ export const getPosts = async (req: Request, res: Response) => {
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
-			followingIds = following.map((f) => f.followingId);
+			followingIds = following.map((f: any) => f.followingId);
 		}
 
-		const output = postsToReturn.map((p) => {
+		const output = postsToReturn.map((p: any) => {
 			return {
 				id: p.id,
 				content: p.content,
@@ -184,7 +184,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						? followingIds.includes(p.author.uid)
 						: false,
 				},
-				comments: p.comments.map((c) => {
+				comments: p.comments.map((c: any) => {
 					return {
 						id: c.id,
 						content: c.content,
@@ -194,7 +194,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 					};
 				}),
-				likes: p.likes.map((l) => {
+				likes: p.likes.map((l: any) => {
 					return {
 						user: {
 							uid: l.user.uid,
@@ -309,7 +309,7 @@ export const getPost = async (req: Request, res: Response) => {
 				...post.author,
 				isFollowedByCurrentUser,
 			},
-			comments: post.comments.map((c) => {
+			comments: post.comments.map((c: any) => {
 				return {
 					id: c.id,
 					content: c.content,
@@ -319,7 +319,7 @@ export const getPost = async (req: Request, res: Response) => {
 					},
 				};
 			}),
-			likes: post.likes.map((l) => {
+			likes: post.likes.map((l: any) => {
 				return {
 					user: {
 						uid: l.user.uid,
