@@ -13,6 +13,26 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
+// Handle preflight requests
+app.use((req: Request, res: Response, next: NextFunction) => {
+	res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+	res.header("Access-Control-Allow-Credentials", "true");
+	res.header(
+		"Access-Control-Allow-Methods",
+		"GET, POST, PUT, DELETE, PATCH, OPTIONS",
+	);
+	res.header(
+		"Access-Control-Allow-Headers",
+		"Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Firebase-AppCheck",
+	);
+
+	if (req.method === "OPTIONS") {
+		res.sendStatus(204);
+	}
+
+	next();
+});
+
 // CORS configuration to allow all requests from any host
 app.use(
 	cors({
@@ -28,7 +48,7 @@ app.use(
 			"Origin",
 			"X-Firebase-AppCheck",
 		],
-		exposedHeaders: ["Content-Length", "X-Foo", "X-Bar"],
+		exposedHeaders: ["Content-Length", "X-Api"],
 		preflightContinue: false,
 		optionsSuccessStatus: 204,
 	}),
@@ -36,15 +56,6 @@ app.use(
 
 app.use(express.json());
 app.set("json spaces", 2);
-
-// Handle preflight requests
-app.use((req: Request, res: Response, next: NextFunction) => {
-	res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-	res.header("Access-Control-Allow-Credentials", "true");
-	res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-	res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Origin, X-Firebase-AppCheck");
-	next();
-});
 
 app.get("/", (req: Request, res: Response) => {
 	res.json({ status: "ok", message: "API is running." });
@@ -56,7 +67,7 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 
 // Import error handlers
-import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
+import { errorHandler, notFoundHandler } from "./middleware/errormiddleware";
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
@@ -68,4 +79,4 @@ app.listen(PORT as number, "0.0.0.0", () => {
 	console.log(`Server running on http://0.0.0.0:${PORT}`);
 });
 
-module.exports = app;
+export default app;
