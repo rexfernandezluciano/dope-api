@@ -55,6 +55,15 @@ app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 
+// Import error handlers
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
+
+// 404 handler - must be after all routes
+app.use(notFoundHandler);
+
+// Global error handler - must be last
+app.use(errorHandler);
+
 app.listen(PORT as number, "0.0.0.0", () => {
 	console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

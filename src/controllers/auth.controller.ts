@@ -137,11 +137,7 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
 		return res.json({ message: "Email verified successfully" });
 	} catch (err: any) {
-		if (err.name === "ZodError")
-			return res
-				.status(400)
-				.json({ message: "Invalid payload", errors: err.errors });
-		return res.status(500).json({ message: "Verification failed" });
+		next(err);
 	}
 };
 
@@ -171,13 +167,7 @@ export const resendCode = async (req: Request, res: Response) => {
 
 		return res.json({ message: "Verification code resent", verificationId });
 	} catch (err: any) {
-		if (err.name === "ZodError")
-			return res
-				.status(400)
-				.json({ message: "Invalid payload", errors: err.errors });
-		return res
-			.status(500)
-			.json({ message: "Failed to resend code", error: err.message });
+		next(err);
 	}
 };
 
@@ -231,11 +221,7 @@ export const login = async (req: Request, res: Response) => {
 			},
 		});
 	} catch (err: any) {
-		if (err.name === "ZodError")
-			return res
-				.status(400)
-				.json({ message: "Invalid payload", errors: err.errors });
-		return res.status(500).json({ message: "Login failed" });
+		next(err);
 	}
 };
 
