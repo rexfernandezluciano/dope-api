@@ -14,6 +14,7 @@ import { sendVerificationEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
+import passport from "passport";
 
 // Dynamic import functions for nanoid
 const getMakeCode = async () => {
@@ -190,59 +191,46 @@ export const login = async (
 	res: Response,
 	next: NextFunction,
 ) => {
-	try {
-		const { email, password } = LoginSchema.parse(req.body);
-
-		const db = await connect();
-
-		const user = await db.user.findUnique({
-			where: { email },
-			include: { credentials: true },
-		});
-		if (!user) return res.status(401).json({ message: "Invalid credentials" });
-
-		const cred = user.credentials.find(
-			(c: Credential) => c.provider === "local",
-		);
-		if (!cred?.passwordHash)
-			return res.status(401).json({ message: "Invalid credentials" });
-
-		const ok = await bcrypt.compare(password, cred.passwordHash);
-		if (!ok) return res.status(401).json({ message: "Invalid credentials" });
-
-		// (Optional) require verified email
-		if (!user.hasVerifiedEmail) {
-			return res.status(403).json({ message: "Email not verified" });
+	passport.authenticate("local", (err: any, user: any, info: any) => {
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return res.status(401).json({ message: info.message || "Invalid credentials" });
 		}
 
-		const token = signToken({
-			uid: user.uid,
-			email: user.email,
-			username: user.username,
-		});
+		req.logIn(user, (err) => {
+			if (err) {
+				return next(err);
+			}
 
-		return res.json({
-			token,
-			user: {
+			const token = signToken({
 				uid: user.uid,
-				name: user.name,
 				email: user.email,
 				username: user.username,
-				photoURL: user.photoURL,
-				hasBlueCheck: user.hasBlueCheck,
-				membership: {
-					subscription: user.subscription,
-					nextBillingDate: user.nextBillingDate,
+			});
+
+			return res.json({
+				token,
+				user: {
+					uid: user.uid,
+					name: user.name,
+					email: user.email,
+					username: user.username,
+					photoURL: user.photoURL,
+					hasBlueCheck: user.hasBlueCheck,
+					membership: {
+						subscription: user.subscription,
+						nextBillingDate: user.nextBillingDate,
+					},
+					privacy: user.privacy,
+					hasVerifiedEmail: user.hasVerifiedEmail,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
 				},
-				privacy: user.privacy,
-				hasVerifiedEmail: user.hasVerifiedEmail,
-				createdAt: user.createdAt,
-				updatedAt: user.updatedAt,
-			},
+			});
 		});
-	} catch (err: any) {
-		next(err);
-	}
+	})(req, res, next);
 };
 
 // Google Sign-in Controller
@@ -418,6 +406,63 @@ export const me = async (req: Request, res: Response) => {
 		updatedAt: user.updatedAt,
 	};
 	return res.json({ status: "ok", user: output });
+};
+
+export const googleAuth = passport.authenticate("google", {
+	scope: ["profile", "email"],
+});
+
+export const googleCallback = async (req: Request, res: Response, next: NextFunction) => {
+	passport.authenticate("google", (err: any, user: any, info: any) => {
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return res.redirect("/login?error=google_auth_failed");
+		}
+
+		req.logIn(user, (err) => {
+			if (err) {
+				return next(err);
+			}
+
+			const token = signToken({
+				uid: user.uid,
+				email: user.email,
+				username: user.username,
+			});
+
+			// Redirect to frontend with token or return JSON
+			return res.json({
+				token,
+				user: {
+					uid: user.uid,
+					name: user.name,
+					email: user.email,
+					username: user.username,
+					photoURL: user.photoURL,
+					hasBlueCheck: user.hasBlueCheck,
+					membership: {
+						subscription: user.subscription,
+						nextBillingDate: user.nextBillingDate,
+					},
+					privacy: user.privacy,
+					hasVerifiedEmail: user.hasVerifiedEmail,
+					createdAt: user.createdAt,
+					updatedAt: user.updatedAt,
+				},
+			});
+		});
+	})(req, res, next);
+};
+
+export const logout = async (req: Request, res: Response) => {
+	req.logout((err) => {
+		if (err) {
+			return res.status(500).json({ message: "Logout failed" });
+		}
+		res.json({ message: "Logged out successfully" });
+	});
 };
 
 export const validateVerificationId = async (req: Request, res: Response) => {

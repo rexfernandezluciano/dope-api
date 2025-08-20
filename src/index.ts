@@ -3,6 +3,8 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
+import session from "express-session";
+import passport from "./config/passport";
 
 import authRoutes from "./routes/auth.routes";
 import postRoutes from "./routes/post.routes";
@@ -37,6 +39,21 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 app.set("json spaces", 2);
+
+// Session configuration
+app.use(session({
+	secret: process.env.SESSION_SECRET || "your-secret-key",
+	resave: false,
+	saveUninitialized: false,
+	cookie: {
+		secure: process.env.NODE_ENV === "production",
+		maxAge: 24 * 60 * 60 * 1000 // 24 hours
+	}
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 const BASE_PATH = "/v1";
 
