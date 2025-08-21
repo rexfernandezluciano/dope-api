@@ -197,13 +197,17 @@ export const login = async (
 				return res.status(500).json({ message: "Authentication failed" });
 			}
 			if (!user) {
-				return res.status(401).json({ message: info.message || "Invalid credentials" });
+				return res
+					.status(401)
+					.json({ message: info.message || "Invalid credentials" });
 			}
 
 			req.logIn(user, (err) => {
 				if (err) {
 					console.error("Login error:", err);
-					return res.status(500).json({ message: "Login failed" });
+					return res
+						.status(500)
+						.json({ error: err.message, message: "Login failed" });
 				}
 
 				try {
@@ -419,7 +423,11 @@ export const googleAuth = passport.authenticate("google", {
 	scope: ["profile", "email"],
 });
 
-export const googleCallback = async (req: Request, res: Response, next: NextFunction) => {
+export const googleCallback = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
 	passport.authenticate("google", (err: any, user: any, info: any) => {
 		if (err) {
 			return next(err);
