@@ -1,12 +1,16 @@
+
 import { Router } from 'express';
-import { getUserSessions, revokeSession, revokeAllSessions, validateSession } from '../controllers/session.controller';
+import {
+  getUserSessions,
+  deleteUserSession,
+  deleteAllUserSessions,
+} from '../controllers/session.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
 router.get('/', requireAuth, getUserSessions);
-router.get('/validate', requireAuth, validateSession);
-router.delete('/:sessionId', requireAuth, revokeSession);
-router.delete('/', requireAuth, revokeAllSessions);
+router.delete('/:sessionId', requireAuth, deleteUserSession);
+router.delete('/', requireAuth, deleteAllUserSessions);
 
 export default router;

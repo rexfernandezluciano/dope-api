@@ -18,6 +18,7 @@ import imageRoutes from "./routes/image.routes";
 import reportRoutes from "./routes/report.routes";
 import blockRoutes from "./routes/block.routes";
 import paymentRoutes from "./routes/payment.routes";
+import sessionRoutes from "./routes/session.routes";
 import contentRoutes from "./routes/content.routes";
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use("/v1/replies", replyRoutes);
 app.use("/v1/reports", reportRoutes);
 app.use("/v1/blocks", blockRoutes);
 app.use("/v1/payments", paymentRoutes);
+app.use("/v1/sessions", sessionRoutes);
 app.use("/v1/content", contentRoutes);
 app.use("/v1/sessions", sessionRoutes);
 

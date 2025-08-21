@@ -128,6 +128,52 @@ export const deletePaymentMethod = async (req: Request, res: Response) => {
   }
 };
 
+export const purchaseMembership = async (req: Request, res: Response) => {
+  try {
+    const authUser = (req as any).user as { uid: string };
+    const { subscription, paymentMethodId } = req.body;
+
+    // Validate subscription type
+    if (!['premium', 'pro'].includes(subscription)) {
+      return res.status(400).json({ message: 'Invalid subscription type' });
+    }
+
+    // Verify payment method belongs to user
+    const paymentMethod = await prisma.paymentMethod.findFirst({
+      where: {
+        id: paymentMethodId,
+        userId: authUser.uid,
+      },
+    });
+
+    if (!paymentMethod) {
+      return res.status(404).json({ message: 'Payment method not found' });
+    }
+
+    // Calculate next billing date (1 month from now)
+    const nextBillingDate = new Date();
+    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+    // Update user subscription
+    const updatedUser = await prisma.user.update({
+      where: { uid: authUser.uid },
+      data: {
+        subscription: subscription as 'premium' | 'pro',
+        nextBillingDate,
+        hasBlueCheck: true, // Grant blue check for paid subscriptions
+      },
+    });
+
+    res.json({
+      message: 'Membership purchased successfully',
+      subscription: updatedUser.subscription,
+      nextBillingDate: updatedUser.nextBillingDate,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Error purchasing membership: ' + error.message });
+  }
+};
+
 export const getAvailablePaymentProviders = async (req: Request, res: Response) => {
   try {
     const providers = [
