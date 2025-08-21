@@ -18,6 +18,15 @@ const UpdateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
 });
 
+const SearchCommentsSchema = z.object({
+	query: z.string().min(1).max(100),
+	limit: z.string().optional(),
+	cursor: z.string().optional(),
+	author: z.string().optional(),
+	postId: z.string().optional(),
+	sortBy: z.enum(["desc", "asc"]).optional(),
+});
+
 // GET comments for a post with pagination and filtering
 export const getComments = async (req: Request, res: Response) => {
 	try {
@@ -233,6 +242,111 @@ export const updateComment = async (req: Request, res: Response) => {
 			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error updating comment" });
+	}
+};
+
+// SEARCH comments globally
+export const searchComments = async (req: Request, res: Response) => {
+	try {
+		const {
+			query,
+			limit = "20",
+			cursor,
+			author,
+			postId,
+			sortBy = "desc"
+		} = SearchCommentsSchema.parse(req.query);
+
+		const limitNum = Math.min(parseInt(limit), 100); // Max 100 comments per request
+
+		// Build where clause for filtering
+		const where: any = {
+			content: {
+				contains: query,
+				mode: "insensitive"
+			}
+		};
+
+		// Filter by author if specified
+		if (author) {
+			const authorUser = await prisma.user.findUnique({
+				where: { username: author },
+				select: { uid: true }
+			});
+			
+			if (authorUser) {
+				where.authorId = authorUser.uid;
+			} else {
+				return res.json({ comments: [], nextCursor: null, hasMore: false });
+			}
+		}
+
+		// Filter by post if specified
+		if (postId) {
+			where.postId = postId;
+		}
+
+		// Add cursor pagination
+		if (cursor) {
+			if (sortBy === "asc") {
+				where.id = { gt: cursor };
+			} else {
+				where.id = { lt: cursor };
+			}
+		}
+
+		const comments = await prisma.comment.findMany({
+			where,
+			take: limitNum + 1, // Take one extra to check if there are more
+			include: {
+				author: {
+					select: {
+						uid: true,
+						name: true,
+						username: true,
+						photoURL: true,
+						hasBlueCheck: true,
+					},
+				},
+				post: {
+					select: {
+						id: true,
+						content: true,
+						postType: true,
+						author: {
+							select: {
+								uid: true,
+								name: true,
+								username: true,
+								photoURL: true,
+								hasBlueCheck: true,
+							},
+						},
+					},
+				},
+			},
+			orderBy: {
+				createdAt: sortBy === "asc" ? "asc" : "desc",
+			},
+		});
+
+		const hasMore = comments.length > limitNum;
+		const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
+		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1]?.id : null;
+
+		res.json({
+			comments: commentsToReturn,
+			nextCursor,
+			hasMore,
+			limit: limitNum,
+			sortBy,
+			query,
+		});
+	} catch (err: any) {
+		if (err.name === "ZodError") {
+			return res.status(400).json({ message: "Invalid query parameters", errors: err.errors });
+		}
+		res.status(500).json({ error: "Error searching comments" });
 	}
 };
 

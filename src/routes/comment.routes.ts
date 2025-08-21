@@ -6,12 +6,14 @@ import {
 	createComment,
 	updateComment,
 	deleteComment,
+	searchComments,
 } from "../controllers/comment.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
+router.get("/search", searchComments);
 router.get("/post/:postId", getComments);
 
 // Authenticated routes
