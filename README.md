@@ -26,21 +26,24 @@ A comprehensive social media API for the DOPE Network platform supporting user p
 
 ## Features
 - User registration and authentication with email verification
-- Session management with device tracking
+- Enhanced session management with device and browser tracking
 - Text and live video posts with image support
-- Comments, likes, and replies system
+- Comments, likes, and replies system with nested threading
 - User following system
 - Content moderation with AI
-- Hashtags and mentions support
+- Hashtags and mentions support with automatic extraction
 - Post sharing and engagement tracking
-- User reporting and blocking system
+- User reporting and blocking system with restriction levels
 - Payment methods and subscription management
 - Live streaming support
 - Image upload with Cloudinary integration
-- Subscription tiers (Free, Premium, Pro)
+- Subscription tiers (Free, Premium, Pro) with automatic billing reminders
 - Verified badges (Blue Check)
 - Google OAuth integration
-- Earnings tracking for creators
+- Earnings tracking for creators with detailed analytics
+- Global search functionality across posts and comments
+- User blocking and restriction capabilities
+- Automated billing reminder emails (3 days before renewal)
 
 ## Base URL
 ```
@@ -715,6 +718,19 @@ GET /v1/comments/post/:postId
 - `search`: Search term
 - `sortBy`: "desc" or "asc" (default: "desc")
 
+#### Search Comments Globally
+```http
+GET /v1/comments/search
+```
+
+**Query Parameters:**
+- `query`: Search term (required)
+- `limit`: Number of comments (default: 20, max: 100)
+- `cursor`: Pagination cursor
+- `author`: Filter by username
+- `postId`: Filter by specific post
+- `sortBy`: "desc" or "asc" (default: "desc")
+
 **Success Response (200):**
 ```json
 {
@@ -1073,6 +1089,7 @@ Authorization: Bearer <jwt_token>
     {
       "id": "session_id",
       "device": "iPhone 15 Pro",
+      "browser": "Chrome",
       "ipAddress": "192.168.1.1",
       "location": "New York, US",
       "isActive": true,
@@ -1274,10 +1291,17 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-#### Restrict User
+#### Restrict User (Limit interactions without full block)
 ```http
 POST /v1/blocks/restrict/:userId
 Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "reason": "harassment"
+}
 ```
 
 **Success Response (200):**
@@ -1411,6 +1435,8 @@ Authorization: Bearer <jwt_token>
     chat: "public" | "followers" | "private";
   };
   hasVerifiedEmail: boolean;
+  isBlocked: boolean;
+  isRestricted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1509,16 +1535,48 @@ Authorization: Bearer <jwt_token>
 {
   id: string;
   userId: string;
-  type: "card" | "paypal" | "bank";
+  type: "credit_card" | "debit_card" | "paypal" | "bank_transfer" | "crypto";
   provider: string;
   last4?: string;
   brand?: string;
-  expiryMonth?: string;
-  expiryYear?: string;
+  expiryMonth?: number;
+  expiryYear?: number;
   holderName?: string;
   isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+```
+
+### Mention
+```typescript
+{
+  id: string;
+  postId?: string;
+  commentId?: string;
+  username: string;
+  createdAt: Date;
+}
+```
+
+### Hashtag
+```typescript
+{
+  id: string;
+  postId?: string;
+  commentId?: string;
+  tag: string;
+  createdAt: Date;
+}
+```
+
+### CommentLike
+```typescript
+{
+  id: string;
+  commentId: string;
+  userId: string;
+  createdAt: Date;
 }
 ```
 
