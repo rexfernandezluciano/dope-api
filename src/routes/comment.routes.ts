@@ -19,6 +19,7 @@ router.post("/", requireAuth, createComment);
 router.put("/:id", requireAuth, updateComment);
 router.delete("/:id", requireAuth, deleteComment);
 router.get("/", getComments);
+router.get("/post/:postId", getComments);
 router.get("/search", searchComments);
 
 // Comment replies
