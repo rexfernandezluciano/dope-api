@@ -407,7 +407,7 @@ export const createPost = async (req: Request, res: Response) => {
 
 		// Moderate content
 		if (content) {
-			const contentModeration = moderateContent(content);
+			const contentModeration = await moderateContent(content);
 			if (!contentModeration.isAppropriate) {
 				return res.status(400).json({ 
 					message: "Content violates community guidelines", 
