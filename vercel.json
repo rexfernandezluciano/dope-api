@@ -42,5 +42,6 @@
     "CLOUDINARY_CLOUD_NAME": "zxpic",
     "OPENAI_API_KEY": "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",
     "SESSION_SECRET": "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x"
-  }
+  },
+  "GOOGLE_CALLBACK_URL": "https://api.dopp.eu.org/v1/auth/google/callback"
 }
