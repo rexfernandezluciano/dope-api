@@ -47,7 +47,7 @@ A comprehensive social media API for the DOPE Network platform supporting user p
 
 ## Base URL
 ```
-https://social.dopp.eu.org/v1
+https://social.dopp.eu.org
 ```
 
 ## Authentication
@@ -325,6 +325,8 @@ GET /v1/users/:username
     "membership": {
       "subscription": "premium"
     },
+    "isBlocked": false,
+    "isRestricted": false,
     "createdAt": "2024-01-15T10:30:00Z",
     "posts": [
       {
@@ -366,7 +368,9 @@ GET /v1/users/:username
       "followers": 150,
       "following": 75
     },
-    "isFollowedByCurrentUser": false
+    "isFollowedByCurrentUser": false,
+    "isBlockedByCurrentUser": false,
+    "isRestrictedByCurrentUser": false
   }
 }
 ```
