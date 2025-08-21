@@ -34,6 +34,12 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
         return;
       }
 
+      // Only save sessions that have authenticated users
+      if (!session.passport?.user) {
+        callback?.();
+        return;
+      }
+
       const expiresAt = session.cookie?.expires || new Date(Date.now() + 24 * 60 * 60 * 1000);
       
       // Extract IP and get location
@@ -55,7 +61,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
         where: { sid: sessionId },
         update: {
           data: session,
-          userId: session.passport?.user || null,
+          userId: session.passport.user,
           ipAddress,
           location,
           expiresAt,
@@ -64,7 +70,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
         create: {
           sid: sessionId,
           data: session,
-          userId: session.passport?.user || null,
+          userId: session.passport.user,
           ipAddress,
           location,
           expiresAt,
