@@ -15,13 +15,13 @@ import {
 	getCurrentUserPosts,
 	sharePost
 } from "../controllers/post.controller";
-import { requireAuth, authenticateJWT, optionalAuth } from "../middleware/auth.middleware";
+import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
 // Public routes
 router.get("/", optionalAuth, getPosts);
-router.get("/feed/following", authenticateJWT, getFollowingFeed);
+router.get("/feed/following", requireAuth, getFollowingFeed);
 router.get("/:id", optionalAuth, getPost);
 router.post("/:id/view", trackPostView);
 router.post("/:id/earnings", trackEarnings);

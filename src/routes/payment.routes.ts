@@ -6,13 +6,13 @@ import {
   deletePaymentMethod, 
   getAvailablePaymentProviders 
 } from '../controllers/payment.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
 router.get('/providers', getAvailablePaymentProviders);
-router.post('/methods', authenticateToken, addPaymentMethod);
-router.get('/methods', authenticateToken, getPaymentMethods);
-router.delete('/methods/:paymentMethodId', authenticateToken, deletePaymentMethod);
+router.post('/methods', requireAuth, addPaymentMethod);
+router.get('/methods', requireAuth, getPaymentMethods);
+router.delete('/methods/:paymentMethodId', requireAuth, deletePaymentMethod);
 
 export default router;

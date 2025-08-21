@@ -1,12 +1,12 @@
 
 import { Router } from 'express';
 import { blockUser, unblockUser, getBlockedUsers } from '../controllers/block.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/', authenticateToken, blockUser);
-router.delete('/:blockedUserId', authenticateToken, unblockUser);
-router.get('/', authenticateToken, getBlockedUsers);
+router.post('/', requireAuth, blockUser);
+router.delete('/:blockedUserId', requireAuth, unblockUser);
+router.get('/', requireAuth, getBlockedUsers);
 
 export default router;

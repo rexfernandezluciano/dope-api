@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { getUserSessions, revokeSession, revokeAllSessions, validateSession } from '../controllers/session.controller';
-import { authenticateToken } from '../middleware/auth.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', authenticateToken, getUserSessions);
-router.get('/validate', authenticateToken, validateSession);
-router.delete('/:sessionId', authenticateToken, revokeSession);
-router.delete('/', authenticateToken, revokeAllSessions);
+router.get('/', requireAuth, getUserSessions);
+router.get('/validate', requireAuth, validateSession);
+router.delete('/:sessionId', requireAuth, revokeSession);
+router.delete('/', requireAuth, revokeAllSessions);
 
 export default router;

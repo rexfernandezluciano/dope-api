@@ -38,7 +38,7 @@ export const getUserSessions = async (req: Request, res: Response) => {
       }
     });
 
-    const sessionsWithStatus = sessions.map(session => {
+    const sessionsWithStatus = sessions.map((session: any) => {
       const sessionData = session.data as any;
       const device = sessionData?.device || 'Unknown Device';
       const browser = sessionData?.browser || 'Unknown Browser';
