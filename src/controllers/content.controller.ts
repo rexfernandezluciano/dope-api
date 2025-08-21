@@ -23,7 +23,7 @@ const moderateContent = async (content: string): Promise<{ isAppropriate: boolea
 
     const result = moderation.results[0];
     
-    if (result.flagged) {
+    if (result && result.flagged) {
       const flaggedCategories = Object.keys(result.categories).filter(
         category => result.categories[category as keyof typeof result.categories]
       );
@@ -121,7 +121,7 @@ const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean
       max_tokens: 300,
     });
 
-    const analysisText = visionResponse.choices[0].message.content;
+    const analysisText = visionResponse?.choices?.[0]?.message?.content;
     
     if (analysisText) {
       try {
