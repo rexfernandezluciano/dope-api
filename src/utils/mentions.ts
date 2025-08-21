@@ -5,7 +5,7 @@ export const extractMentions = (content: string): string[] => {
   let match;
   
   while ((match = mentionRegex.exec(content)) !== null) {
-    mentions.push(match[1]);
+    mentions.push(match[1] ?? "");
   }
   
   return [...new Set(mentions)]; // Remove duplicates
@@ -17,7 +17,7 @@ export const extractHashtags = (content: string): string[] => {
   let match;
   
   while ((match = hashtagRegex.exec(content)) !== null) {
-    hashtags.push(match[1].toLowerCase());
+    hashtags.push(match[1]?.toLowerCase() ?? "");
   }
   
   return [...new Set(hashtags)]; // Remove duplicates
