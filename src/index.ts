@@ -20,15 +20,18 @@ const PORT = process.env.PORT || 5000;
 
 // Define the CORS middleware
 const corsOptions = {
-	origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+	origin: function (
+		origin: string | undefined,
+		callback: (err: Error | null, allow?: boolean) => void,
+	) {
 		// Allow requests with no origin (like mobile apps or curl requests)
 		if (!origin) return callback(null, true);
-		
+
 		// Allow all origins in development
-		if (process.env.NODE_ENV !== 'production') {
+		if (process.env.NODE_ENV !== "production") {
 			return callback(null, true);
 		}
-		
+
 		// In production, you might want to restrict to specific domains
 		// For now, allowing all origins
 		return callback(null, true);
@@ -62,17 +65,19 @@ app.use(express.json());
 app.set("json spaces", 2);
 
 // Session configuration with database storage
-app.use(session({
-	secret: process.env.SESSION_SECRET || "your-secret-key",
-	resave: false,
-	saveUninitialized: false,
-	store: new CustomPrismaSessionStore(),
-	cookie: {
-		secure: process.env.NODE_ENV === "production",
-		maxAge: 24 * 60 * 60 * 1000, // 24 hours
-		httpOnly: true
-	}
-}));
+app.use(
+	session({
+		secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
+		resave: false,
+		saveUninitialized: false,
+		store: new CustomPrismaSessionStore(),
+		cookie: {
+			secure: process.env.NODE_ENV === "production",
+			maxAge: 24 * 60 * 60 * 1000, // 24 hours
+			httpOnly: true,
+		},
+	}),
+);
 
 // Add IP tracking middleware
 app.use(enhanceSession);
@@ -83,11 +88,9 @@ app.use(passport.session());
 
 const BASE_PATH = "/v1";
 
-// Handle preflight OPTIONS requests explicitly
-app.options('*', cors(corsOptions));
-
 app.get("/", (req: Request, res: Response) => {
-	res.json({ status: "ok", message: "API is running." });
+	const origin = req.headers.origin;
+	res.json({ status: "ok", message: "API is accessed on " + origin });
 });
 
 app.use(`${BASE_PATH}/auth`, authRoutes);
