@@ -11,23 +11,37 @@
   - [User Routes](#user-routes)
   - [Post Routes](#post-routes)
   - [Comment Routes](#comment-routes)
+  - [Like Routes](#like-routes)
+  - [Reply Routes](#reply-routes)
+  - [Image Routes](#image-routes)
   - [Session Routes](#session-routes)
+  - [Content Moderation Routes](#content-moderation-routes)
+  - [Report Routes](#report-routes)
+  - [Block Routes](#block-routes)
+  - [Payment Routes](#payment-routes)
 - [Data Models](#data-models)
 - [Error Handling](#error-handling)
 
 ## Overview
-A comprehensive social media API for the DOPE Network platform supporting user profiles, posts, comments, and social interactions.
+A comprehensive social media API for the DOPE Network platform supporting user profiles, posts, comments, social interactions, content moderation, payments, and live streaming.
 
 ## Features
-- User registration and authentication
-- Text and live video posts
-- Comments and likes system
+- User registration and authentication with email verification
+- Session management with device tracking
+- Text and live video posts with image support
+- Comments, likes, and replies system
 - User following system
-- Email verification
+- Content moderation with AI
+- Hashtags and mentions support
+- Post sharing and engagement tracking
+- User reporting and blocking system
+- Payment methods and subscription management
+- Live streaming support
+- Image upload with Cloudinary integration
 - Subscription tiers (Free, Premium, Pro)
 - Verified badges (Blue Check)
-- Session management
 - Google OAuth integration
+- Earnings tracking for creators
 
 ## Base URL
 ```
@@ -127,7 +141,9 @@ POST /v1/auth/login
 ```json
 {
   "email": "john@example.com",
-  "password": "password123"
+  "password": "password123",
+  "device": "iPhone 15 Pro",
+  "location": "New York, US"
 }
 ```
 
@@ -135,6 +151,7 @@ POST /v1/auth/login
 ```json
 {
   "token": "jwt_token",
+  "sessionId": "session_id",
   "user": {
     "uid": "user_id",
     "name": "John Doe",
@@ -190,7 +207,7 @@ POST /v1/auth/google
       "profile": "public",
       "comments": "public",
       "sharing": true,
-      "chat": "public"
+      "chat": "private"
     },
     "hasVerifiedEmail": true,
     "createdAt": "2024-01-15T10:30:00Z",
@@ -198,20 +215,6 @@ POST /v1/auth/google
   }
 }
 ```
-
-#### Google OAuth Initiation
-```http
-GET /v1/auth/google
-```
-
-Redirects to Google OAuth consent screen.
-
-#### Google OAuth Callback
-```http
-GET /v1/auth/google/callback
-```
-
-Handles the OAuth callback from Google.
 
 #### Logout
 ```http
@@ -223,19 +226,6 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "message": "Logged out successfully"
-}
-```
-
-#### Validate Verification ID
-```http
-GET /v1/auth/validate-verification-id/:verificationId
-```
-
-**Success Response (200):**
-```json
-{
-  "message": "Verification ID is valid",
-  "email": "john@example.com"
 }
 ```
 
@@ -337,13 +327,15 @@ GET /v1/users/:username
     "posts": [
       {
         "id": "post_id",
-        "content": "Hello world!",
+        "content": "Hello world! #trending @mention",
         "imageUrls": ["https://example.com/image.jpg"],
         "createdAt": "2024-01-15T10:30:00Z",
         "updatedAt": "2024-01-15T10:30:00Z",
         "stats": {
           "comments": 5,
-          "likes": 25
+          "likes": 25,
+          "shares": 3,
+          "views": 150
         },
         "likes": [
           {
@@ -356,6 +348,8 @@ GET /v1/users/:username
         "postType": "text",
         "liveVideoUrl": null,
         "privacy": "public",
+        "hashtags": ["trending"],
+        "mentions": ["mention"],
         "author": {
           "uid": "user_id",
           "name": "John Doe",
@@ -365,12 +359,6 @@ GET /v1/users/:username
         }
       }
     ],
-    "likes": {
-      "user": {
-        "uid": "user_id",
-        "username": "johndoe"
-      }
-    },
     "stats": {
       "posts": 42,
       "followers": 150,
@@ -495,7 +483,7 @@ Authorization: Bearer <jwt_token>
 
 ### Post Routes
 
-#### Get Posts
+#### Get Posts (Randomized Feed)
 ```http
 GET /v1/posts
 ```
@@ -516,7 +504,7 @@ GET /v1/posts
   "posts": [
     {
       "id": "post_id",
-      "content": "Hello world!",
+      "content": "Hello world! #trending @mention",
       "imageUrls": ["https://example.com/image.jpg"],
       "createdAt": "2024-01-15T10:30:00Z",
       "updatedAt": "2024-01-15T10:30:00Z",
@@ -559,71 +547,15 @@ GET /v1/posts
       ],
       "postType": "text",
       "liveVideoUrl": null,
-      "privacy": "public"
+      "privacy": "public",
+      "hashtags": ["trending"],
+      "mentions": ["mention"],
+      "moderationStatus": "approved"
     }
   ],
   "nextCursor": "cursor_string",
   "hasMore": true,
   "limit": 20
-}
-```
-
-#### Get Single Post
-```http
-GET /v1/posts/:id
-```
-
-**Success Response (200):**
-```json
-{
-  "status": "ok",
-  "post": {
-    "id": "post_id",
-    "content": "Hello world!",
-    "imageUrls": ["https://example.com/image.jpg"],
-    "createdAt": "2024-01-15T10:30:00Z",
-    "updatedAt": "2024-01-15T10:30:00Z",
-    "stats": {
-      "comments": 5,
-      "likes": 25,
-      "views": 100,
-      "shares": 2,
-      "clicks": 10
-    },
-    "author": {
-      "uid": "user_id",
-      "name": "John Doe",
-      "username": "johndoe",
-      "photoURL": "https://example.com/photo.jpg",
-      "hasBlueCheck": false,
-      "isFollowedByCurrentUser": false
-    },
-    "comments": [
-      {
-        "id": "comment_id",
-        "content": "Great post!",
-        "createdAt": "2024-01-15T10:35:00Z",
-        "author": {
-          "uid": "commenter_id",
-          "name": "Commenter",
-          "username": "commenter_username",
-          "photoURL": "https://example.com/commenter.jpg",
-          "hasBlueCheck": false
-        }
-      }
-    ],
-    "likes": [
-      {
-        "user": {
-          "uid": "liker_id",
-          "username": "liker_username"
-        }
-      }
-    ],
-    "postType": "text",
-    "liveVideoUrl": null,
-    "privacy": "public"
-  }
 }
 ```
 
@@ -636,10 +568,10 @@ Authorization: Bearer <jwt_token>
 **Request Body:**
 ```json
 {
-  "content": "Hello world!",
+  "content": "Hello world! #trending @mention",
   "imageUrls": ["https://example.com/image.jpg"],
   "liveVideoUrl": "https://example.com/live-stream.m3u8",
-  "postType": "text",
+  "postType": "live_video",
   "privacy": "public"
 }
 ```
@@ -648,14 +580,17 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "id": "post_id",
-  "content": "Hello world!",
+  "content": "Hello world! #trending @mention",
   "imageUrls": ["https://example.com/image.jpg"],
-  "liveVideoUrl": null,
-  "postType": "text",
+  "liveVideoUrl": "https://example.com/live-stream.m3u8",
+  "postType": "live_video",
   "privacy": "public",
   "createdAt": "2024-01-15T10:30:00Z",
   "updatedAt": "2024-01-15T10:30:00Z",
   "authorId": "user_id",
+  "hashtags": ["trending"],
+  "mentions": ["mention"],
+  "moderationStatus": "pending",
   "author": {
     "uid": "user_id",
     "name": "John Doe",
@@ -670,59 +605,15 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-#### Update Post
+#### Share Post
 ```http
-PUT /v1/posts/:id
-Authorization: Bearer <jwt_token>
-```
-
-**Request Body:**
-```json
-{
-  "content": "Updated content",
-  "imageUrls": ["https://example.com/new-image.jpg"],
-  "liveVideoUrl": "https://example.com/new-stream.m3u8",
-  "postType": "text",
-  "privacy": "public"
-}
+POST /v1/posts/share/:id
 ```
 
 **Success Response (200):**
 ```json
 {
-  "id": "post_id",
-  "content": "Updated content",
-  "imageUrls": ["https://example.com/new-image.jpg"],
-  "liveVideoUrl": null,
-  "postType": "text",
-  "privacy": "public",
-  "createdAt": "2024-01-15T10:30:00Z",
-  "updatedAt": "2024-01-15T11:00:00Z",
-  "authorId": "user_id",
-  "author": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false
-  },
-  "_count": {
-    "comments": 5,
-    "likes": 25
-  }
-}
-```
-
-#### Delete Post
-```http
-DELETE /v1/posts/:id
-Authorization: Bearer <jwt_token>
-```
-
-**Success Response (200):**
-```json
-{
-  "message": "Post deleted successfully"
+  "message": "Post shared successfully"
 }
 ```
 
@@ -740,54 +631,6 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-#### Get Following Feed
-```http
-GET /v1/posts/feed/following
-Authorization: Bearer <jwt_token>
-```
-
-**Query Parameters:**
-- `limit`: Number of posts (default: 20, max: 100)
-- `cursor`: Pagination cursor
-
-**Success Response (200):**
-```json
-{
-  "status": "ok",
-  "posts": [
-    {
-      "id": "post_id",
-      "content": "Hello from following!",
-      "imageUrls": [],
-      "createdAt": "2024-01-15T10:30:00Z",
-      "updatedAt": "2024-01-15T10:30:00Z",
-      "stats": {
-        "comments": 2,
-        "likes": 10,
-        "views": 50,
-        "shares": 1
-      },
-      "author": {
-        "uid": "user_id",
-        "name": "Friend",
-        "username": "friend_username",
-        "photoURL": "https://example.com/friend.jpg",
-        "hasBlueCheck": false,
-        "isFollowedByCurrentUser": true
-      },
-      "comments": [],
-      "likes": [],
-      "postType": "text",
-      "liveVideoUrl": null,
-      "privacy": "public"
-    }
-  ],
-  "nextCursor": "cursor_string",
-  "hasMore": true,
-  "limit": 20
-}
-```
-
 #### Track Post View
 ```http
 POST /v1/posts/:id/view
@@ -797,20 +640,6 @@ POST /v1/posts/:id/view
 ```json
 {
   "message": "View tracked and earnings updated"
-}
-```
-
-#### Track Post Earnings
-```http
-POST /v1/posts/:id/earnings
-```
-
-**Success Response (200):**
-```json
-{
-  "message": "Earnings calculated and tracked",
-  "earnings": 0.001,
-  "earningsInCents": 1
 }
 ```
 
@@ -834,58 +663,267 @@ POST /v1/posts/:id/engagement
 }
 ```
 
-#### Get Current User Posts
+#### Delete Post
 ```http
-GET /v1/posts/user/me
+DELETE /v1/posts/:id
 Authorization: Bearer <jwt_token>
 ```
 
 **Success Response (200):**
 ```json
 {
-  "status": "ok",
-  "posts": [
-    {
-      "id": "post_id",
-      "content": "My post",
-      "imageUrls": [],
-      "createdAt": "2024-01-15T10:30:00Z",
-      "updatedAt": "2024-01-15T10:30:00Z",
-      "stats": {
-        "comments": 2,
-        "likes": 10,
-        "earnings": 1,
-        "views": 50,
-        "shares": 1,
-        "clicks": 5
-      },
-      "author": {
-        "uid": "user_id",
-        "name": "John Doe",
-        "username": "johndoe",
-        "photoURL": "https://example.com/photo.jpg",
-        "hasBlueCheck": false,
-        "isFollowedByCurrentUser": false
-      },
-      "likes": [],
-      "comments": [],
-      "postType": "text",
-      "liveVideoUrl": null,
-      "privacy": "public"
-    }
-  ]
+  "message": "Post deleted successfully"
 }
 ```
 
-#### Share Post
+### Comment Routes
+
+#### Get Comments for Post
 ```http
-POST /v1/posts/share/:id
+GET /v1/comments/post/:postId
+```
+
+**Query Parameters:**
+- `limit`: Number of comments (default: 20, max: 100)
+- `cursor`: Pagination cursor
+- `author`: Filter by username
+- `search`: Search term
+- `sortBy`: "desc" or "asc" (default: "desc")
+
+**Success Response (200):**
+```json
+{
+  "comments": [
+    {
+      "id": "comment_id",
+      "content": "Great post! #awesome @user",
+      "createdAt": "2024-01-15T10:35:00Z",
+      "updatedAt": "2024-01-15T10:35:00Z",
+      "postId": "post_id",
+      "authorId": "user_id",
+      "hashtags": ["awesome"],
+      "mentions": ["user"],
+      "author": {
+        "uid": "user_id",
+        "name": "Commenter",
+        "username": "commenter_username",
+        "photoURL": "https://example.com/commenter.jpg",
+        "hasBlueCheck": false
+      },
+      "replies": [
+        {
+          "id": "reply_id",
+          "content": "Thanks!",
+          "createdAt": "2024-01-15T10:40:00Z",
+          "author": {
+            "uid": "author_id",
+            "name": "Author",
+            "username": "author_username",
+            "photoURL": "https://example.com/author.jpg",
+            "hasBlueCheck": true
+          }
+        }
+      ]
+    }
+  ],
+  "nextCursor": "cursor_string",
+  "hasMore": true,
+  "limit": 20,
+  "sortBy": "desc"
+}
+```
+
+#### Create Comment
+```http
+POST /v1/comments/post/:postId
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "content": "Great post! #awesome @user"
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "id": "comment_id",
+  "content": "Great post! #awesome @user",
+  "createdAt": "2024-01-15T10:35:00Z",
+  "updatedAt": "2024-01-15T10:35:00Z",
+  "postId": "post_id",
+  "authorId": "user_id",
+  "hashtags": ["awesome"],
+  "mentions": ["user"],
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  }
+}
+```
+
+#### Update Comment
+```http
+PUT /v1/comments/:id
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "content": "Updated comment"
+}
 ```
 
 **Success Response (200):**
 ```json
 {
-  "message": "Post shared successfully"
+  "id": "comment_id",
+  "content": "Updated comment",
+  "createdAt": "2024-01-15T10:35:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z",
+  "postId": "post_id",
+  "authorId": "user_id",
+  "hashtags": [],
+  "mentions": [],
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  }
+}
+```
+
+#### Delete Comment
+```http
+DELETE /v1/comments/:id
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Comment deleted successfully"
+}
+```
+
+### Like Routes
+
+#### Like/Unlike Comment
+```http
+POST /v1/likes/comment/:commentId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Comment liked",
+  "liked": true
+}
+```
+
+#### Like/Unlike Reply
+```http
+POST /v1/likes/reply/:replyId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Reply liked",
+  "liked": true
+}
+```
+
+### Reply Routes
+
+#### Create Reply to Comment
+```http
+POST /v1/comments/:commentId/replies
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "content": "Thanks for the comment! @user"
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "id": "reply_id",
+  "content": "Thanks for the comment! @user",
+  "createdAt": "2024-01-15T10:40:00Z",
+  "updatedAt": "2024-01-15T10:40:00Z",
+  "commentId": "comment_id",
+  "authorId": "user_id",
+  "hashtags": [],
+  "mentions": ["user"],
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  }
+}
+```
+
+#### Update Reply
+```http
+PUT /v1/replies/:id
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "content": "Updated reply content"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "id": "reply_id",
+  "content": "Updated reply content",
+  "createdAt": "2024-01-15T10:40:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z",
+  "commentId": "comment_id",
+  "authorId": "user_id",
+  "hashtags": [],
+  "mentions": [],
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  }
+}
+```
+
+#### Delete Reply
+```http
+DELETE /v1/replies/:id
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Reply deleted successfully"
 }
 ```
 
@@ -919,184 +957,6 @@ Content-Type: multipart/form-data
 }
 ```
 
-**Error Response (500):**
-```json
-{
-  "error": "Failed to upload images"
-}
-```
-
-### Comment Routes
-
-#### Get Comments for Post
-```http
-GET /v1/comments/post/:postId
-```
-
-**Query Parameters:**
-- `limit`: Number of comments (default: 20, max: 100)
-- `cursor`: Pagination cursor
-- `author`: Filter by username
-- `search`: Search term
-- `sortBy`: "desc" or "asc" (default: "desc")
-
-**Success Response (200):**
-```json
-{
-  "comments": [
-    {
-      "id": "comment_id",
-      "content": "Great post!",
-      "createdAt": "2024-01-15T10:35:00Z",
-      "updatedAt": "2024-01-15T10:35:00Z",
-      "postId": "post_id",
-      "authorId": "user_id",
-      "author": {
-        "uid": "user_id",
-        "name": "Commenter",
-        "username": "commenter_username",
-        "photoURL": "https://example.com/commenter.jpg",
-        "hasBlueCheck": false
-      }
-    }
-  ],
-  "nextCursor": "cursor_string",
-  "hasMore": true,
-  "limit": 20,
-  "sortBy": "desc"
-}
-```
-
-#### Create Comment
-```http
-POST /v1/comments/post/:postId
-Authorization: Bearer <jwt_token>
-```
-
-**Request Body:**
-```json
-{
-  "content": "Great post!"
-}
-```
-
-**Success Response (201):**
-```json
-{
-  "id": "comment_id",
-  "content": "Great post!",
-  "createdAt": "2024-01-15T10:35:00Z",
-  "updatedAt": "2024-01-15T10:35:00Z",
-  "postId": "post_id",
-  "authorId": "user_id",
-  "author": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false
-  }
-}
-```
-
-#### Update Comment
-```http
-PUT /v1/comments/:id
-Authorization: Bearer <jwt_token>
-```
-
-**Request Body:**
-```json
-{
-  "content": "Updated comment"
-}
-```
-
-**Success Response (200):**
-```json
-{
-  "id": "comment_id",
-  "content": "Updated comment",
-  "createdAt": "2024-01-15T10:35:00Z",
-  "updatedAt": "2024-01-15T11:00:00Z",
-  "postId": "post_id",
-  "authorId": "user_id",
-  "author": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false
-  }
-}
-```
-
-#### Delete Comment
-```http
-DELETE /v1/comments/:id
-Authorization: Bearer <jwt_token>
-```
-
-**Success Response (200):**
-```json
-{
-  "message": "Comment deleted successfully"
-}
-```
-
-#### Search Comments
-```http
-GET /v1/comments/search
-```
-
-**Query Parameters:**
-- `query`: Search query (required)
-- `limit`: Number of results (default: 20, max: 100)
-- `cursor`: Pagination cursor
-- `author`: Filter by username
-- `postId`: Filter by post ID
-- `sortBy`: "desc" or "asc" (default: "desc")
-
-**Success Response (200):**
-```json
-{
-  "comments": [
-    {
-      "id": "comment_id",
-      "content": "Matching comment content",
-      "createdAt": "2024-01-15T10:35:00Z",
-      "updatedAt": "2024-01-15T10:35:00Z",
-      "postId": "post_id",
-      "authorId": "user_id",
-      "author": {
-        "uid": "user_id",
-        "name": "Author Name",
-        "username": "author_username",
-        "photoURL": "https://example.com/author.jpg",
-        "hasBlueCheck": false
-      },
-      "post": {
-        "id": "post_id",
-        "content": "Original post content",
-        "postType": "text",
-        "author": {
-          "uid": "post_author_id",
-          "name": "Post Author",
-          "username": "post_author_username",
-          "photoURL": "https://example.com/post_author.jpg",
-          "hasBlueCheck": false
-        }
-      }
-    }
-  ],
-  "nextCursor": "cursor_string",
-  "hasMore": true,
-  "limit": 20,
-  "sortBy": "desc",
-  "query": "search_term"
-}
-```
-
 ### Session Routes
 
 #### Get User Sessions
@@ -1111,8 +971,10 @@ Authorization: Bearer <jwt_token>
   "sessions": [
     {
       "id": "session_id",
+      "device": "iPhone 15 Pro",
       "ipAddress": "192.168.1.1",
       "location": "New York, US",
+      "isActive": true,
       "createdAt": "2024-01-15T10:30:00Z",
       "updatedAt": "2024-01-15T10:30:00Z",
       "expiresAt": "2024-01-16T10:30:00Z"
@@ -1145,6 +1007,284 @@ Authorization: Bearer <jwt_token>
 {
   "message": "All other sessions revoked successfully",
   "revokedCount": 3
+}
+```
+
+### Content Moderation Routes
+
+#### Moderate Content with AI
+```http
+POST /v1/content/moderate
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "content": "Content to moderate",
+  "type": "post"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "approved": true,
+  "reason": null,
+  "confidence": 0.95
+}
+```
+
+**Blocked Content Response (200):**
+```json
+{
+  "approved": false,
+  "reason": "Contains inappropriate content",
+  "confidence": 0.89
+}
+```
+
+#### Check Image Sensitivity
+```http
+POST /v1/content/check-image
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "imageUrl": "https://example.com/image.jpg"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "safe": true,
+  "reason": null,
+  "confidence": 0.92
+}
+```
+
+### Report Routes
+
+#### Create Report
+```http
+POST /v1/reports
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "targetType": "post",
+  "targetId": "post_id",
+  "reason": "spam",
+  "description": "This post contains spam content"
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "message": "Report submitted successfully",
+  "reportId": "report_id"
+}
+```
+
+#### Get User Reports
+```http
+GET /v1/reports
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "reports": [
+    {
+      "id": "report_id",
+      "targetType": "post",
+      "targetId": "post_id",
+      "reason": "spam",
+      "description": "This post contains spam content",
+      "status": "pending",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "reporter": {
+        "uid": "user_id",
+        "username": "johndoe",
+        "name": "John Doe"
+      }
+    }
+  ]
+}
+```
+
+### Block Routes
+
+#### Block User
+```http
+POST /v1/blocks/user/:userId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "User blocked successfully"
+}
+```
+
+#### Unblock User
+```http
+DELETE /v1/blocks/user/:userId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "User unblocked successfully"
+}
+```
+
+#### Get Blocked Users
+```http
+GET /v1/blocks
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "blockedUsers": [
+    {
+      "id": "block_id",
+      "blockedUserId": "blocked_user_id",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "blockedUser": {
+        "uid": "blocked_user_id",
+        "username": "blocked_username",
+        "name": "Blocked User",
+        "photoURL": "https://example.com/blocked.jpg"
+      }
+    }
+  ]
+}
+```
+
+#### Restrict User
+```http
+POST /v1/blocks/restrict/:userId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "User restricted successfully"
+}
+```
+
+#### Remove Restriction
+```http
+DELETE /v1/blocks/restrict/:userId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "User restriction removed successfully"
+}
+```
+
+### Payment Routes
+
+#### Add Payment Method
+```http
+POST /v1/payments/methods
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "type": "card",
+  "cardNumber": "4111111111111111",
+  "expiryMonth": "12",
+  "expiryYear": "2025",
+  "cvv": "123",
+  "holderName": "John Doe"
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "message": "Payment method added successfully",
+  "paymentMethodId": "pm_123456789"
+}
+```
+
+#### Get Payment Methods
+```http
+GET /v1/payments/methods
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "paymentMethods": [
+    {
+      "id": "pm_123456789",
+      "type": "card",
+      "last4": "1111",
+      "brand": "visa",
+      "expiryMonth": "12",
+      "expiryYear": "2025",
+      "holderName": "John Doe",
+      "isDefault": true,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+#### Delete Payment Method
+```http
+DELETE /v1/payments/methods/:paymentMethodId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Payment method deleted successfully"
+}
+```
+
+#### Purchase Membership
+```http
+POST /v1/payments/purchase-membership
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "subscription": "premium",
+  "paymentMethodId": "pm_123456789"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "Membership purchased successfully",
+  "subscription": "premium",
+  "nextBillingDate": "2025-02-15T10:30:00Z"
 }
 ```
 
@@ -1184,6 +1324,9 @@ Authorization: Bearer <jwt_token>
   liveVideoUrl?: string;
   postType: "text" | "live_video";
   privacy: "public" | "private" | "followers";
+  hashtags: string[];
+  mentions: string[];
+  moderationStatus: "pending" | "approved" | "rejected";
   authorId: string;
   createdAt: Date;
   updatedAt: Date;
@@ -1197,6 +1340,82 @@ Authorization: Bearer <jwt_token>
   content: string;
   postId: string;
   authorId: string;
+  hashtags: string[];
+  mentions: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Reply
+```typescript
+{
+  id: string;
+  content: string;
+  commentId: string;
+  authorId: string;
+  hashtags: string[];
+  mentions: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Session
+```typescript
+{
+  id: string;
+  sid: string;
+  userId: string;
+  device?: string;
+  ipAddress?: string;
+  location?: string;
+  isActive: boolean;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Report
+```typescript
+{
+  id: string;
+  reporterId: string;
+  targetType: "post" | "comment" | "user";
+  targetId: string;
+  reason: "spam" | "harassment" | "inappropriate" | "violence" | "other";
+  description?: string;
+  status: "pending" | "reviewed" | "resolved";
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Block
+```typescript
+{
+  id: string;
+  blockerId: string;
+  blockedUserId: string;
+  type: "block" | "restrict";
+  createdAt: Date;
+}
+```
+
+### PaymentMethod
+```typescript
+{
+  id: string;
+  userId: string;
+  type: "card" | "paypal" | "bank";
+  provider: string;
+  last4?: string;
+  brand?: string;
+  expiryMonth?: string;
+  expiryYear?: string;
+  holderName?: string;
+  isDefault: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1233,8 +1452,8 @@ All error responses follow this format:
 - `200` - Success
 - `201` - Created
 - `400` - Bad Request (validation errors)
-- `401` - Unauthorized
-- `403` - Forbidden
+- `401` - Unauthorized (invalid session or token)
+- `403` - Forbidden (insufficient permissions)
 - `404` - Not Found
 - `409` - Conflict (duplicate data)
 - `500` - Internal Server Error
@@ -1254,13 +1473,53 @@ All error responses follow this format:
 }
 ```
 
+## Content Moderation
+
+The API includes AI-powered content moderation that:
+- Automatically screens posts, comments, and replies for inappropriate content
+- Checks images for sensitive material using AI analysis
+- Supports manual reporting and review workflows
+- Blocks content that violates community guidelines
+
+## Session Management
+
+Enhanced session management includes:
+- Device tracking for each login session
+- Location-based session monitoring
+- Active session validation
+- Ability to revoke individual or all sessions
+- Session expiration handling
+
+## Hashtags and Mentions
+
+Posts, comments, and replies support:
+- **Hashtags**: Automatically extracted from content starting with `#`
+- **Mentions**: Automatically extracted from content starting with `@`
+- Searchable and linkable content discovery
+
+## Live Streaming
+
+Posts support live video streaming:
+- `postType: "live_video"` for streaming posts
+- `liveVideoUrl` field for stream URLs (HLS/RTMP supported)
+- Real-time engagement tracking during streams
+
+## Creator Monetization
+
+Built-in creator earnings system:
+- Automatic earnings calculation based on engagement
+- View, share, and click tracking
+- Earnings stored in cents for precision
+- Analytics dashboard for creators
+
 ## Rate Limiting
 The API implements rate limiting to prevent abuse. Current limits:
 - Authentication endpoints: 5 requests per minute
 - General endpoints: 100 requests per minute
 - File upload endpoints: 10 requests per minute
+- Content moderation: 50 requests per minute
 
 ## Subscription Tiers
 - **Free**: Basic features, limited posts per day
-- **Premium**: Enhanced features, blue check eligibility
-- **Pro**: Full access, advanced analytics, priority support
+- **Premium**: Enhanced features, blue check eligibility, advanced analytics
+- **Pro**: Full access, priority support, enhanced monetization
