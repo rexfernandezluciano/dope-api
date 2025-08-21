@@ -71,16 +71,9 @@ POST /v1/auth/register
 **Success Response (201):**
 ```json
 {
-  "message": "User registered successfully",
+  "message": "Registered. Check your email for the verification code.",
   "verificationId": "verification_uuid",
-  "user": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "email": "john@example.com",
-    "hasVerifiedEmail": false,
-    "subscription": "free"
-  }
+  "uid": "user_id"
 }
 ```
 
@@ -101,17 +94,7 @@ POST /v1/auth/verify-email
 **Success Response (200):**
 ```json
 {
-  "message": "Email verified successfully",
-  "user": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "email": "john@example.com",
-    "hasVerifiedEmail": true,
-    "subscription": "free"
-  },
-  "token": "jwt_token",
-  "refreshToken": "jwt_refresh_token" // Comming soon
+  "message": "Email verified successfully"
 }
 ```
 
@@ -130,7 +113,7 @@ POST /v1/auth/resend-code
 **Success Response (200):**
 ```json
 {
-  "message": "Verification code sent",
+  "message": "Verification code resent",
   "verificationId": "new_verification_id"
 }
 ```
@@ -151,17 +134,28 @@ POST /v1/auth/login
 **Success Response (200):**
 ```json
 {
-  "message": "Login successful",
+  "token": "jwt_token",
   "user": {
     "uid": "user_id",
     "name": "John Doe",
     "username": "johndoe",
     "email": "john@example.com",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false,
+    "membership": {
+      "subscription": "premium",
+      "nextBillingDate": "2025-12-12T06:09:00.000Z"
+    },
+    "privacy": {
+      "profile": "public",
+      "comments": "public",
+      "sharing": true,
+      "chat": "public"
+    },
     "hasVerifiedEmail": true,
-    "subscription": "premium"
-  },
-  "token": "jwt_token",
-  "refreshToken": "jwt_refresh_token" // Coming soon
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -173,14 +167,14 @@ POST /v1/auth/google
 **Request Body:**
 ```json
 {
-  "idToken": "google_id_token"
+  "token": "google_id_token"
 }
 ```
 
-**Success Response (200):**
+**Success Response (200/201):**
 ```json
 {
-  "message": "Google authentication successful",
+  "token": "jwt_token",
   "user": {
     "uid": "user_id",
     "name": "John Doe",
@@ -188,10 +182,20 @@ POST /v1/auth/google
     "email": "john@gmail.com",
     "photoURL": "https://lh3.googleusercontent.com/...",
     "hasBlueCheck": false,
-    "subscription": "free"
-  },
-  "token": "jwt_token",
-  "refreshToken": "jwt_refresh_token" // Coming soon
+    "membership": {
+      "subscription": "free",
+      "nextBillingDate": null
+    },
+    "privacy": {
+      "profile": "public",
+      "comments": "public",
+      "sharing": true,
+      "chat": "public"
+    },
+    "hasVerifiedEmail": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
 }
 ```
 
@@ -230,7 +234,7 @@ GET /v1/auth/validate-verification-id/:verificationId
 **Success Response (200):**
 ```json
 {
-  "valid": true,
+  "message": "Verification ID is valid",
   "email": "john@example.com"
 }
 ```
@@ -244,28 +248,34 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "uid": "user_id",
-  "name": "John Doe",
-  "username": "johndoe",
-  "email": "john@example.com",
-  "photoURL": "https://example.com/photo.jpg",
-  "hasVerifiedEmail": true,
-  "hasBlueCheck": false,
-  "membership": {
-    "subscription": "premium",
-    "nextBillingDate": "2025-12-12-6:09:AM"
-  },
-  "stats": {
-    "posts": 9,
-    "following": 1,
-    "followers": 23,
-    "earnings": 127
-  },
-  "privacy": {
-    "profile": "public",
-    "comments": "public",
-    "sharing": true,
-    "chat": "public"
+  "status": "ok",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "bio": "User bio",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false,
+    "membership": {
+      "subscription": "premium",
+      "nextBillingDate": "2025-12-12T06:09:00.000Z"
+    },
+    "stats": {
+      "posts": 9,
+      "followers": 23,
+      "followings": 1,
+      "likes": 127
+    },
+    "privacy": {
+      "profile": "public",
+      "comments": "public",
+      "sharing": true,
+      "chat": "public"
+    },
+    "hasVerifiedEmail": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
   }
 }
 ```
@@ -277,25 +287,30 @@ Authorization: Bearer <jwt_token>
 GET /v1/users
 ```
 
-**Query Parameters:**
-- `limit`: Number of users (default: 20)
-- `cursor`: Pagination cursor
-- `search`: Search term
-
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "users": [
     {
       "uid": "user_id",
       "name": "John Doe",
       "username": "johndoe",
+      "bio": "User bio",
       "photoURL": "https://example.com/photo.jpg",
       "hasBlueCheck": false,
-      "subscription": "free"
+      "membership": {
+        "subscription": "free"
+      },
+      "createdAt": "2024-01-15T10:30:00Z",
+      "stats": {
+        "posts": 42,
+        "followers": 150,
+        "following": 75
+      },
+      "isFollowedByCurrentUser": false
     }
-  ],
-  "nextCursor": "cursor_string"
+  ]
 }
 ```
 
@@ -307,20 +322,62 @@ GET /v1/users/:username
 **Success Response (200):**
 ```json
 {
-  "uid": "user_id",
-  "name": "John Doe",
-  "username": "johndoe",
-  "photoURL": "https://example.com/photo.jpg",
-  "hasBlueCheck": false,
-  "membership": {
-    "subscription": "premium"
-  },
-  "stats": {
-    "followers": 150,
-    "following": 75,
-    "posts": 42,
+  "status": "ok",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "bio": "User bio",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false,
+    "membership": {
+      "subscription": "premium"
+    },
+    "createdAt": "2024-01-15T10:30:00Z",
+    "posts": [
+      {
+        "id": "post_id",
+        "content": "Hello world!",
+        "imageUrls": ["https://example.com/image.jpg"],
+        "createdAt": "2024-01-15T10:30:00Z",
+        "updatedAt": "2024-01-15T10:30:00Z",
+        "stats": {
+          "comments": 5,
+          "likes": 25
+        },
+        "likes": [
+          {
+            "user": {
+              "uid": "liker_id",
+              "username": "liker_username"
+            }
+          }
+        ],
+        "postType": "text",
+        "liveVideoUrl": null,
+        "privacy": "public",
+        "author": {
+          "uid": "user_id",
+          "name": "John Doe",
+          "username": "johndoe",
+          "photoURL": "https://example.com/photo.jpg",
+          "hasBlueCheck": false
+        }
+      }
+    ],
+    "likes": {
+      "user": {
+        "uid": "user_id",
+        "username": "johndoe"
+      }
+    },
+    "stats": {
+      "posts": 42,
+      "followers": 150,
+      "following": 75
+    },
+    "isFollowedByCurrentUser": false
   }
-  "isFollowedByCurrentUser": false
 }
 ```
 
@@ -334,6 +391,7 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "name": "Updated Name",
+  "bio": "Updated bio",
   "photoURL": "https://example.com/new-photo.jpg",
   "privacy": {
     "profile": "private",
@@ -347,13 +405,20 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "User updated successfully",
-  "user": {
-    "uid": "user_id",
-    "name": "Updated Name",
-    "username": "johndoe",
-    "photoURL": "https://example.com/new-photo.jpg"
-  }
+  "uid": "user_id",
+  "name": "Updated Name",
+  "username": "johndoe",
+  "bio": "Updated bio",
+  "photoURL": "https://example.com/new-photo.jpg",
+  "hasBlueCheck": false,
+  "subscription": "premium",
+  "privacy": {
+    "profile": "private",
+    "comments": "followers",
+    "sharing": false,
+    "chat": "private"
+  },
+  "hasVerifiedEmail": true
 }
 ```
 
@@ -366,8 +431,8 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "User followed successfully",
-  "isFollowing": true
+  "message": "User followed",
+  "following": true
 }
 ```
 
@@ -379,12 +444,14 @@ GET /v1/users/:username/followers
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "followers": [
     {
       "uid": "follower_id",
       "name": "Follower Name",
       "username": "follower_username",
-      "photoURL": "https://example.com/follower.jpg"
+      "photoURL": "https://example.com/follower.jpg",
+      "hasBlueCheck": false
     }
   ]
 }
@@ -398,12 +465,14 @@ GET /v1/users/:username/following
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "following": [
     {
       "uid": "following_id",
       "name": "Following Name",
       "username": "following_username",
-      "photoURL": "https://example.com/following.jpg"
+      "photoURL": "https://example.com/following.jpg",
+      "hasBlueCheck": false
     }
   ]
 }
@@ -418,9 +487,9 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "totalEarnings": 150.75,
-  "currency": "USD",
-  "period": "all_time"
+  "message": "Total earnings fetched successfully",
+  "totalEarnings": 1.50,
+  "totalEarningsInCents": 150
 }
 ```
 
@@ -432,36 +501,70 @@ GET /v1/posts
 ```
 
 **Query Parameters:**
-- `limit`: Number of posts (default: 20)
+- `limit`: Number of posts (default: 20, max: 100)
 - `cursor`: Pagination cursor
 - `author`: Filter by username
 - `postType`: "text" or "live_video"
+- `hasImages`: "true" or "false"
+- `hasLiveVideo`: "true" or "false"
 - `search`: Search term
 
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "posts": [
     {
       "id": "post_id",
       "content": "Hello world!",
       "imageUrls": ["https://example.com/image.jpg"],
-      "postType": "text",
-      "likesCount": 25,
-      "commentsCount": 5,
-      "viewsCount": 100,
       "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z",
+      "stats": {
+        "comments": 5,
+        "likes": 25,
+        "views": 100,
+        "shares": 2,
+        "clicks": 10
+      },
       "author": {
         "uid": "user_id",
         "name": "John Doe",
         "username": "johndoe",
         "photoURL": "https://example.com/photo.jpg",
-        "hasBlueCheck": false
+        "hasBlueCheck": false,
+        "isFollowedByCurrentUser": false
       },
-      "isLiked": false
+      "comments": [
+        {
+          "id": "comment_id",
+          "content": "Great post!",
+          "createdAt": "2024-01-15T10:35:00Z",
+          "author": {
+            "uid": "commenter_id",
+            "name": "Commenter",
+            "username": "commenter_username",
+            "photoURL": "https://example.com/commenter.jpg",
+            "hasBlueCheck": false
+          }
+        }
+      ],
+      "likes": [
+        {
+          "user": {
+            "uid": "liker_id",
+            "username": "liker_username"
+          }
+        }
+      ],
+      "postType": "text",
+      "liveVideoUrl": null,
+      "privacy": "public"
     }
   ],
-  "nextCursor": "cursor_string"
+  "nextCursor": "cursor_string",
+  "hasMore": true,
+  "limit": 20
 }
 ```
 
@@ -473,23 +576,54 @@ GET /v1/posts/:id
 **Success Response (200):**
 ```json
 {
-  "id": "post_id",
-  "content": "Hello world!",
-  "imageUrls": ["https://example.com/image.jpg"],
-  "liveVideoUrl": "https://example.com/live-stream.m3u8",
-  "postType": "text",
-  "likesCount": 25,
-  "commentsCount": 5,
-  "viewsCount": 100,
-  "createdAt": "2024-01-15T10:30:00Z",
-  "author": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg",
-    "hasBlueCheck": false
-  },
-  "isLiked": false
+  "status": "ok",
+  "post": {
+    "id": "post_id",
+    "content": "Hello world!",
+    "imageUrls": ["https://example.com/image.jpg"],
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z",
+    "stats": {
+      "comments": 5,
+      "likes": 25,
+      "views": 100,
+      "shares": 2,
+      "clicks": 10
+    },
+    "author": {
+      "uid": "user_id",
+      "name": "John Doe",
+      "username": "johndoe",
+      "photoURL": "https://example.com/photo.jpg",
+      "hasBlueCheck": false,
+      "isFollowedByCurrentUser": false
+    },
+    "comments": [
+      {
+        "id": "comment_id",
+        "content": "Great post!",
+        "createdAt": "2024-01-15T10:35:00Z",
+        "author": {
+          "uid": "commenter_id",
+          "name": "Commenter",
+          "username": "commenter_username",
+          "photoURL": "https://example.com/commenter.jpg",
+          "hasBlueCheck": false
+        }
+      }
+    ],
+    "likes": [
+      {
+        "user": {
+          "uid": "liker_id",
+          "username": "liker_username"
+        }
+      }
+    ],
+    "postType": "text",
+    "liveVideoUrl": null,
+    "privacy": "public"
+  }
 }
 ```
 
@@ -505,7 +639,8 @@ Authorization: Bearer <jwt_token>
   "content": "Hello world!",
   "imageUrls": ["https://example.com/image.jpg"],
   "liveVideoUrl": "https://example.com/live-stream.m3u8",
-  "postType": "text"
+  "postType": "text",
+  "privacy": "public"
 }
 ```
 
@@ -515,13 +650,22 @@ Authorization: Bearer <jwt_token>
   "id": "post_id",
   "content": "Hello world!",
   "imageUrls": ["https://example.com/image.jpg"],
+  "liveVideoUrl": null,
   "postType": "text",
+  "privacy": "public",
   "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-15T10:30:00Z",
+  "authorId": "user_id",
   "author": {
     "uid": "user_id",
     "name": "John Doe",
     "username": "johndoe",
-    "photoURL": "https://example.com/photo.jpg"
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  },
+  "_count": {
+    "comments": 0,
+    "likes": 0
   }
 }
 ```
@@ -535,18 +679,36 @@ Authorization: Bearer <jwt_token>
 **Request Body:**
 ```json
 {
-  "content": "Updated content"
+  "content": "Updated content",
+  "imageUrls": ["https://example.com/new-image.jpg"],
+  "liveVideoUrl": "https://example.com/new-stream.m3u8",
+  "postType": "text",
+  "privacy": "public"
 }
 ```
 
 **Success Response (200):**
 ```json
 {
-  "message": "Post updated successfully",
-  "post": {
-    "id": "post_id",
-    "content": "Updated content",
-    "updatedAt": "2024-01-15T11:00:00Z"
+  "id": "post_id",
+  "content": "Updated content",
+  "imageUrls": ["https://example.com/new-image.jpg"],
+  "liveVideoUrl": null,
+  "postType": "text",
+  "privacy": "public",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z",
+  "authorId": "user_id",
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
+  },
+  "_count": {
+    "comments": 5,
+    "likes": 25
   }
 }
 ```
@@ -573,9 +735,8 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "Post liked successfully",
-  "isLiked": true,
-  "likesCount": 26
+  "message": "Post liked",
+  "liked": true
 }
 ```
 
@@ -586,24 +747,44 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Query Parameters:**
-- `limit`: Number of posts (default: 20)
+- `limit`: Number of posts (default: 20, max: 100)
 - `cursor`: Pagination cursor
 
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "posts": [
     {
       "id": "post_id",
       "content": "Hello from following!",
+      "imageUrls": [],
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z",
+      "stats": {
+        "comments": 2,
+        "likes": 10,
+        "views": 50,
+        "shares": 1
+      },
       "author": {
         "uid": "user_id",
         "name": "Friend",
-        "username": "friend_username"
-      }
+        "username": "friend_username",
+        "photoURL": "https://example.com/friend.jpg",
+        "hasBlueCheck": false,
+        "isFollowedByCurrentUser": true
+      },
+      "comments": [],
+      "likes": [],
+      "postType": "text",
+      "liveVideoUrl": null,
+      "privacy": "public"
     }
   ],
-  "nextCursor": "cursor_string"
+  "nextCursor": "cursor_string",
+  "hasMore": true,
+  "limit": 20
 }
 ```
 
@@ -615,7 +796,7 @@ POST /v1/posts/:id/view
 **Success Response (200):**
 ```json
 {
-  "message": "View tracked successfully"
+  "message": "View tracked and earnings updated"
 }
 ```
 
@@ -624,18 +805,12 @@ POST /v1/posts/:id/view
 POST /v1/posts/:id/earnings
 ```
 
-**Request Body:**
-```json
-{
-  "amount": 5.50,
-  "currency": "USD"
-}
-```
-
 **Success Response (200):**
 ```json
 {
-  "message": "Earnings tracked successfully"
+  "message": "Earnings calculated and tracked",
+  "earnings": 0.001,
+  "earningsInCents": 1
 }
 ```
 
@@ -647,15 +822,15 @@ POST /v1/posts/:id/engagement
 **Request Body:**
 ```json
 {
-  "engagementType": "share",
-  "value": 1
+  "action": "share"
 }
 ```
 
 **Success Response (200):**
 ```json
 {
-  "message": "Engagement updated successfully"
+  "message": "share tracked and earnings updated",
+  "earnings": 0.001
 }
 ```
 
@@ -668,12 +843,35 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
+  "status": "ok",
   "posts": [
     {
       "id": "post_id",
       "content": "My post",
-      "likesCount": 10,
-      "commentsCount": 2
+      "imageUrls": [],
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z",
+      "stats": {
+        "comments": 2,
+        "likes": 10,
+        "earnings": 1,
+        "views": 50,
+        "shares": 1,
+        "clicks": 5
+      },
+      "author": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false,
+        "isFollowedByCurrentUser": false
+      },
+      "likes": [],
+      "comments": [],
+      "postType": "text",
+      "liveVideoUrl": null,
+      "privacy": "public"
     }
   ]
 }
@@ -687,8 +885,7 @@ POST /v1/posts/share/:id
 **Success Response (200):**
 ```json
 {
-  "message": "Post shared successfully",
-  "shareUrl": "https://example.com/posts/post_id"
+  "message": "Post shared successfully"
 }
 ```
 
@@ -700,8 +897,11 @@ GET /v1/comments/post/:postId
 ```
 
 **Query Parameters:**
-- `limit`: Number of comments (default: 20)
+- `limit`: Number of comments (default: 20, max: 100)
 - `cursor`: Pagination cursor
+- `author`: Filter by username
+- `search`: Search term
+- `sortBy`: "desc" or "asc" (default: "desc")
 
 **Success Response (200):**
 ```json
@@ -711,15 +911,22 @@ GET /v1/comments/post/:postId
       "id": "comment_id",
       "content": "Great post!",
       "createdAt": "2024-01-15T10:35:00Z",
+      "updatedAt": "2024-01-15T10:35:00Z",
+      "postId": "post_id",
+      "authorId": "user_id",
       "author": {
         "uid": "user_id",
         "name": "Commenter",
         "username": "commenter_username",
-        "photoURL": "https://example.com/commenter.jpg"
+        "photoURL": "https://example.com/commenter.jpg",
+        "hasBlueCheck": false
       }
     }
   ],
-  "nextCursor": "cursor_string"
+  "nextCursor": "cursor_string",
+  "hasMore": true,
+  "limit": 20,
+  "sortBy": "desc"
 }
 ```
 
@@ -742,10 +949,15 @@ Authorization: Bearer <jwt_token>
   "id": "comment_id",
   "content": "Great post!",
   "createdAt": "2024-01-15T10:35:00Z",
+  "updatedAt": "2024-01-15T10:35:00Z",
+  "postId": "post_id",
+  "authorId": "user_id",
   "author": {
     "uid": "user_id",
     "name": "John Doe",
-    "username": "johndoe"
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
   }
 }
 ```
@@ -766,11 +978,18 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "Comment updated successfully",
-  "comment": {
-    "id": "comment_id",
-    "content": "Updated comment",
-    "updatedAt": "2024-01-15T11:00:00Z"
+  "id": "comment_id",
+  "content": "Updated comment",
+  "createdAt": "2024-01-15T10:35:00Z",
+  "updatedAt": "2024-01-15T11:00:00Z",
+  "postId": "post_id",
+  "authorId": "user_id",
+  "author": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false
   }
 }
 ```
@@ -794,8 +1013,12 @@ GET /v1/comments/search
 ```
 
 **Query Parameters:**
-- `q`: Search query
-- `limit`: Number of results (default: 20)
+- `query`: Search query (required)
+- `limit`: Number of results (default: 20, max: 100)
+- `cursor`: Pagination cursor
+- `author`: Filter by username
+- `postId`: Filter by post ID
+- `sortBy`: "desc" or "asc" (default: "desc")
 
 **Success Response (200):**
 ```json
@@ -804,11 +1027,36 @@ GET /v1/comments/search
     {
       "id": "comment_id",
       "content": "Matching comment content",
+      "createdAt": "2024-01-15T10:35:00Z",
+      "updatedAt": "2024-01-15T10:35:00Z",
+      "postId": "post_id",
+      "authorId": "user_id",
       "author": {
-        "username": "author_username"
+        "uid": "user_id",
+        "name": "Author Name",
+        "username": "author_username",
+        "photoURL": "https://example.com/author.jpg",
+        "hasBlueCheck": false
+      },
+      "post": {
+        "id": "post_id",
+        "content": "Original post content",
+        "postType": "text",
+        "author": {
+          "uid": "post_author_id",
+          "name": "Post Author",
+          "username": "post_author_username",
+          "photoURL": "https://example.com/post_author.jpg",
+          "hasBlueCheck": false
+        }
       }
     }
-  ]
+  ],
+  "nextCursor": "cursor_string",
+  "hasMore": true,
+  "limit": 20,
+  "sortBy": "desc",
+  "query": "search_term"
 }
 ```
 
@@ -826,11 +1074,11 @@ Authorization: Bearer <jwt_token>
   "sessions": [
     {
       "id": "session_id",
-      "deviceInfo": "Chrome on Windows",
       "ipAddress": "192.168.1.1",
       "location": "New York, US",
-      "lastActivity": "2024-01-15T10:30:00Z",
-      "isCurrent": true
+      "createdAt": "2024-01-15T10:30:00Z",
+      "updatedAt": "2024-01-15T10:30:00Z",
+      "expiresAt": "2024-01-16T10:30:00Z"
     }
   ]
 }
@@ -858,7 +1106,8 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "All sessions revoked successfully"
+  "message": "All other sessions revoked successfully",
+  "revokedCount": 3
 }
 ```
 
@@ -868,19 +1117,22 @@ Authorization: Bearer <jwt_token>
 ```typescript
 {
   uid: string;
-  name: string;
   username: string;
   email: string;
+  password: string;
+  name?: string;
+  bio?: string;
   photoURL?: string;
-  hasVerifiedEmail: boolean;
-  hasBlueCheck: boolean;
   subscription: "free" | "premium" | "pro";
-  privacy: {
+  nextBillingDate?: Date;
+  hasBlueCheck: boolean;
+  privacy?: {
     profile: "public" | "private";
     comments: "public" | "followers" | "private";
     sharing: boolean;
     chat: "public" | "followers" | "private";
   };
+  hasVerifiedEmail: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -890,14 +1142,12 @@ Authorization: Bearer <jwt_token>
 ```typescript
 {
   id: string;
-  content: string;
+  content?: string;
   imageUrls: string[];
   liveVideoUrl?: string;
   postType: "text" | "live_video";
+  privacy: "public" | "private" | "followers";
   authorId: string;
-  likesCount: number;
-  commentsCount: number;
-  viewsCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -910,6 +1160,20 @@ Authorization: Bearer <jwt_token>
   content: string;
   postId: string;
   authorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### PostAnalytics
+```typescript
+{
+  id: string;
+  postId: string;
+  views: number;
+  shares: number;
+  clicks: number;
+  earnings: number; // stored in cents
   createdAt: Date;
   updatedAt: Date;
 }
