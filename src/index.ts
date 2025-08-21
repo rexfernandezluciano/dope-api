@@ -19,7 +19,7 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 // Use CORS globally for all routes
-app.use(cors());
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 app.set("json spaces", 2);
@@ -68,8 +68,8 @@ app.use(notFoundHandler);
 // Global error handler - must be last
 app.use(errorHandler);
 
-app.listen(PORT as number, "0.0.0.0", () => {
-	console.log(`Server running on http://0.0.0.0:${PORT}`);
+app.listen(PORT as number, () => {
+	console.log(`Server running on port ${PORT}`);
 });
 
 export default app;
