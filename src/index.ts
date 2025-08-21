@@ -18,48 +18,8 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Define the CORS middleware
-const corsOptions = {
-	origin: function (
-		origin: string | undefined,
-		callback: (err: Error | null, allow?: boolean) => void,
-	) {
-		// Allow requests with no origin (like mobile apps or curl requests)
-		if (!origin) return callback(null, true);
-
-		// Allow all origins in development
-		if (process.env.NODE_ENV !== "production") {
-			return callback(null, true);
-		}
-
-		// In production, you might want to restrict to specific domains
-		// For now, allowing all origins
-		return callback(null, true);
-	},
-	credentials: true,
-	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-	allowedHeaders: [
-		"Content-Type",
-		"Authorization",
-		"X-CSRF-Token",
-		"X-Requested-With",
-		"Accept",
-		"Accept-Version",
-		"Content-Length",
-		"Content-MD5",
-		"Date",
-		"X-Api-Version",
-		"X-File-Name",
-		"Origin",
-		"X-Firebase-AppCheck",
-	],
-	exposedHeaders: ["Content-Length", "X-Api-Version"],
-	preflightContinue: false,
-	optionsSuccessStatus: 200,
-};
-
 // Use CORS globally for all routes
-app.use(cors(corsOptions));
+app.use(cors());
 
 app.use(express.json());
 app.set("json spaces", 2);
