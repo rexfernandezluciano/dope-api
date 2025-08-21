@@ -11,14 +11,29 @@ let prisma: any;
 
 export class CustomPrismaSessionStore extends PrismaSessionStore {
   constructor() {
-    super(prisma, {
-      checkPeriod: 2 * 60 * 1000, // Clean up expired sessions every 2 minutes
-      dbRecordIdIsSessionId: false,
-    });
+    try {
+      super(prisma, {
+        checkPeriod: 2 * 60 * 1000, // Clean up expired sessions every 2 minutes
+        dbRecordIdIsSessionId: false,
+      });
+    } catch (error) {
+      console.error("Failed to initialize session store:", error);
+      // Create a fallback that doesn't crash the app
+      super({} as any, {
+        checkPeriod: 2 * 60 * 1000,
+        dbRecordIdIsSessionId: false,
+      });
+    }
   }
 
   set = async (sessionId: string, session: any, callback?: (err?: any) => void): Promise<void> => {
     try {
+      if (!prisma) {
+        console.warn("Prisma not available, skipping session storage");
+        callback?.();
+        return;
+      }
+
       const expiresAt = session.cookie?.expires || new Date(Date.now() + 24 * 60 * 60 * 1000);
       
       // Extract IP and get location
@@ -26,9 +41,13 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
       let location = null;
       
       if (ipAddress) {
-        const geo = geoip.lookup(ipAddress);
-        if (geo) {
-          location = `${geo.city || 'Unknown'}, ${geo.region || ''}, ${geo.country || 'Unknown'}`;
+        try {
+          const geo = geoip.lookup(ipAddress);
+          if (geo) {
+            location = `${geo.city || 'Unknown'}, ${geo.region || ''}, ${geo.country || 'Unknown'}`;
+          }
+        } catch (geoError) {
+          console.warn("GeoIP lookup failed:", geoError);
         }
       }
 
@@ -54,6 +73,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
 
       callback?.();
     } catch (error) {
+      console.error("Session storage error:", error);
       callback?.(error);
     }
   }

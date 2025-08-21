@@ -190,46 +190,58 @@ export const login = async (
 	res: Response,
 	next: NextFunction,
 ) => {
-	passport.authenticate("local", (err: any, user: any, info: any) => {
-		if (err) {
-			return next(err);
-		}
-		if (!user) {
-			return res.status(401).json({ message: info.message || "Invalid credentials" });
-		}
-
-		req.logIn(user, (err) => {
+	try {
+		passport.authenticate("local", (err: any, user: any, info: any) => {
 			if (err) {
-				return next(err);
+				console.error("Authentication error:", err);
+				return res.status(500).json({ message: "Authentication failed" });
+			}
+			if (!user) {
+				return res.status(401).json({ message: info.message || "Invalid credentials" });
 			}
 
-			const token = signToken({
-				uid: user.uid,
-				email: user.email,
-				username: user.username,
-			});
+			req.logIn(user, (err) => {
+				if (err) {
+					console.error("Login error:", err);
+					return res.status(500).json({ message: "Login failed" });
+				}
 
-			return res.json({
-				token,
-				user: {
-					uid: user.uid,
-					name: user.name,
-					email: user.email,
-					username: user.username,
-					photoURL: user.photoURL,
-					hasBlueCheck: user.hasBlueCheck,
-					membership: {
-						subscription: user.subscription,
-						nextBillingDate: user.nextBillingDate,
-					},
-					privacy: user.privacy,
-					hasVerifiedEmail: user.hasVerifiedEmail,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
-				},
+				try {
+					const token = signToken({
+						uid: user.uid,
+						email: user.email,
+						username: user.username,
+					});
+
+					return res.json({
+						token,
+						user: {
+							uid: user.uid,
+							name: user.name,
+							email: user.email,
+							username: user.username,
+							photoURL: user.photoURL,
+							hasBlueCheck: user.hasBlueCheck,
+							membership: {
+								subscription: user.subscription,
+								nextBillingDate: user.nextBillingDate,
+							},
+							privacy: user.privacy,
+							hasVerifiedEmail: user.hasVerifiedEmail,
+							createdAt: user.createdAt,
+							updatedAt: user.updatedAt,
+						},
+					});
+				} catch (tokenError) {
+					console.error("Token generation error:", tokenError);
+					return res.status(500).json({ message: "Token generation failed" });
+				}
 			});
-		});
-	})(req, res, next);
+		})(req, res, next);
+	} catch (error) {
+		console.error("Login controller error:", error);
+		return res.status(500).json({ message: "Internal server error" });
+	}
 };
 
 // Google Sign-in Controller

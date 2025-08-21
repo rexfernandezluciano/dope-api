@@ -23,6 +23,11 @@ passport.use(
 		},
 		async (email, password, done) => {
 			try {
+				if (!prisma) {
+					console.error("Prisma client not initialized");
+					return done(new Error("Database connection error"));
+				}
+
 				const user = await prisma.user.findUnique({
 					where: { email },
 					include: { credentials: true },
@@ -48,6 +53,7 @@ passport.use(
 
 				return done(null, user);
 			} catch (error) {
+				console.error("Local strategy error:", error);
 				return done(error);
 			}
 		},
