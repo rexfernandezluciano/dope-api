@@ -137,7 +137,10 @@ export const verifyEmail = async (
 
 		await prisma.user.update({
 			where: { email },
-			data: { hasVerifiedEmail: true },
+			data: { 
+				hasVerifiedEmail: true,
+				nextBillingDate: dayjs().add(30, 'day').toDate()
+			},
 		});
 
 		// Clean up all codes for this email
