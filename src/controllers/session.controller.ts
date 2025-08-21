@@ -51,15 +51,33 @@ export const revokeSession = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    await prisma.session.deleteMany({
+    // First check if the session exists and belongs to the user
+    const existingSession = await prisma.session.findFirst({
       where: {
         id: sessionId,
         userId
       }
     });
 
+    if (!existingSession) {
+      return res.status(404).json({ message: 'Session not found or does not belong to you' });
+    }
+
+    // Delete the session
+    const result = await prisma.session.deleteMany({
+      where: {
+        id: sessionId,
+        userId
+      }
+    });
+
+    if (result.count === 0) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
     res.json({ message: 'Session revoked successfully' });
   } catch (error: any) {
+    console.error('Session revocation error:', error);
     res.status(500).json({ error: 'Failed to revoke session: ' + error.message });
   }
 };
@@ -73,8 +91,12 @@ export const revokeAllSessions = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
+    if (!currentSessionId) {
+      return res.status(400).json({ message: 'No active session found' });
+    }
+
     // Delete all sessions except current one
-    await prisma.session.deleteMany({
+    const result = await prisma.session.deleteMany({
       where: {
         userId,
         sid: {
@@ -83,8 +105,12 @@ export const revokeAllSessions = async (req: Request, res: Response) => {
       }
     });
 
-    res.json({ message: 'All other sessions revoked successfully' });
+    res.json({ 
+      message: 'All other sessions revoked successfully',
+      revokedCount: result.count
+    });
   } catch (error: any) {
+    console.error('Bulk session revocation error:', error);
     res.status(500).json({ error: 'Failed to revoke sessions: ' + error.message });
   }
 };
