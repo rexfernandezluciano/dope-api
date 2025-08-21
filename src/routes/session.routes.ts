@@ -1,12 +1,12 @@
-
 import { Router } from 'express';
-import { getUserSessions, revokeSession, revokeAllSessions } from '../controllers/session.controller';
-import { authenticateJWT } from '../middleware/auth.middleware';
+import { getUserSessions, revokeSession, revokeAllSessions, validateSession } from '../controllers/session.controller';
+import { authenticateToken } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.get('/', authenticateJWT, getUserSessions);
-router.delete('/:sessionId', authenticateJWT, revokeSession);
-router.delete('/', authenticateJWT, revokeAllSessions);
+router.get('/', authenticateToken, getUserSessions);
+router.get('/validate', authenticateToken, validateSession);
+router.delete('/:sessionId', authenticateToken, revokeSession);
+router.delete('/', authenticateToken, revokeAllSessions);
 
 export default router;

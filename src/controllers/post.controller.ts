@@ -55,6 +55,8 @@ export const getPosts = async (req: Request, res: Response) => {
 			hasImages,
 			hasLiveVideo,
 			search,
+			random = "false",
+			quality = "false",
 		} = req.query;
 
 		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 posts per request
@@ -102,9 +104,26 @@ export const getPosts = async (req: Request, res: Response) => {
 			where.id = { lt: cursor as string };
 		}
 
-		const posts = await prisma.post.findMany({
+		// Determine ordering
+		let orderBy: any = { createdAt: "desc" };
+		
+		if (quality === "true") {
+			// High quality content based on engagement
+			orderBy = [
+				{ analytics: { views: "desc" } },
+				{ analytics: { shares: "desc" } },
+				{ _count: { likes: "desc" } },
+				{ _count: { comments: "desc" } },
+				{ createdAt: "desc" }
+			];
+		} else if (random === "true") {
+			// For random ordering, we'll fetch more posts and shuffle them
+			orderBy = { createdAt: "desc" };
+		}
+
+		let posts = await prisma.post.findMany({
 			where,
-			take: limitNum + 1, // Take one extra to check if there are more
+			take: random === "true" ? limitNum * 3 : limitNum + 1, // Take more for random selection
 			include: {
 				author: {
 					select: {
@@ -150,10 +169,13 @@ export const getPosts = async (req: Request, res: Response) => {
 					},
 				},
 			},
-			orderBy: {
-				createdAt: "desc",
-			},
+			orderBy,
 		});
+
+		// Shuffle posts if random is requested
+		if (random === "true") {
+			posts = posts.sort(() => Math.random() - 0.5).slice(0, limitNum + 1);
+		}
 
 		const hasMore = posts.length > limitNum;
 		const postsToReturn = hasMore ? posts.slice(0, limitNum) : posts;
@@ -353,6 +375,34 @@ export const createPost = async (req: Request, res: Response) => {
 		const authUser = (req as any).user as { uid: string };
 		const { content, imageUrls, liveVideoUrl, postType, privacy } =
 			CreatePostSchema.parse(req.body);
+
+		// Import content moderation
+		const { moderateContent, moderateImage } = await import('./content.controller');
+
+		// Moderate content
+		if (content) {
+			const contentModeration = moderateContent(content);
+			if (!contentModeration.isAppropriate) {
+				return res.status(400).json({ 
+					message: "Content violates community guidelines", 
+					reason: contentModeration.reason 
+				});
+			}
+		}
+
+		// Moderate images
+		if (imageUrls && imageUrls.length > 0) {
+			for (const imageUrl of imageUrls) {
+				const imageModeration = await moderateImage(imageUrl);
+				if (!imageModeration.isAppropriate) {
+					return res.status(400).json({ 
+						message: "Image violates community guidelines", 
+						reason: imageModeration.reason,
+						imageUrl 
+					});
+				}
+			}
+		}
 
 		const post = await prisma.post.create({
 			data: {

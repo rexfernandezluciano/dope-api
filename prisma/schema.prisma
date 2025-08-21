@@ -26,13 +26,18 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  posts       Post[]
-  comments    Comment[]
-  likes       Like[]
-  followers   Follow[] @relation("followers")
-  following   Follow[] @relation("following")
-  credentials Credential[]
-  sessions    Session[]
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  commentLikes  CommentLike[]
+  followers     Follow[] @relation("followers")
+  following     Follow[] @relation("following")
+  credentials   Credential[]
+  sessions      Session[]
+  reports       Report[]
+  blockedBy     Block[] @relation("BlockedBy")
+  blocking      Block[] @relation("Blocking")
+  paymentMethods PaymentMethod[]
 }
 
 model Post {
@@ -50,6 +55,8 @@ model Post {
   comments  Comment[]
   likes     Like[]
   analytics PostAnalytics?
+  mentions  Mention[]
+  hashtags  Hashtag[]
 }
 
 enum PostType {
@@ -60,6 +67,7 @@ enum PostType {
 model Comment {
   id        String   @id @default(cuid())
   content   String
+  parentId  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -67,6 +75,11 @@ model Comment {
   postId    String
   author    User     @relation(fields: [authorId], references: [uid])
   authorId  String
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  likes     CommentLike[]
+  mentions  Mention[]
+  hashtags  Hashtag[]
 }
 
 model Like {
@@ -148,4 +161,122 @@ model Session {
   updatedAt DateTime @updatedAt
 
   user User? @relation(fields: [userId], references: [uid])
+}
+
+model Report {
+  id          String      @id @default(cuid())
+  reporterId  String
+  targetType  ReportType
+  targetId    String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(pending)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  reporter User @relation(fields: [reporterId], references: [uid])
+
+  @@unique([reporterId, targetType, targetId])
+}
+
+model Block {
+  id        String     @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    BlockReason?
+  createdAt DateTime   @default(now())
+
+  blocker User @relation("BlockedBy", fields: [blockerId], references: [uid])
+  blocked User @relation("Blocking", fields: [blockedId], references: [uid])
+
+  @@unique([blockerId, blockedId])
+}
+
+model PaymentMethod {
+  id          String           @id @default(cuid())
+  userId      String
+  type        PaymentType
+  provider    String
+  last4       String?
+  expiryMonth Int?
+  expiryYear  Int?
+  holderName  String?
+  isDefault   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [uid])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [uid])
+
+  @@unique([commentId, userId])
+}
+
+model Mention {
+  id        String   @id @default(cuid())
+  postId    String?
+  commentId String?
+  username  String
+  createdAt DateTime @default(now())
+
+  post    Post?    @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
+}
+
+model Hashtag {
+  id        String   @id @default(cuid())
+  postId    String?
+  commentId String?
+  tag       String
+  createdAt DateTime @default(now())
+
+  post    Post?    @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
+
+  @@index([tag])
+}
+
+enum ReportType {
+  post
+  comment
+  user
+}
+
+enum ReportReason {
+  spam
+  harassment
+  hate_speech
+  inappropriate_content
+  copyright
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+  dismissed
+}
+
+enum BlockReason {
+  harassment
+  spam
+  inappropriate_content
+  other
+}
+
+enum PaymentType {
+  credit_card
+  debit_card
+  paypal
+  bank_transfer
+  crypto
 }

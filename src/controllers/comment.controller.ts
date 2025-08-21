@@ -155,6 +155,12 @@ export const createComment = async (req: Request, res: Response) => {
 						hasBlueCheck: true,
 					},
 				},
+				_count: {
+					select: {
+						likes: true,
+						replies: true,
+					},
+				},
 			},
 		});
 

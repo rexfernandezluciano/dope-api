@@ -9,11 +9,15 @@ import { CustomPrismaSessionStore } from "./config/session";
 import { enhanceSession } from "./middleware/session.middleware";
 
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
 import postRoutes from "./routes/post.routes";
 import commentRoutes from "./routes/comment.routes";
-import userRoutes from "./routes/user.routes";
 import sessionRoutes from "./routes/session.routes";
-import imageRoutes from "./routes/image.routes"; // Import image routes
+import imageRoutes from "./routes/image.routes";
+import reportRoutes from "./routes/report.routes";
+import blockRoutes from "./routes/block.routes";
+import paymentRoutes from "./routes/payment.routes";
+import contentRoutes from "./routes/content.routes";
 
 dotenv.config();
 const app: Application = express();
@@ -54,12 +58,16 @@ app.get("/", (req: Request, res: Response) => {
 	res.json({ status: "ok", message: "API is accessed on " + origin });
 });
 
-app.use(`${BASE_PATH}/auth`, authRoutes);
-app.use(`${BASE_PATH}/posts`, postRoutes);
-app.use(`${BASE_PATH}/comments`, commentRoutes);
-app.use(`${BASE_PATH}/users`, userRoutes);
-app.use(`${BASE_PATH}/sessions`, sessionRoutes);
-app.use(`${BASE_PATH}/images`, imageRoutes); // Register image upload routes
+app.use("/v1/auth", authRoutes);
+app.use("/v1/users", userRoutes);
+app.use("/v1/posts", postRoutes);
+app.use("/v1/comments", commentRoutes);
+app.use("/v1/sessions", sessionRoutes);
+app.use("/v1/images", imageRoutes);
+app.use("/v1/reports", reportRoutes);
+app.use("/v1/blocks", blockRoutes);
+app.use("/v1/payments", paymentRoutes);
+app.use("/v1/content", contentRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
