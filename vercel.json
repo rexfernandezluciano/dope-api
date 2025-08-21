@@ -27,7 +27,7 @@
   "crons": [
     {
       "path": "/api/cron/billing-reminder",
-      "schedule": "0 9 * * *"
+      "schedule": "0 5 * * *"
     }
   ],
   "env": {
