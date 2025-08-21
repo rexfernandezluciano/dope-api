@@ -889,6 +889,43 @@ POST /v1/posts/share/:id
 }
 ```
 
+### Image Routes
+
+#### Upload Images
+```http
+POST /v1/images/upload
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**Form Data:**
+- `images`: File[] (up to 10 image files, max 10MB each)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "imageUrls": [
+    "https://res.cloudinary.com/your-cloud/image/upload/v1642234567/posts/image1.jpg",
+    "https://res.cloudinary.com/your-cloud/image/upload/v1642234567/posts/image2.jpg"
+  ]
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "error": "No images provided"
+}
+```
+
+**Error Response (500):**
+```json
+{
+  "error": "Failed to upload images"
+}
+```
+
 ### Comment Routes
 
 #### Get Comments for Post

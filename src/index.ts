@@ -13,6 +13,7 @@ import postRoutes from "./routes/post.routes";
 import commentRoutes from "./routes/comment.routes";
 import userRoutes from "./routes/user.routes";
 import sessionRoutes from "./routes/session.routes";
+import imageRoutes from "./routes/image.routes"; // Import image routes
 
 dotenv.config();
 const app: Application = express();
@@ -58,6 +59,7 @@ app.use(`${BASE_PATH}/posts`, postRoutes);
 app.use(`${BASE_PATH}/comments`, commentRoutes);
 app.use(`${BASE_PATH}/users`, userRoutes);
 app.use(`${BASE_PATH}/sessions`, sessionRoutes);
+app.use(`${BASE_PATH}/images`, imageRoutes); // Register image upload routes
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";

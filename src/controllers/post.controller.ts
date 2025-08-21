@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
 import type Comment from "../types/types.comments";
+import { deleteImage } from "./image.controller";
 
 let prisma: any;
 
@@ -487,6 +488,14 @@ export const deletePost = async (req: Request, res: Response) => {
 			return res
 				.status(403)
 				.json({ message: "Not authorized to delete this post" });
+		}
+
+		// Delete images from Cloudinary before deleting the post
+		if (existingPost.imageUrls && existingPost.imageUrls.length > 0) {
+			const deletePromises = existingPost.imageUrls.map(imageUrl => 
+				deleteImage(imageUrl)
+			);
+			await Promise.allSettled(deletePromises);
 		}
 
 		await prisma.post.delete({
