@@ -107,6 +107,15 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
           where: { sid: { in: sessionId } },
         });
       } else {
+        const session = await prisma.session.findUnique({
+          where: { sid: sessionId }
+        })
+        
+        if (!session) {
+          return callback?.();
+        }
+        
+        // Delete the session
         await prisma.session.delete({
           where: { sid: sessionId },
         });
