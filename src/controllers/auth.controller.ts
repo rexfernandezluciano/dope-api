@@ -475,12 +475,32 @@ export const googleCallback = async (
 };
 
 export const logout = async (req: Request, res: Response) => {
-	req.logout((err) => {
-		if (err) {
-			return res.status(500).json({ message: "Logout failed" });
-		}
-		res.json({ message: "Logged out successfully" });
-	});
+	try {
+		const userId = (req.user as any)?.uid;
+
+		req.logout(async (err) => {
+			if (err) {
+				return res.status(500).json({ message: "Logout failed" });
+			}
+
+			// Clear all sessions for this user from the database
+			if (userId) {
+				try {
+					await prisma.session.deleteMany({
+						where: { userId }
+					});
+				} catch (sessionError) {
+					console.error('Failed to clear user sessions:', sessionError);
+					// Don't fail the logout if session cleanup fails
+				}
+			}
+
+			res.json({ message: "Logged out successfully" });
+		});
+	} catch (error) {
+		console.error('Logout error:', error);
+		res.status(500).json({ message: "Logout failed" });
+	}
 };
 
 export const validateVerificationId = async (req: Request, res: Response) => {
