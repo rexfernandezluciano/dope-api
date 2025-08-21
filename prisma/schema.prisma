@@ -32,6 +32,7 @@ model User {
   followers   Follow[] @relation("followers")
   following   Follow[] @relation("following")
   credentials Credential[]
+  sessions    Session[]
 }
 
 model Post {
@@ -133,4 +134,18 @@ enum Privacy {
   public
   private
   followers
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  sid       String   @unique
+  userId    String?
+  ipAddress String?
+  location  String?
+  data      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [uid])
 }

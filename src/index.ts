@@ -5,11 +5,14 @@ import cors from "cors";
 import * as dotenv from "dotenv";
 import session from "express-session";
 import passport from "./config/passport";
+import { CustomPrismaSessionStore } from "./config/session";
+import { enhanceSession } from "./middleware/session.middleware";
 
 import authRoutes from "./routes/auth.routes";
 import postRoutes from "./routes/post.routes";
 import commentRoutes from "./routes/comment.routes";
 import userRoutes from "./routes/user.routes";
+import sessionRoutes from "./routes/session.routes";
 
 dotenv.config();
 const app: Application = express();
@@ -40,16 +43,21 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.set("json spaces", 2);
 
-// Session configuration
+// Session configuration with database storage
 app.use(session({
 	secret: process.env.SESSION_SECRET || "your-secret-key",
 	resave: false,
 	saveUninitialized: false,
+	store: new CustomPrismaSessionStore(),
 	cookie: {
 		secure: process.env.NODE_ENV === "production",
-		maxAge: 24 * 60 * 60 * 1000 // 24 hours
+		maxAge: 24 * 60 * 60 * 1000, // 24 hours
+		httpOnly: true
 	}
 }));
+
+// Add IP tracking middleware
+app.use(enhanceSession);
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -65,6 +73,7 @@ app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/posts`, postRoutes);
 app.use(`${BASE_PATH}/comments`, commentRoutes);
 app.use(`${BASE_PATH}/users`, userRoutes);
+app.use(`${BASE_PATH}/sessions`, sessionRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
