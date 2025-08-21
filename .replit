@@ -5,7 +5,7 @@ run = "npm run dev"
 channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "npm run dev"]
+run = ["sh", "-c", "node cron-billing-reminder.js"]
 
 [[ports]]
 localPort = 5000
