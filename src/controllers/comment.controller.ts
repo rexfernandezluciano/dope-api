@@ -61,7 +61,7 @@ export const getComments = async (req: Request, res: Response) => {
 				where: { username: author as string },
 				select: { uid: true }
 			});
-			
+
 			if (authorUser) {
 				where.authorId = authorUser.uid;
 			} else {
@@ -96,6 +96,12 @@ export const getComments = async (req: Request, res: Response) => {
 						username: true,
 						photoURL: true,
 						hasBlueCheck: true,
+					},
+				},
+				_count: {
+					select: {
+						likes: true,
+						replies: true,
 					},
 				},
 			},
@@ -279,7 +285,7 @@ export const searchComments = async (req: Request, res: Response) => {
 				where: { username: author },
 				select: { uid: true }
 			});
-			
+
 			if (authorUser) {
 				where.authorId = authorUser.uid;
 			} else {

@@ -22,9 +22,7 @@ router.get("/", getComments);
 router.get("/post/:postId", getComments);
 router.get("/search", searchComments);
 
-// Comment replies
-router.post("/:commentId/replies", requireAuth, createCommentReply);
-router.get("/:commentId/replies", getCommentReplies);
+// Comment replies are handled in reply.routes.ts
 
 // Comment likes
 router.post("/:id/like", requireAuth, toggleCommentLike);

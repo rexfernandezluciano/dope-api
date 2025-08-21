@@ -677,9 +677,9 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 		}
 
 		const replies = await prisma.comment.findMany({
-			where: { parentCommentId: commentId }, // Assuming parentCommentId links replies
+			where: { parentId: commentId }, // Use parentId to link replies
 			include: {
-				user: { // Include user details for the author of the reply
+				author: { // Include user details for the author of the reply
 					select: {
 						uid: true,
 						name: true,
