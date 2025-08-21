@@ -1,4 +1,3 @@
-
 /** @format */
 
 import passport from "passport";
@@ -9,6 +8,12 @@ import bcrypt from "bcryptjs";
 import { connect } from "../database/database";
 import { JwtPayload } from "../utils/jwt";
 
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
+
 // Configure Local Strategy
 passport.use(
 	new LocalStrategy(
@@ -18,8 +23,7 @@ passport.use(
 		},
 		async (email, password, done) => {
 			try {
-				const db = await connect();
-				const user = await db.user.findUnique({
+				const user = await prisma.user.findUnique({
 					where: { email },
 					include: { credentials: true },
 				});
@@ -46,8 +50,8 @@ passport.use(
 			} catch (error) {
 				return done(error);
 			}
-		}
-	)
+		},
+	),
 );
 
 // Configure Google Strategy
@@ -60,7 +64,6 @@ passport.use(
 		},
 		async (accessToken, refreshToken, profile, done) => {
 			try {
-				const db = await connect();
 				const email = profile.emails?.[0]?.value;
 				const name = profile.displayName;
 				const photoURL = profile.photos?.[0]?.value;
@@ -70,7 +73,7 @@ passport.use(
 				}
 
 				// Check if user exists
-				let user = await db.user.findUnique({ where: { email } });
+				let user = await prisma.user.findUnique({ where: { email } });
 
 				if (user) {
 					return done(null, user);
@@ -78,11 +81,13 @@ passport.use(
 
 				// Create new user
 				let username = email.split("@")[0] || "";
-				let existingUser = await db.user.findUnique({ where: { username } });
+				let existingUser = await prisma.user.findUnique({
+					where: { username },
+				});
 				let counter = 1;
 				while (existingUser) {
 					username = `${email.split("@")[0]}_${counter}`;
-					existingUser = await db.user.findUnique({ where: { username } });
+					existingUser = await prisma.user.findUnique({ where: { username } });
 					counter++;
 				}
 
@@ -94,7 +99,7 @@ passport.use(
 					chat: "public",
 				};
 
-				user = await db.user.create({
+				user = await prisma.user.create({
 					data: {
 						name,
 						email,
@@ -102,13 +107,13 @@ passport.use(
 						photoURL: photoURL || "",
 						password: "",
 						subscription,
-						hasBlueCheck: subscription === "premium" || subscription === "pro",
+						hasBlueCheck: false,
 						privacy,
 						hasVerifiedEmail: true,
 					},
 				});
 
-				await db.credential.create({
+				await prisma.credential.create({
 					data: {
 						userId: user.uid,
 						provider: "google",
@@ -119,8 +124,8 @@ passport.use(
 			} catch (error) {
 				return done(error);
 			}
-		}
-	)
+		},
+	),
 );
 
 // Configure JWT Strategy
@@ -132,8 +137,7 @@ passport.use(
 		},
 		async (payload: JwtPayload, done) => {
 			try {
-				const db = await connect();
-				const user = await db.user.findUnique({
+				const user = await prisma.user.findUnique({
 					where: { uid: payload.uid },
 				});
 
@@ -145,8 +149,8 @@ passport.use(
 			} catch (error) {
 				return done(error);
 			}
-		}
-	)
+		},
+	),
 );
 
 // Serialize user for session
@@ -157,8 +161,7 @@ passport.serializeUser((user: any, done) => {
 // Deserialize user from session
 passport.deserializeUser(async (uid: string, done) => {
 	try {
-		const db = await connect();
-		const user = await db.user.findUnique({ where: { uid } });
+		const user = await prisma.user.findUnique({ where: { uid } });
 		done(null, user);
 	} catch (error) {
 		done(error);

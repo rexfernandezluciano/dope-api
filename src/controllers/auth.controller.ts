@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import {
 	RegisterSchema,
-	LoginSchema,
 	VerifyEmailSchema,
 	ResendCodeSchema,
 } from "../utils/validate";
@@ -15,6 +14,12 @@ import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
 import passport from "passport";
+
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
 
 // Dynamic import functions for nanoid
 const getMakeCode = async () => {
@@ -53,19 +58,17 @@ export const register = async (req: Request, res: Response) => {
 		const subscription = (parsed.subscription ?? "free") as Subscription;
 		const privacy = parsed.privacy ?? DEFAULT_PRIVACY;
 
-		const db = await connect();
-
-		const exists = await db.user.findUnique({ where: { email } });
+		const exists = await prisma.user.findUnique({ where: { email } });
 		if (exists)
 			return res.status(409).json({ message: "Email already registered" });
 
-		const unameExists = await db.user.findUnique({ where: { username } });
+		const unameExists = await prisma.user.findUnique({ where: { username } });
 		if (unameExists)
 			return res.status(409).json({ message: "Username already taken" });
 
 		const passwordHash = await bcrypt.hash(password, 12);
 
-		const user = await db.user.create({
+		const user = await prisma.user.create({
 			data: {
 				name,
 				email,
@@ -78,7 +81,7 @@ export const register = async (req: Request, res: Response) => {
 			},
 		});
 
-		await db.credential.create({
+		await prisma.credential.create({
 			data: {
 				userId: user.uid,
 				provider: "local",
@@ -93,7 +96,7 @@ export const register = async (req: Request, res: Response) => {
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
-		await db.email.create({
+		await prisma.email.create({
 			data: { email, code, verificationId, expireAt },
 		});
 
@@ -121,9 +124,7 @@ export const verifyEmail = async (
 	try {
 		const { email, code, verificationId } = VerifyEmailSchema.parse(req.body);
 
-		const db = await connect();
-
-		const record = await db.email.findUnique({ where: { verificationId } });
+		const record = await prisma.email.findUnique({ where: { verificationId } });
 		if (!record || record.email !== email) {
 			return res.status(400).json({ message: "Invalid verification request" });
 		}
@@ -134,14 +135,14 @@ export const verifyEmail = async (
 			return res.status(400).json({ message: "Incorrect verification code" });
 		}
 
-		await db.user.update({
+		await prisma.user.update({
 			where: { email },
 			data: { hasVerifiedEmail: true },
 		});
 
 		// Clean up all codes for this email
-		await db.email.delete({ where: { verificationId } });
-		await db.email.deleteMany({ where: { email } });
+		await prisma.email.delete({ where: { verificationId } });
+		await prisma.email.deleteMany({ where: { email } });
 
 		return res.json({ message: "Email verified successfully" });
 	} catch (err: any) {
@@ -157,15 +158,13 @@ export const resendCode = async (
 	try {
 		const { email } = ResendCodeSchema.parse(req.body);
 
-		const db = await connect();
-
-		const user = await db.user.findUnique({ where: { email } });
+		const user = await prisma.user.findUnique({ where: { email } });
 		if (!user) return res.status(404).json({ message: "User not found" });
 		if (user.hasVerifiedEmail)
 			return res.status(400).json({ message: "Email already verified" });
 
 		// Invalidate old codes
-		await db.email.deleteMany({ where: { email } });
+		await prisma.email.deleteMany({ where: { email } });
 
 		// Create new code
 		const makeCode = await getMakeCode();
@@ -174,7 +173,7 @@ export const resendCode = async (
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
-		await db.email.create({
+		await prisma.email.create({
 			data: { email, code, verificationId, expireAt },
 		});
 
@@ -238,8 +237,6 @@ export const googleLogin = async (req: Request, res: Response) => {
 	try {
 		const { token: idToken } = req.body; // Get the ID token from the request body
 
-		const db = await connect();
-
 		if (!process.env.GOOGLE_CLIENT_ID) {
 			return res
 				.status(500)
@@ -260,7 +257,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 		const { email, name, picture: photoURL } = payload;
 
 		// Check if user already exists
-		let user = await db.user.findUnique({ where: { email } });
+		let user = await prisma.user.findUnique({ where: { email } });
 
 		if (user) {
 			// If user exists, log them in
@@ -293,18 +290,18 @@ export const googleLogin = async (req: Request, res: Response) => {
 			let username = email.split("@")[0] ?? ""; // Basic username generation
 
 			// Ensure username is unique by checking if it exists
-			let existingUser = await db.user.findUnique({ where: { username } });
+			let existingUser = await prisma.user.findUnique({ where: { username } });
 			let counter = 1;
 			while (existingUser) {
 				username = `${email.split("@")[0]}_${counter}`;
-				existingUser = await db.user.findUnique({ where: { username } });
+				existingUser = await prisma.user.findUnique({ where: { username } });
 				counter++;
 			}
 
 			const subscription = "free" as Subscription; // Default to free subscription
 			const privacy = DEFAULT_PRIVACY;
 
-			user = await db.user.create({
+			user = await prisma.user.create({
 				data: {
 					name,
 					email,
@@ -318,7 +315,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 				},
 			});
 
-			await db.credential.create({
+			await prisma.credential.create({
 				data: {
 					userId: user.uid,
 					provider: "google",
@@ -363,9 +360,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 export const me = async (req: Request, res: Response) => {
 	const authUser = (req as any).user as { uid: string };
 
-	const db = await connect();
-
-	const user = await db.user.findUnique({
+	const user = await prisma.user.findUnique({
 		where: { uid: authUser.uid },
 		include: {
 			followers: true,
@@ -468,15 +463,13 @@ export const logout = async (req: Request, res: Response) => {
 export const validateVerificationId = async (req: Request, res: Response) => {
 	const { verificationId } = req.params;
 
-	const db = await connect();
-
 	if (!verificationId) {
 		return res.status(400).json({
 			message: "Verification ID is required",
 		});
 	}
 
-	const record = await db.email.findUnique({
+	const record = await prisma.email.findUnique({
 		where: { verificationId },
 	});
 
