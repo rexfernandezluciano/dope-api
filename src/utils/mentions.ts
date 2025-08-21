@@ -1,4 +1,4 @@
-import { connect } from '../database/database';
+import { connect } from "../database/database";
 
 let prisma: any;
 
@@ -12,29 +12,35 @@ export const extractMentions = (content: string): string[] => {
   let match;
 
   while ((match = mentionRegex.exec(content)) !== null) {
-    mentions.push(match[1]);
+    mentions.push(match[1] ?? "Unknown User");
   }
 
   return mentions;
 };
 
-export const saveMentions = async (mentions: string[], postId?: string, commentId?: string) => {
+export const saveMentions = async (
+  mentions: string[],
+  postId?: string,
+  commentId?: string,
+) => {
   if (mentions.length === 0) return;
 
-  const mentionPromises = mentions.map(username =>
+  const mentionPromises = mentions.map((username) =>
     prisma.mention.create({
       data: {
         username,
         postId: postId || null,
         commentId: commentId || null,
       },
-    })
+    }),
   );
 
   await Promise.all(mentionPromises);
 };
 
-export const parseMentionsToNames = async (content: string): Promise<string> => {
+export const parseMentionsToNames = async (
+  content: string,
+): Promise<string> => {
   const mentionRegex = /@(\w+)/g;
   let parsedContent = content;
   const matches = content.match(mentionRegex);
@@ -42,7 +48,7 @@ export const parseMentionsToNames = async (content: string): Promise<string> => 
   if (!matches) return content;
 
   // Extract user IDs from mentions
-  const userIds = matches.map(match => match.substring(1)); // Remove @ symbol
+  const userIds = matches.map((match) => match.substring(1)); // Remove @ symbol
 
   // Fetch users by IDs
   const users = await prisma.user.findMany({
@@ -51,9 +57,12 @@ export const parseMentionsToNames = async (content: string): Promise<string> => 
   });
 
   // Replace user IDs with names
-  users.forEach(user => {
-    const mentionPattern = new RegExp(`@${user.uid}`, 'g');
-    parsedContent = parsedContent.replace(mentionPattern, `@${user.name || user.username}`);
+  users.forEach((user: any) => {
+    const mentionPattern = new RegExp(`@${user.uid}`, "g");
+    parsedContent = parsedContent.replace(
+      mentionPattern,
+      `${user.name || "@" + user.username}`,
+    );
   });
 
   return parsedContent;
@@ -71,7 +80,10 @@ export const extractHashtags = (content: string): string[] => {
   return [...new Set(hashtags)]; // Remove duplicates
 };
 
-export const processContentForMentionsAndHashtags = async (content: string, prisma: any) => {
+export const processContentForMentionsAndHashtags = async (
+  content: string,
+  prisma: any,
+) => {
   const mentions = extractMentions(content);
   const hashtags = extractHashtags(content);
 
