@@ -2,9 +2,6 @@
 import { Request, Response } from 'express';
 import { connect } from '../database/database';
 
-import { Request, Response } from 'express';
-import { connect } from '../database/database';
-
 let prisma: any;
 
 (async () => {
