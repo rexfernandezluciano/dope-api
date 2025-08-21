@@ -31,7 +31,7 @@ A comprehensive social media API for the DOPE Network platform supporting user p
 
 ## Base URL
 ```
-https://your-domain.com/v1
+https://social.dopp.eu.org/v1
 ```
 
 ## Authentication
@@ -110,8 +110,8 @@ POST /v1/auth/verify-email
     "hasVerifiedEmail": true,
     "subscription": "free"
   },
-  "accessToken": "jwt_token",
-  "refreshToken": "jwt_refresh_token"
+  "token": "jwt_token",
+  "refreshToken": "jwt_refresh_token" // Comming soon
 }
 ```
 
@@ -160,8 +160,8 @@ POST /v1/auth/login
     "hasVerifiedEmail": true,
     "subscription": "premium"
   },
-  "accessToken": "jwt_token",
-  "refreshToken": "jwt_refresh_token"
+  "token": "jwt_token",
+  "refreshToken": "jwt_refresh_token" // Coming soon
 }
 ```
 
@@ -190,8 +190,8 @@ POST /v1/auth/google
     "hasBlueCheck": false,
     "subscription": "free"
   },
-  "accessToken": "jwt_token",
-  "refreshToken": "jwt_refresh_token"
+  "token": "jwt_token",
+  "refreshToken": "jwt_refresh_token" // Coming soon
 }
 ```
 
@@ -251,7 +251,16 @@ Authorization: Bearer <jwt_token>
   "photoURL": "https://example.com/photo.jpg",
   "hasVerifiedEmail": true,
   "hasBlueCheck": false,
-  "subscription": "premium",
+  "membership": {
+    "subscription": "premium",
+    "nextBillingDate": "2025-12-12-6:09:AM"
+  },
+  "stats": {
+    "posts": 9,
+    "following": 1,
+    "followers": 23,
+    "earnings": 127
+  },
   "privacy": {
     "profile": "public",
     "comments": "public",
@@ -303,11 +312,15 @@ GET /v1/users/:username
   "username": "johndoe",
   "photoURL": "https://example.com/photo.jpg",
   "hasBlueCheck": false,
-  "subscription": "premium",
-  "followersCount": 150,
-  "followingCount": 75,
-  "postsCount": 42,
-  "isFollowing": false
+  "membership": {
+    "subscription": "premium"
+  },
+  "stats": {
+    "followers": 150,
+    "following": 75,
+    "posts": 42,
+  }
+  "isFollowedByCurrentUser": false
 }
 ```
 
