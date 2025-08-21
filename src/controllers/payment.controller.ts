@@ -16,7 +16,15 @@ const PaymentMethodSchema = z.object({
   expiryMonth: z.number().min(1).max(12).optional(),
   expiryYear: z.number().min(2024).optional(),
   holderName: z.string().optional(),
+  paypalEmail: z.string().email().optional(),
   isDefault: z.boolean().default(false),
+}).refine((data) => {
+  if (data.type === 'paypal') {
+    return data.paypalEmail;
+  }
+  return true;
+}, {
+  message: "PayPal email is required for PayPal payment method",
 });
 
 export const addPaymentMethod = async (req: Request, res: Response) => {
@@ -34,7 +42,13 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
 
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
-        ...paymentData,
+        type: paymentData.type,
+        provider: paymentData.provider,
+        last4: paymentData.last4,
+        expiryMonth: paymentData.expiryMonth,
+        expiryYear: paymentData.expiryYear,
+        holderName: paymentData.holderName,
+        isDefault: paymentData.isDefault,
         userId: authUser.uid,
       },
     });
@@ -47,6 +61,7 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
         provider: paymentMethod.provider,
         last4: paymentMethod.last4,
         isDefault: paymentMethod.isDefault,
+        paypalEmail: paymentData.type === 'paypal' ? paymentData.paypalEmail : undefined,
       },
     });
   } catch (err: any) {

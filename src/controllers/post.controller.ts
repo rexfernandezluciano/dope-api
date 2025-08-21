@@ -187,18 +187,44 @@ export const getPosts = async (req: Request, res: Response) => {
 		// Get current user's following list for isFollowedByCurrentUser check
 		const authUser = (req as any).user as { uid: string } | undefined;
 		let followingIds: string[] = [];
+		let blockedByIds: string[] = [];
+		let blockingIds: string[] = [];
 		if (authUser) {
 			const following = await prisma.follow.findMany({
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
 			followingIds = following.map((f: any) => f.followingId);
+
+			// Get blocked users
+			const blockedBy = await prisma.block.findMany({
+				where: { blockedId: authUser.uid },
+				select: { blockerId: true },
+			});
+			blockedByIds = blockedBy.map((b: any) => b.blockerId);
+
+			const blocking = await prisma.block.findMany({
+				where: { blockerId: authUser.uid },
+				select: { blockedId: true },
+			});
+			blockingIds = blocking.map((b: any) => b.blockedId);
+
+			// Filter out posts from blocked users
+			if (blockedByIds.length > 0 || blockingIds.length > 0) {
+				const allBlockedIds = [...new Set([...blockedByIds, ...blockingIds])];
+				where.authorId = where.authorId ? 
+					{ ...where.authorId, notIn: allBlockedIds } : 
+					{ notIn: allBlockedIds };
+			}
 		}
 
-		const output = postsToReturn.map((p: any) => {
+		// Import mention parsing utility
+		const { parseMentionsToNames } = await import('../utils/mentions');
+
+		const output = await Promise.all(postsToReturn.map(async (p: any) => {
 			return {
 				id: p.id,
-				content: p.content,
+				content: p.content ? await parseMentionsToNames(p.content) : p.content,
 				imageUrls: p.imageUrls,
 				createdAt: p.createdAt,
 				updatedAt: p.updatedAt,
@@ -215,16 +241,16 @@ export const getPosts = async (req: Request, res: Response) => {
 						? followingIds.includes(p.author.uid)
 						: false,
 				},
-				comments: p.comments.map((c: Comment) => {
+				comments: await Promise.all(p.comments.map(async (c: Comment) => {
 					return {
 						id: c.id,
-						content: c.content,
+						content: await parseMentionsToNames(c.content),
 						createdAt: c.createdAt,
 						author: {
 							...c.author,
 						},
 					};
-				}),
+				})),
 				likes: p.likes.map((l: any) => {
 					return {
 						user: {
@@ -237,7 +263,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				liveVideoUrl: p.liveVideoUrl,
 				privacy: p.privacy,
 			};
-		});
+		}));
 
 		res.json({
 			status: "ok",

@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth.routes";
 import userRoutes from "./routes/user.routes";
 import postRoutes from "./routes/post.routes";
 import commentRoutes from "./routes/comment.routes";
+import replyRoutes from "./routes/reply.routes";
 import sessionRoutes from "./routes/session.routes";
 import imageRoutes from "./routes/image.routes";
 import reportRoutes from "./routes/report.routes";
@@ -62,12 +63,12 @@ app.use("/v1/auth", authRoutes);
 app.use("/v1/users", userRoutes);
 app.use("/v1/posts", postRoutes);
 app.use("/v1/comments", commentRoutes);
-app.use("/v1/sessions", sessionRoutes);
-app.use("/v1/images", imageRoutes);
+app.use("/v1/replies", replyRoutes);
 app.use("/v1/reports", reportRoutes);
 app.use("/v1/blocks", blockRoutes);
 app.use("/v1/payments", paymentRoutes);
 app.use("/v1/content", contentRoutes);
+app.use("/v1/sessions", sessionRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";

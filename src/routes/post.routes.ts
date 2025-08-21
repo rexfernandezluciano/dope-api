@@ -16,6 +16,7 @@ import {
 	sharePost
 } from "../controllers/post.controller";
 import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
+import { togglePostLike, getPostLikes } from '../controllers/like.controller';
 
 const router = Router();
 
@@ -31,10 +32,13 @@ router.post("/:id/engagement", updatePostEngagement);
 router.post("/", requireAuth, createPost);
 router.put("/:id", requireAuth, updatePost);
 router.delete("/:id", requireAuth, deletePost);
-router.post("/:id/like", requireAuth, toggleLike);
+router.post("/:id/like", requireAuth, togglePostLike);
 router.get("/user/me", requireAuth, getCurrentUserPosts);
 
 // Share post route
 router.post('/share/:id', sharePost);
+
+// Likes routes
+router.get('/:postId/likes', optionalAuth, getPostLikes);
 
 export default router;
