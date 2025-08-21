@@ -106,7 +106,7 @@ export const getPosts = async (req: Request, res: Response) => {
 
 		// Determine ordering
 		let orderBy: any = { createdAt: "desc" };
-		
+
 		if (quality === "true") {
 			// High quality content based on engagement
 			orderBy = [
@@ -135,6 +135,9 @@ export const getPosts = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
+					where: {
+						parentId: null // Only get top-level comments, not replies
+					},
 					take: 3,
 					include: {
 						author: {
@@ -297,6 +300,9 @@ export const getPost = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
+					where: {
+						parentId: null // Only get top-level comments, not replies
+					},
 					include: {
 						author: {
 							select: {
@@ -693,6 +699,9 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
+					where: {
+						parentId: null // Only get top-level comments, not replies
+					},
 					take: 3,
 					include: {
 						author: {
@@ -989,6 +998,9 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 					},
 				},
 				comments: {
+					where: {
+						parentId: null // Only get top-level comments, not replies
+					},
 					include: {
 						author: {
 							select: {
