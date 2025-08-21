@@ -39,8 +39,6 @@ export const getUsers = async (req: Request, res: Response) => {
 				hasBlueCheck: true,
 				subscription: true,
 				createdAt: true,
-				isBlocked: true, // Assuming isBlocked is a boolean field in User model
-				isRestricted: true, // Assuming isRestricted is a boolean field in User model
 				_count: {
 					select: {
 						posts: true,
@@ -92,8 +90,8 @@ export const getUsers = async (req: Request, res: Response) => {
 					subscription: i.subscription,
 				},
 				createdAt: i.createdAt,
-				isBlocked: i.isBlocked, // Include blocked status
-				isRestricted: i.isRestricted, // Include restricted status
+				isBlocked: i.isBlocked,
+				isRestricted: i.isRestricted,
 				stats: {
 					posts: i._count.posts,
 					followers: i._count.followers,
