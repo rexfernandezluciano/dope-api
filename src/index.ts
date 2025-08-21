@@ -69,7 +69,7 @@ app.use("/v1/blocks", blockRoutes);
 app.use("/v1/payments", paymentRoutes);
 app.use("/v1/sessions", sessionRoutes);
 app.use("/v1/content", contentRoutes);
-app.use("/v1/sessions", sessionRoutes);
+app.use("/v1/images", imageRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
