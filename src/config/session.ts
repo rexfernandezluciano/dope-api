@@ -1,5 +1,5 @@
 
-import { PrismaSessionStore } from 'connect-prisma-session';
+import { PrismaSessionStore } from '@quixo3/prisma-session-store';
 import { connect } from '../database/database';
 import geoip from 'geoip-lite';
 
