@@ -713,7 +713,7 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 			let processedContent = reply.content;
 			// Regex to find mentions like @userId
 			const mentionRegex = /@(\w+)/g;
-			processedContent = processedContent.replace(mentionRegex, (match, userId) => {
+			processedContent = processedContent.replace(mentionRegex, (match: string, userId: string) => {
 				// In a real scenario, you'd fetch the user's name by userId here
 				// For now, we'll just display it as @userId or potentially look up in the fetched user data if available
 				// If the user object within the reply is already populated, we can use that.
@@ -1053,7 +1053,7 @@ export const getPostComments = async (req: Request, res: Response) => {
 			let processedContent = comment.content;
 			// Regex to find mentions like @userId
 			const mentionRegex = /@(\w+)/g;
-			processedContent = processedContent.replace(mentionRegex, (match, userId) => {
+			processedContent = processedContent.replace(mentionRegex, (match: string, userId: string) => {
 				// Placeholder for user ID to name lookup
 				// In a real app, you'd fetch the user by userId and return their name.
 				// For example: `return `@${getUserNameById(userId)}`;`
