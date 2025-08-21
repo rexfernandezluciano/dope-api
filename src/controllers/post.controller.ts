@@ -492,7 +492,7 @@ export const deletePost = async (req: Request, res: Response) => {
 
 		// Delete images from Cloudinary before deleting the post
 		if (existingPost.imageUrls && existingPost.imageUrls.length > 0) {
-			const deletePromises = existingPost.imageUrls.map(imageUrl => 
+			const deletePromises = existingPost.imageUrls.map((imageUrl: string) => 
 				deleteImage(imageUrl)
 			);
 			await Promise.allSettled(deletePromises);
