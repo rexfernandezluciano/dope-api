@@ -1,6 +1,51 @@
 
 import { Request, Response, NextFunction } from 'express';
-import { getClientIP } from '../config/session';
+import { connect } from '../database/database';
+
+let prisma: any;
+
+(async () => {
+  prisma = await connect();
+})();
+
+export const validateSession = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const authUser = (req as any).user as { uid: string } | undefined;
+    
+    if (!authUser) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    // Get session from headers or token payload
+    const sessionId = req.headers['x-session-id'] as string;
+    
+    if (sessionId) {
+      const session = await prisma.session.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (!session || session.userId !== authUser.uid || !session.isActive || new Date() > session.expiresAt) {
+        return res.status(401).json({ message: 'Invalid or expired session' });
+      }
+
+      // Update session activity
+      await prisma.session.update({
+        where: { id: sessionId },
+        data: { updatedAt: new Date() },
+      });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({ error: 'Session validation error' });
+  }
+};
+
+export const getClientIP = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'] as string;
+  const ip = forwarded ? forwarded.split(',')[0] : req.connection.remoteAddress;
+  return ip || 'unknown';
+};
 
 const getDeviceInfo = (userAgent: string) => {
   const ua = userAgent.toLowerCase();

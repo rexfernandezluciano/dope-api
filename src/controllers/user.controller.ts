@@ -708,89 +708,11 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 			},
 		});
 
-		// Process mentions in replies
-		const processedReplies = replies.map((reply: any) => {
-			let processedContent = reply.content;
-			// Regex to find mentions like @userId
-			const mentionRegex = /@(\w+)/g;
-			processedContent = processedContent.replace(mentionRegex, (match: string, userId: string) => {
-				// In a real scenario, you'd fetch the user's name by userId here
-				// For now, we'll just display it as @userId or potentially look up in the fetched user data if available
-				// If the user object within the reply is already populated, we can use that.
-				// Assuming `reply.user.username` or `reply.user.name` might be available.
-				// For "@userId" format, we need a way to map userId to name.
-				// This example assumes `reply.user` is the author of the reply and not the mentioned user.
-				// A more robust solution would involve querying for mentioned users.
-				// For simplicity, let's assume we are replacing '@' followed by a username/ID.
-				// If the mention is meant to be a user ID, we'd need a mapping.
-				// For now, let's use a placeholder or the actual username if available.
-				// If the mention is '@username', we can try to map it.
-				// If the mention is '@12345' (a user ID), we need a lookup.
+		// Import mention parsing utility
+		const { parseMentionsToNames } = await import('../utils/mentions');
 
-				// Let's assume mentions are in the format @username and we can directly use it if available in reply.user
-				// However, the request implies "@userId" to be displayed as "Name". This requires a lookup.
-				// For now, let's stick to the "@userId" format as requested, and imply a lookup is needed.
-				// If the user ID is directly in the content, e.g., "Hello @user123", we'd need to find user123's name.
-				// A simple approach for now: If the mention is followed by a known username in the reply's author, use that.
-				// This is a simplified approach. A proper implementation would require a user lookup for each mention.
-
-				// Example: If reply.user.username matches the mentioned ID, use their name.
-				// This is a guess based on the requirement "mention as user id then parse the user id to be displayed as their name"
-				// This implies the content might have "@userId" and we need to find that user.
-				// The current structure doesn't directly support this without more complex parsing and lookup.
-
-				// For now, let's assume the mention format is "@username" and we can try to resolve it.
-				// If the mention is truly meant to be a user ID like "@12345", a separate lookup is needed.
-				// Let's stick to the "@userId" to "Name" transformation requirement:
-				// This implies a mapping from userId to name.
-				// If `reply.user` is the author of the reply, we can't use it for mentioned users.
-
-				// A more direct interpretation: The content might contain "@<userId>" and we need to replace it.
-				// This requires a way to get the user's name from their ID.
-				// Let's simulate this by assuming we have a mapping or can fetch it.
-				// For now, let's just display it as "@" + userId if we can't resolve.
-
-				// If we assume the mention is @username and reply.user.username is the author of the reply:
-				// We can't use reply.user for mentioned users unless the mention is of the author itself.
-
-				// A practical approach:
-				// 1. Find all mentions in `reply.content`.
-				// 2. Extract the user IDs from these mentions.
-				// 3. Fetch the user objects for these IDs.
-				// 4. Replace the mentions in the content with "@" + user.name.
-
-				// For simplicity in this example, let's demonstrate the replacement logic:
-				// If the mention format is "@username" and we want to display "@Username", we can do this:
-				// return `@${userId}`; // This might be enough if userId is actually a username.
-
-				// If it's "@userId" and we want "@Name", we need a lookup.
-				// Let's assume for now, the mention is meant to be a username.
-				// If the `reply.user` in the `likes` section contains the username, we can potentially use that.
-				// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
-
-				// If the original content is "Hello @user123", and we need to find user123's name.
-				// This requires a separate lookup.
-				// For this example, we'll just return the mention as is, or a placeholder.
-
-				// If the requirement is "mention as user id then parse the user id to be displayed as their name in the post, like @userId"
-				// This implies the content has "@userId", and we need to convert it to "@UserName".
-				// We don't have the user information for the mentioned ID directly in this `reply` object.
-				// This requires a separate fetch or pre-population of mentioned users.
-				// Let's simulate this by returning "@MentionedUser" as a placeholder.
-				// In a real app, you would fetch users by ID and replace.
-
-				// If the mention is of the author of the reply:
-				// if (reply.user && userId === reply.user.username) {
-				//     return `@${reply.user.name}`;
-				// }
-
-				// For now, let's implement a placeholder or a simple conversion if userId is found in fetched data.
-				// This is a complex requirement and might need a dedicated function to resolve mentions.
-				// Let's assume we have a function `getUserById(userId)` that returns user object.
-				// For this context, we'll simply return the mention as is, or a placeholder.
-				// The best we can do here is to acknowledge the need for a lookup.
-				return `@${userId}`; // Placeholder: Replace with actual user name lookup
-			});
+		const processedReplies = await Promise.all(replies.map(async (reply: any) => {
+			const processedContent = await parseMentionsToNames(reply.content);
 
 			return {
 				id: reply.id,
@@ -813,7 +735,7 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 					},
 				})),
 			};
-		});
+		}));
 
 		res.json({ status: "ok", replies: processedReplies });
 	} catch (error: any) {
@@ -1058,6 +980,45 @@ export const getPostComments = async (req: Request, res: Response) => {
 				// In a real app, you'd fetch the user by userId and return their name.
 				// For example: `return `@${getUserNameById(userId)}`;`
 				// For now, return the mention as is.
+				// If we assume the mention is @username and reply.user.username is the author of the reply:
+				// We can't use reply.user for mentioned users unless the mention is of the author itself.
+
+				// A practical approach:
+				// 1. Find all mentions in `reply.content`.
+				// 2. Extract the user IDs from these mentions.
+				// 3. Fetch the user objects for these IDs.
+				// 4. Replace the mentions in the content with "@" + user.name.
+
+				// For simplicity in this example, let's demonstrate the replacement logic:
+				// If the mention format is "@username" and we want to display "@Username", we can do this:
+				// return `@${userId}`; // This might be enough if userId is actually a username.
+
+				// If it's "@userId" and we want "@Name", we need a lookup.
+				// Let's assume for now, the mention is meant to be a username.
+				// If the `reply.user` in the `likes` section contains the username, we can potentially use that.
+				// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
+
+				// If the original content is "Hello @user123", and we need to find user123's name.
+				// This requires a separate lookup.
+				// For this example, we'll just return the mention as is, or a placeholder.
+
+				// If the requirement is "mention as user id then parse the user id to be displayed as their name in the post, like @userId"
+				// This implies the content has "@userId", and we need to convert it to "@UserName".
+				// We don't have the user information for the mentioned ID directly in this `reply` object.
+				// This requires a separate fetch or pre-population of mentioned users.
+				// Let's simulate this by returning "@MentionedUser" as a placeholder.
+				// In a real app, you would fetch users by ID and replace.
+
+				// If the mention is of the author of the reply:
+				// if (reply.user && userId === reply.user.username) {
+				//     return `@${reply.user.name}`;
+				// }
+
+				// For now, let's implement a placeholder or a simple conversion if userId is found in fetched data.
+				// This is a complex requirement and might need a dedicated function to resolve mentions.
+				// Let's assume we have a function `getUserById(userId)` that returns user object.
+				// For this context, we'll simply return the mention as is, or a placeholder.
+				// The best we can do here is to acknowledge the need for a lookup.
 				return `@${userId}`; // Placeholder: Replace with actual user name lookup
 			});
 

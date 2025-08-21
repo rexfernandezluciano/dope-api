@@ -1,4 +1,3 @@
-
 # DOPE Network API Documentation
 
 ## Table of Contents
@@ -617,17 +616,43 @@ POST /v1/posts/share/:id
 }
 ```
 
-#### Like/Unlike Post
+#### Like Post
 ```http
-POST /v1/posts/:id/like
+POST /v1/posts/:postId/like
 Authorization: Bearer <jwt_token>
 ```
 
 **Success Response (200):**
 ```json
 {
-  "message": "Post liked",
-  "liked": true
+  "message": "Post liked successfully"
+}
+```
+
+#### Get Post Likes
+```http
+GET /v1/posts/:postId/likes
+```
+
+**Success Response (200):**
+```json
+{
+  "likes": [
+    {
+      "id": "like_id",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "user": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false
+      }
+    }
+  ],
+  "nextCursor": null,
+  "hasMore": false,
+  "limit": 20
 }
 ```
 
@@ -705,9 +730,9 @@ GET /v1/comments/post/:postId
       "mentions": ["user"],
       "author": {
         "uid": "user_id",
-        "name": "Commenter",
-        "username": "commenter_username",
-        "photoURL": "https://example.com/commenter.jpg",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
         "hasBlueCheck": false
       },
       "replies": [
@@ -818,7 +843,7 @@ Authorization: Bearer <jwt_token>
 
 #### Like/Unlike Comment
 ```http
-POST /v1/likes/comment/:commentId
+POST /v1/comments/:commentId/like
 Authorization: Bearer <jwt_token>
 ```
 
@@ -827,6 +852,33 @@ Authorization: Bearer <jwt_token>
 {
   "message": "Comment liked",
   "liked": true
+}
+```
+
+#### Get Comment Likes
+```http
+GET /v1/comments/:commentId/likes
+```
+
+**Success Response (200):**
+```json
+{
+  "likes": [
+    {
+      "id": "like_id",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "user": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false
+      }
+    }
+  ],
+  "nextCursor": null,
+  "hasMore": false,
+  "limit": 20
 }
 ```
 
@@ -846,16 +898,16 @@ Authorization: Bearer <jwt_token>
 
 ### Reply Routes
 
-#### Create Reply to Comment
+#### Create Reply
 ```http
-POST /v1/comments/:commentId/replies
+POST /v1/replies/comment/:commentId
 Authorization: Bearer <jwt_token>
 ```
 
 **Request Body:**
 ```json
 {
-  "content": "Thanks for the comment! @user"
+  "content": "This is a reply to the comment"
 }
 ```
 
@@ -863,20 +915,69 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "id": "reply_id",
-  "content": "Thanks for the comment! @user",
+  "content": "This is a reply to the comment",
   "createdAt": "2024-01-15T10:40:00Z",
   "updatedAt": "2024-01-15T10:40:00Z",
-  "commentId": "comment_id",
+  "postId": "post_id",
+  "parentId": "comment_id",
   "authorId": "user_id",
-  "hashtags": [],
-  "mentions": ["user"],
   "author": {
     "uid": "user_id",
     "name": "John Doe",
     "username": "johndoe",
     "photoURL": "https://example.com/photo.jpg",
     "hasBlueCheck": false
+  },
+  "_count": {
+    "likes": 0,
+    "replies": 0
   }
+}
+```
+
+#### Get Comment Replies
+```http
+GET /v1/replies/comment/:commentId
+```
+
+**Query Parameters:**
+- `limit` (optional): Number of replies to return (max 100, default 20)
+- `cursor` (optional): Cursor for pagination
+- `sortBy` (optional): Sort order ("asc" or "desc", default "desc")
+
+**Success Response (200):**
+```json
+{
+  "replies": [
+    {
+      "id": "reply_id",
+      "content": "This is a reply to the comment",
+      "createdAt": "2024-01-15T10:40:00Z",
+      "updatedAt": "2024-01-15T10:40:00Z",
+      "author": {
+        "uid": "user_id",
+        "name": "John Doe",
+        "username": "johndoe",
+        "photoURL": "https://example.com/photo.jpg",
+        "hasBlueCheck": false
+      },
+      "likes": [
+        {
+          "user": {
+            "uid": "user_id",
+            "username": "johndoe"
+          }
+        }
+      ],
+      "stats": {
+        "likes": 1,
+        "replies": 0
+      }
+    }
+  ],
+  "nextCursor": "cursor_value",
+  "hasMore": true,
+  "limit": 20
 }
 ```
 

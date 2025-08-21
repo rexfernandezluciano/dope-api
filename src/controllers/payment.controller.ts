@@ -22,9 +22,12 @@ const PaymentMethodSchema = z.object({
   if (data.type === 'paypal') {
     return data.paypalEmail;
   }
+  if (data.type === 'credit_card' || data.type === 'debit_card') {
+    return data.last4 && data.expiryMonth && data.expiryYear && data.holderName;
+  }
   return true;
 }, {
-  message: "PayPal email is required for PayPal payment method",
+  message: "Required fields are missing for the selected payment method",
 });
 
 export const addPaymentMethod = async (req: Request, res: Response) => {
@@ -48,6 +51,7 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
         expiryMonth: paymentData.expiryMonth,
         expiryYear: paymentData.expiryYear,
         holderName: paymentData.holderName,
+        paypalEmail: paymentData.paypalEmail,
         isDefault: paymentData.isDefault,
         userId: authUser.uid,
       },

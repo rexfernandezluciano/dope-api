@@ -11,7 +11,7 @@ import {
 import { createReply, getCommentReplies } from "../controllers/reply.controller";
 import { toggleCommentLike, getCommentLikes } from "../controllers/like.controller";
 import { requireAuth } from "../middleware/auth.middleware";
-import { optionalAuth } from "../middleware/optionalAuth.middleware";
+import { optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
