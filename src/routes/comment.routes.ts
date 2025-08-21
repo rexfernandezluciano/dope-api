@@ -8,7 +8,7 @@ import {
 	getComments,
 	searchComments,
 } from "../controllers/comment.controller";
-import { createReply, getCommentReplies } from "../controllers/reply.controller";
+import { createCommentReply, getCommentReplies } from "../controllers/reply.controller";
 import { toggleCommentLike, getCommentLikes } from "../controllers/like.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { optionalAuth } from "../middleware/auth.middleware";
@@ -22,7 +22,7 @@ router.get("/", getComments);
 router.get("/search", searchComments);
 
 // Comment replies
-router.post("/:commentId/replies", requireAuth, createReply);
+router.post("/:commentId/replies", requireAuth, createCommentReply);
 router.get("/:commentId/replies", getCommentReplies);
 
 // Comment likes
