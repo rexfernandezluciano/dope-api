@@ -54,7 +54,10 @@ export const getComments = async (req: Request, res: Response) => {
 		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 comments per request
 
 		// Build where clause for filtering
-		const where: any = { postId };
+		const where: any = { 
+			postId,
+			parentId: null // Only get top-level comments, not replies
+		};
 
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
