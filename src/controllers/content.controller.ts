@@ -12,7 +12,7 @@ let prisma: any;
 const moderateContent = (content: string): { isAppropriate: boolean; reason?: string } => {
   const inappropriateWords = [
     'spam', 'scam', 'hate', 'violence', 'drugs', 'illegal',
-    // Add more keywords as needed
+    'porn', 'sex', 'nude', 'naked', 'adult', 'gambling', 'gamble', 'casino', 'fuck', 'shit', 'bullshit', 'asshole', 'nigga', 'motherfucker', 'motherfuck'
   ];
 
   const lowerContent = content.toLowerCase();

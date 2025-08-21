@@ -96,7 +96,7 @@ export async function sendBillingReminderEmail(
 						Your subscription will automatically renew unless you cancel it before the billing date. You can manage your subscription settings in your account dashboard.
 					</p>
 					<div style="text-align: center; margin: 30px 0;">
-						<a href="https://www.dopp.eu.org/account/billing" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+						<a href="https://www.dopp.eu.org/subscription" style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
 							Manage Subscription
 						</a>
 					</div>
@@ -121,7 +121,7 @@ export async function sendBillingReminderEmail(
 				
 				Your subscription will automatically renew unless you cancel it before the billing date. You can manage your subscription settings in your account dashboard.
 				
-				Manage your subscription: https://www.dopp.eu.org/account/billing
+				Manage your subscription: https://www.dopp.eu.org/subscription
 				
 				If you have any questions about your subscription or billing, please contact our support team.
 			`,
