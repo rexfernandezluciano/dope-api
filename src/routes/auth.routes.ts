@@ -25,8 +25,11 @@ router.post("/login", asyncHandler(login));
 router.post("/google", asyncHandler(googleLogin)); // Keep existing endpoint for backward compatibility
 router.get("/google", googleAuth); // New Passport Google OAuth initiation
 router.get("/google/callback", asyncHandler(googleCallback)); // Google OAuth callback
-router.post("/logout", asyncHandler(logout));
-router.get("/validate-verification-id/:verificationId", asyncHandler(validateVerificationId))
+router.post("/logout", requireAuth, asyncHandler(logout));
+router.get(
+	"/validate-verification-id/:verificationId",
+	asyncHandler(validateVerificationId),
+);
 router.get("/me", requireAuth, asyncHandler(me));
 
 export default router;
