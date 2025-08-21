@@ -17,7 +17,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
     });
   }
 
-  async set(sessionId: string, session: any, callback?: (err?: any) => void) {
+  set = async (sessionId: string, session: any, callback?: (err?: any) => void): Promise<void> => {
     try {
       const expiresAt = session.cookie?.expires || new Date(Date.now() + 24 * 60 * 60 * 1000);
       
@@ -58,27 +58,33 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
     }
   }
 
-  async get(sessionId: string, callback: (err: any, session?: any) => void) {
+  get = async (sessionId: string, callback?: (err?: any, session?: any) => void): Promise<void> => {
     try {
       const session = await prisma.session.findUnique({
         where: { sid: sessionId },
       });
 
       if (!session || session.expiresAt < new Date()) {
-        return callback(null, null);
+        return callback?.(null, null);
       }
 
-      callback(null, session.data);
+      callback?.(null, session.data);
     } catch (error) {
-      callback(error);
+      callback?.(error);
     }
   }
 
-  async destroy(sessionId: string, callback?: (err?: any) => void) {
+  destroy = async (sessionId: string | string[], callback?: (err?: any) => void): Promise<void> => {
     try {
-      await prisma.session.delete({
-        where: { sid: sessionId },
-      });
+      if (Array.isArray(sessionId)) {
+        await prisma.session.deleteMany({
+          where: { sid: { in: sessionId } },
+        });
+      } else {
+        await prisma.session.delete({
+          where: { sid: sessionId },
+        });
+      }
       callback?.();
     } catch (error) {
       callback?.(error);
