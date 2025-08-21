@@ -23,6 +23,8 @@ model User {
   hasBlueCheck      Boolean @default(false)
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
+  isBlocked         Boolean @default(false)
+  isRestricted      Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
