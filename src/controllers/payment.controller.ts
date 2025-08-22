@@ -83,7 +83,7 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { uid: authUser.uid },
-      select: { email: true, name: true, paypalCustomerId: true },
+      select: { email: true, name: true },
     });
 
     if (!user) {
@@ -392,10 +392,11 @@ export const getAvailablePaymentProviders = async (
         currency: "PHP",
         interval: "month",
         features: [
-          "Ad-free experience",
-          "Priority support",
-          "Extended analytics",
-          "Custom themes",
+          "10 images per post",
+          "Verification badge",
+          "Basic support",
+          "Advanced analytics",
+          "Security protection"
         ],
       },
       {
@@ -405,10 +406,11 @@ export const getAvailablePaymentProviders = async (
         currency: "PHP",
         interval: "month",
         features: [
-          "All Premium features",
+          "Unlimited images per post",
+          "Verification badge",
           "Advanced analytics",
-          "API access",
-          "Custom branding",
+          "Priority support",
+          "Security protection",
           "Priority moderation",
         ],
       },

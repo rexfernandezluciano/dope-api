@@ -19,6 +19,7 @@ const moderateContent = async (content: string): Promise<{ isAppropriate: boolea
     // Use OpenAI moderation API
     const moderation = await openai.moderations.create({
       input: content,
+      model: "omni-moderation-latest"
     });
 
     const result = moderation.results[0];
@@ -97,6 +98,21 @@ const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean
     if (!response.ok) {
       return { isAppropriate: false, reason: 'Image not accessible' };
     }
+
+    const moderation = await openai.moderations.create({
+    model: "omni-moderation-latest",
+    input: [
+        { type: "text", text: "...text to classify goes here..." },
+        {
+            type: "image_url",
+            image_url: {
+                url: imageUrl
+                // can also use base64 encoded image URLs
+                // url: "data:image/jpeg;base64,abcdefg..."
+            }
+        }
+    ],
+});
 
     // Use OpenAI Vision API for image analysis
     const visionResponse = await openai.chat.completions.create({
