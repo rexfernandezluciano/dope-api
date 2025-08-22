@@ -42,9 +42,6 @@
     "GOOGLE_CALLBACK_URL": "https://api.dopp.eu.org/v1/auth/google/callback",
     "PAYMONGO_SECRET_KEY": "sk_test_qKH4w9vS469Ti5BmfUH6TYK4",
     "PAYMONGO_PUBLIC_KEY": "pk_test_9j53cXte939n7v6mwkRkRKyv",
-    "RAZORPAY_KEY_ID": "",
-    "RAZORPAY_KEY_SECRET": "",
-    "XENDIT_SECRET_KEY": "",
     "FRONTEND_URL": "https://www.dopp.eu.org"
   }
 }
