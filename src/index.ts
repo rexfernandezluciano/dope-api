@@ -30,6 +30,12 @@ app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.set("json spaces", 2);
 
+// Add server name to response headers
+app.use((req, res, next) => {
+	res.setHeader("Server", "YourAppName/1.0");
+	next();
+});
+
 // Session configuration with database storage
 app.use(
 	session({
