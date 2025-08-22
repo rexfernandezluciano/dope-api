@@ -21,8 +21,6 @@ model User {
   subscription      Subscription @default(free)
   nextBillingDate   DateTime?
   hasBlueCheck      Boolean @default(false)
-  stripeCustomerId  String?  @unique
-  stripeSubscriptionId String? @unique
   paymongoCustomerId String? @unique
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
@@ -202,15 +200,11 @@ model PaymentMethod {
   userId      String
   type        PaymentType
   provider    PaymentProvider  @default(paymongo)
-  stripePaymentMethodId String? @unique
   paymongoPaymentMethodId String? @unique
-  razorpayPaymentMethodId String?
-  xenditPaymentMethodId String?
   last4       String?
   expiryMonth Int?
   expiryYear  Int?
   holderName  String?
-  paypalEmail String?
   phoneNumber String?
   isDefault   Boolean         @default(false)
   createdAt   DateTime        @default(now())
@@ -287,18 +281,12 @@ enum BlockReason {
 enum PaymentType {
   credit_card
   debit_card
-  paypal
   bank_transfer
-  crypto
   gcash
   grabpay
   maya
 }
 
 enum PaymentProvider {
-  stripe
   paymongo
-  razorpay
-  xendit
-  paypal
 }

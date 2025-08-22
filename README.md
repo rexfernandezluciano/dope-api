@@ -1338,43 +1338,63 @@ GET /v1/payments/providers
 **Success Response (200):**
 ```json
 {
-  "providers": [
+  "provider": "PayMongo",
+  "availableIn": "Philippines",
+  "paymentMethods": [
     {
       "type": "credit_card",
       "name": "Credit Card",
-      "providers": ["Visa", "Mastercard", "American Express", "Discover"],
-      "fees": "2.9% + $0.30",
+      "supportedCards": ["Visa", "Mastercard", "JCB"],
+      "fees": "3.9% + ₱15",
       "processingTime": "Instant"
     },
     {
-      "type": "paypal",
-      "name": "PayPal",
-      "providers": ["PayPal"],
-      "fees": "2.9% + $0.30",
+      "type": "debit_card", 
+      "name": "Debit Card",
+      "supportedCards": ["Visa", "Mastercard"],
+      "fees": "3.9% + ₱15",
       "processingTime": "Instant"
     },
     {
-      "type": "crypto",
-      "name": "Cryptocurrency",
-      "providers": ["Bitcoin", "Ethereum", "USDC"],
-      "fees": "1.5%",
-      "processingTime": "10-60 minutes"
+      "type": "gcash",
+      "name": "GCash",
+      "fees": "₱15 flat fee",
+      "processingTime": "Instant"
+    },
+    {
+      "type": "grabpay",
+      "name": "GrabPay", 
+      "fees": "₱15 flat fee",
+      "processingTime": "Instant"
+    },
+    {
+      "type": "maya",
+      "name": "Maya (PayMaya)",
+      "fees": "₱15 flat fee",
+      "processingTime": "Instant"
+    },
+    {
+      "type": "bank_transfer",
+      "name": "Online Banking",
+      "supportedBanks": ["BPI", "BDO", "Metrobank", "Unionbank", "RCBC", "Security Bank"],
+      "fees": "₱15 flat fee",
+      "processingTime": "Instant"
     }
   ],
   "membershipPlans": [
     {
       "type": "premium",
       "name": "Premium",
-      "price": 9.99,
-      "currency": "USD",
+      "price": 560,
+      "currency": "PHP",
       "interval": "month",
       "features": ["Ad-free experience", "Priority support", "Extended analytics", "Custom themes"]
     },
     {
       "type": "pro",
       "name": "Pro",
-      "price": 19.99,
-      "currency": "USD",
+      "price": 1120,
+      "currency": "PHP",
       "interval": "month",
       "features": ["All Premium features", "Advanced analytics", "API access", "Custom branding", "Priority moderation"]
     }
@@ -1392,7 +1412,7 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "type": "credit_card",
-  "provider": "Visa",
+  "paymentMethodId": "pm_123456789",
   "last4": "1111",
   "expiryMonth": 12,
   "expiryYear": 2025,
@@ -1401,12 +1421,29 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-**Request Body (PayPal):**
+**Request Body (GCash):**
 ```json
 {
-  "type": "paypal",
-  "provider": "PayPal",
-  "paypalEmail": "john@example.com",
+  "type": "gcash",
+  "phoneNumber": "+639171234567",
+  "isDefault": false
+}
+```
+
+**Request Body (GrabPay):**
+```json
+{
+  "type": "grabpay",
+  "phoneNumber": "+639171234567",
+  "isDefault": false
+}
+```
+
+**Request Body (Maya):**
+```json
+{
+  "type": "maya",
+  "phoneNumber": "+639171234567",
   "isDefault": false
 }
 ```
@@ -1415,16 +1452,6 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "type": "bank_transfer",
-  "provider": "ACH",
-  "isDefault": false
-}
-```
-
-**Request Body (Cryptocurrency):**
-```json
-{
-  "type": "crypto",
-  "provider": "Bitcoin",
   "isDefault": false
 }
 ```
@@ -1436,7 +1463,7 @@ Authorization: Bearer <jwt_token>
   "paymentMethod": {
     "id": "pm_123456789",
     "type": "credit_card",
-    "provider": "Visa",
+    "provider": "paymongo",
     "last4": "1111",
     "isDefault": true
   }
@@ -1472,7 +1499,7 @@ Authorization: Bearer <jwt_token>
     {
       "id": "pm_123456789",
       "type": "credit_card",
-      "provider": "Visa",
+      "provider": "paymongo",
       "last4": "1111",
       "expiryMonth": 12,
       "expiryYear": 2025,
@@ -1482,8 +1509,9 @@ Authorization: Bearer <jwt_token>
     },
     {
       "id": "pm_987654321",
-      "type": "paypal",
-      "provider": "PayPal",
+      "type": "gcash",
+      "provider": "paymongo",
+      "phoneNumber": "+639171234567",
       "isDefault": false,
       "createdAt": "2024-01-10T08:15:00Z"
     }
@@ -1528,9 +1556,13 @@ Authorization: Bearer <jwt_token>
 **Success Response (200):**
 ```json
 {
-  "message": "Membership purchased successfully",
-  "subscription": "premium",
-  "nextBillingDate": "2025-02-15T10:30:00Z"
+  "message": "Payment initiated - complete payment to activate subscription",
+  "paymentIntentId": "pi_123456789",
+  "clientKey": "pi_123456789_client_key",
+  "nextActionUrl": "https://api.paymongo.com/redirect/pi_123456789",
+  "amount": 56000,
+  "currency": "PHP",
+  "description": "Premium Subscription"
 }
 ```
 
@@ -1543,6 +1575,12 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "message": "Payment method not found"
+}
+```
+```json
+{
+  "message": "Payment failed",
+  "error": "Your card was declined."
 }
 ```
 

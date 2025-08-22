@@ -6,8 +6,7 @@ import {
   deletePaymentMethod, 
   getAvailablePaymentProviders,
   purchaseMembership,
-  createPaymentIntent,
-  handleStripeWebhook
+  handlePayMongoWebhook
 } from '../controllers/payment.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
@@ -18,7 +17,6 @@ router.post('/methods', requireAuth, addPaymentMethod);
 router.get('/methods', requireAuth, getPaymentMethods);
 router.delete('/methods/:paymentMethodId', requireAuth, deletePaymentMethod);
 router.post('/purchase-membership', requireAuth, purchaseMembership);
-router.post('/create-payment-intent', requireAuth, createPaymentIntent);
-router.post('/webhook', handleStripeWebhook); // No auth required for webhooks
+router.post('/webhook/paymongo', handlePayMongoWebhook); // PayMongo webhook
 
 export default router;
