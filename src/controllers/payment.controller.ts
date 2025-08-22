@@ -2,16 +2,22 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { connect } from '../database/database';
+import Stripe from 'stripe';
 
 let prisma: any;
+let stripe: Stripe;
 
 (async () => {
   prisma = await connect();
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2024-06-20',
+  });
 })();
 
 const PaymentMethodSchema = z.object({
   type: z.enum(['credit_card', 'debit_card', 'paypal', 'bank_transfer', 'crypto']),
-  provider: z.string(),
+  provider: z.string().optional(),
+  stripePaymentMethodId: z.string().optional(),
   last4: z.string().optional(),
   expiryMonth: z.number().min(1).max(12).optional(),
   expiryYear: z.number().min(2024).optional(),
@@ -19,11 +25,11 @@ const PaymentMethodSchema = z.object({
   paypalEmail: z.string().email().optional(),
   isDefault: z.boolean().default(false),
 }).refine((data) => {
+  if (data.type === 'credit_card' || data.type === 'debit_card') {
+    return data.stripePaymentMethodId || (data.last4 && data.expiryMonth && data.expiryYear && data.holderName);
+  }
   if (data.type === 'paypal') {
     return data.paypalEmail;
-  }
-  if (data.type === 'credit_card' || data.type === 'debit_card') {
-    return data.last4 && data.expiryMonth && data.expiryYear && data.holderName;
   }
   return true;
 }, {
@@ -34,6 +40,40 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
   try {
     const authUser = (req as any).user as { uid: string };
     const paymentData = PaymentMethodSchema.parse(req.body);
+
+    let stripeCustomerId: string;
+    
+    // Get or create Stripe customer
+    const user = await prisma.user.findUnique({
+      where: { uid: authUser.uid },
+      select: { email: true, name: true, stripeCustomerId: true },
+    });
+
+    if (!user.stripeCustomerId) {
+      const stripeCustomer = await stripe.customers.create({
+        email: user.email,
+        name: user.name || undefined,
+        metadata: { userId: authUser.uid },
+      });
+      
+      await prisma.user.update({
+        where: { uid: authUser.uid },
+        data: { stripeCustomerId: stripeCustomer.id },
+      });
+      
+      stripeCustomerId = stripeCustomer.id;
+    } else {
+      stripeCustomerId = user.stripeCustomerId;
+    }
+
+    let stripePaymentMethod;
+    if (paymentData.stripePaymentMethodId) {
+      // Attach existing Stripe payment method to customer
+      stripePaymentMethod = await stripe.paymentMethods.attach(
+        paymentData.stripePaymentMethodId,
+        { customer: stripeCustomerId }
+      );
+    }
 
     // If this is set as default, unset other default methods
     if (paymentData.isDefault) {
@@ -46,10 +86,11 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
         type: paymentData.type,
-        provider: paymentData.provider,
-        last4: paymentData.last4,
-        expiryMonth: paymentData.expiryMonth,
-        expiryYear: paymentData.expiryYear,
+        provider: paymentData.provider || (stripePaymentMethod?.card?.brand || 'unknown'),
+        stripePaymentMethodId: paymentData.stripePaymentMethodId,
+        last4: paymentData.last4 || stripePaymentMethod?.card?.last4,
+        expiryMonth: paymentData.expiryMonth || stripePaymentMethod?.card?.exp_month,
+        expiryYear: paymentData.expiryYear || stripePaymentMethod?.card?.exp_year,
         holderName: paymentData.holderName,
         paypalEmail: paymentData.paypalEmail,
         isDefault: paymentData.isDefault,
@@ -72,6 +113,7 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
     if (err.name === 'ZodError') {
       return res.status(400).json({ message: 'Invalid payload', errors: err.errors });
     }
+    console.error('Payment method error:', err);
     res.status(500).json({ error: 'Error adding payment method' });
   }
 };
@@ -150,27 +192,194 @@ export const purchaseMembership = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Payment method not found' });
     }
 
-    // Calculate next billing date (1 month from now)
-    const nextBillingDate = new Date();
-    nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
-
-    // Update user subscription
-    const updatedUser = await prisma.user.update({
+    const user = await prisma.user.findUnique({
       where: { uid: authUser.uid },
-      data: {
-        subscription: subscription as 'premium' | 'pro',
-        nextBillingDate,
-        hasBlueCheck: true, // Grant blue check for paid subscriptions
+      select: { email: true, name: true, stripeCustomerId: true },
+    });
+
+    if (!user?.stripeCustomerId) {
+      return res.status(400).json({ message: 'Stripe customer not found' });
+    }
+
+    // Define subscription prices
+    const subscriptionPrices = {
+      premium: { amount: 999, priceId: process.env.STRIPE_PREMIUM_PRICE_ID }, // $9.99
+      pro: { amount: 1999, priceId: process.env.STRIPE_PRO_PRICE_ID }, // $19.99
+    };
+
+    const selectedPlan = subscriptionPrices[subscription as keyof typeof subscriptionPrices];
+
+    try {
+      // Create Stripe subscription
+      const stripeSubscription = await stripe.subscriptions.create({
+        customer: user.stripeCustomerId,
+        items: [{
+          price: selectedPlan.priceId || selectedPlan.amount.toString(), // Use price ID if available, otherwise amount
+        }],
+        default_payment_method: paymentMethod.stripePaymentMethodId,
+        expand: ['latest_invoice.payment_intent'],
+      });
+
+      // Calculate next billing date
+      const nextBillingDate = new Date(stripeSubscription.current_period_end * 1000);
+
+      // Update user subscription
+      const updatedUser = await prisma.user.update({
+        where: { uid: authUser.uid },
+        data: {
+          subscription: subscription as 'premium' | 'pro',
+          nextBillingDate,
+          hasBlueCheck: true,
+          stripeSubscriptionId: stripeSubscription.id,
+        },
+      });
+
+      res.json({
+        message: 'Membership purchased successfully',
+        subscription: updatedUser.subscription,
+        nextBillingDate: updatedUser.nextBillingDate,
+        stripeSubscriptionId: stripeSubscription.id,
+      });
+
+    } catch (stripeError: any) {
+      console.error('Stripe subscription error:', stripeError);
+      
+      if (stripeError.type === 'StripeCardError') {
+        return res.status(400).json({ 
+          message: 'Payment failed', 
+          error: stripeError.message 
+        });
+      }
+      
+      throw stripeError;
+    }
+
+  } catch (error: any) {
+    console.error('Purchase membership error:', error);
+    res.status(500).json({ error: 'Error purchasing membership: ' + error.message });
+  }
+};
+
+export const createPaymentIntent = async (req: Request, res: Response) => {
+  try {
+    const authUser = (req as any).user as { uid: string };
+    const { subscription } = req.body;
+
+    if (!['premium', 'pro'].includes(subscription)) {
+      return res.status(400).json({ message: 'Invalid subscription type' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { uid: authUser.uid },
+      select: { email: true, name: true, stripeCustomerId: true },
+    });
+
+    let stripeCustomerId = user?.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      const stripeCustomer = await stripe.customers.create({
+        email: user!.email,
+        name: user!.name || undefined,
+        metadata: { userId: authUser.uid },
+      });
+      
+      await prisma.user.update({
+        where: { uid: authUser.uid },
+        data: { stripeCustomerId: stripeCustomer.id },
+      });
+      
+      stripeCustomerId = stripeCustomer.id;
+    }
+
+    const subscriptionPrices = {
+      premium: 999, // $9.99
+      pro: 1999, // $19.99
+    };
+
+    const amount = subscriptionPrices[subscription as keyof typeof subscriptionPrices];
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: 'usd',
+      customer: stripeCustomerId,
+      metadata: {
+        userId: authUser.uid,
+        subscription,
+      },
+      automatic_payment_methods: {
+        enabled: true,
       },
     });
 
     res.json({
-      message: 'Membership purchased successfully',
-      subscription: updatedUser.subscription,
-      nextBillingDate: updatedUser.nextBillingDate,
+      clientSecret: paymentIntent.client_secret,
+      amount,
+      currency: 'usd',
     });
+
   } catch (error: any) {
-    res.status(500).json({ error: 'Error purchasing membership: ' + error.message });
+    console.error('Create payment intent error:', error);
+    res.status(500).json({ error: 'Error creating payment intent: ' + error.message });
+  }
+};
+
+export const handleStripeWebhook = async (req: Request, res: Response) => {
+  const sig = req.headers['stripe-signature'] as string;
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const userId = paymentIntent.metadata.userId;
+        const subscription = paymentIntent.metadata.subscription;
+
+        if (userId && subscription) {
+          const nextBillingDate = new Date();
+          nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+          await prisma.user.update({
+            where: { uid: userId },
+            data: {
+              subscription: subscription as 'premium' | 'pro',
+              nextBillingDate,
+              hasBlueCheck: true,
+            },
+          });
+
+          console.log(`Subscription activated for user ${userId}: ${subscription}`);
+        }
+        break;
+
+      case 'invoice.payment_failed':
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        
+        const failedUser = await prisma.user.findFirst({
+          where: { stripeCustomerId: customerId },
+        });
+
+        if (failedUser) {
+          // Handle failed payment - could downgrade to free tier
+          console.log(`Payment failed for user ${failedUser.uid}`);
+        }
+        break;
+
+      default:
+        console.log(`Unhandled event type ${event.type}`);
+    }
+
+    res.json({ received: true });
+  } catch (error: any) {
+    console.error('Webhook handler error:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
   }
 };
 

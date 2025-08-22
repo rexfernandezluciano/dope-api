@@ -21,6 +21,8 @@ model User {
   subscription      Subscription @default(free)
   nextBillingDate   DateTime?
   hasBlueCheck      Boolean @default(false)
+  stripeCustomerId  String?  @unique
+  stripeSubscriptionId String? @unique
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
   isBlocked         Boolean @default(false)
@@ -199,10 +201,12 @@ model PaymentMethod {
   userId      String
   type        PaymentType
   provider    String
+  stripePaymentMethodId String? @unique
   last4       String?
   expiryMonth Int?
   expiryYear  Int?
   holderName  String?
+  paypalEmail String?
   isDefault   Boolean         @default(false)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

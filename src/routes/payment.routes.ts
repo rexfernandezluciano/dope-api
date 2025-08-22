@@ -5,7 +5,9 @@ import {
   getPaymentMethods, 
   deletePaymentMethod, 
   getAvailablePaymentProviders,
-  purchaseMembership 
+  purchaseMembership,
+  createPaymentIntent,
+  handleStripeWebhook
 } from '../controllers/payment.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
@@ -16,5 +18,7 @@ router.post('/methods', requireAuth, addPaymentMethod);
 router.get('/methods', requireAuth, getPaymentMethods);
 router.delete('/methods/:paymentMethodId', requireAuth, deletePaymentMethod);
 router.post('/purchase-membership', requireAuth, purchaseMembership);
+router.post('/create-payment-intent', requireAuth, createPaymentIntent);
+router.post('/webhook', handleStripeWebhook); // No auth required for webhooks
 
 export default router;
