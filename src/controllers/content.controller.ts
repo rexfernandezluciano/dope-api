@@ -90,8 +90,8 @@ const basicContentModeration = (content: string): { isAppropriate: boolean; reas
   return { isAppropriate: true };
 };
 
-// Enhanced image content moderation using OpenAI Vision
-const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean; reason?: string; confidence?: number }> => {
+// Enhanced image content moderation using OpenAI omni-moderation
+const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean; reason?: string; confidence?: number; categories?: any }> => {
   try {
     // First check if image is accessible
     const response = await fetch(imageUrl, { method: 'HEAD' });
@@ -99,76 +99,43 @@ const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean
       return { isAppropriate: false, reason: 'Image not accessible' };
     }
 
+    // Use OpenAI omni-moderation API for image analysis
     const moderation = await openai.moderations.create({
-    model: "omni-moderation-latest",
-    input: [
-        { type: "text", text: "...text to classify goes here..." },
+      model: "omni-moderation-latest",
+      input: [
         {
-            type: "image_url",
-            image_url: {
-                url: imageUrl
-                // can also use base64 encoded image URLs
-                // url: "data:image/jpeg;base64,abcdefg..."
-            }
+          type: "image_url",
+          image_url: {
+            url: imageUrl
+          }
         }
-    ],
-});
-
-    // Use OpenAI Vision API for image analysis
-    const visionResponse = await openai.chat.completions.create({
-      model: "gpt-4-vision-preview",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Analyze this image for inappropriate content including nudity, violence, hate symbols, drugs, or other content that would violate social media community guidelines. Respond with a JSON object containing 'safe' (boolean), 'reason' (string if not safe), and 'confidence' (0-1 score). Be strict in your analysis."
-            },
-            {
-              type: "image_url",
-              image_url: {
-                url: imageUrl,
-              },
-            },
-          ],
-        },
       ],
-      max_tokens: 300,
     });
 
-    const analysisText = visionResponse?.choices?.[0]?.message?.content;
+    const result = moderation.results[0];
     
-    if (analysisText) {
-      try {
-        // Try to parse JSON response
-        const analysis = JSON.parse(analysisText);
-        return {
-          isAppropriate: analysis.safe || false,
-          reason: analysis.reason || 'Image content flagged by AI analysis',
-          confidence: analysis.confidence || 0.8
-        };
-      } catch (parseError) {
-        // If JSON parsing fails, look for keywords in the response
-        const lowerResponse = analysisText.toLowerCase();
-        const inappropriateKeywords = ['inappropriate', 'nsfw', 'nudity', 'violence', 'unsafe', 'explicit'];
-        
-        const hasInappropriateContent = inappropriateKeywords.some(keyword => 
-          lowerResponse.includes(keyword)
-        );
-        
-        if (hasInappropriateContent) {
-          return {
-            isAppropriate: false,
-            reason: 'Image flagged by AI visual analysis',
-            confidence: 0.7
-          };
-        }
-      }
+    if (result && result.flagged) {
+      const flaggedCategories = Object.keys(result.categories).filter(
+        category => result.categories[category as keyof typeof result.categories]
+      );
+      
+      // Calculate confidence based on highest category score
+      const maxScore = Math.max(...Object.values(result.category_scores));
+      
+      return {
+        isAppropriate: false,
+        reason: `Image flagged for: ${flaggedCategories.join(', ')}`,
+        confidence: maxScore,
+        categories: result.categories
+      };
     }
 
-    // If OpenAI analysis passes, consider it safe
-    return { isAppropriate: true, confidence: 0.9 };
+    // If not flagged, consider it safe
+    return { 
+      isAppropriate: true, 
+      confidence: 0.95,
+      categories: result.categories 
+    };
 
   } catch (error: any) {
     console.error('OpenAI image moderation error:', error);
