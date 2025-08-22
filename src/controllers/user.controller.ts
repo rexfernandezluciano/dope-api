@@ -26,10 +26,73 @@ const UpdateUserSchema = z.object({
 	// For now, assuming these are managed through separate block/restrict actions
 });
 
-// GET all users
+// GET all users with search, pagination and filtering
 export const getUsers = async (req: Request, res: Response) => {
 	try {
+		const {
+			limit = "20",
+			cursor,
+			search,
+			subscription,
+			hasBlueCheck,
+			sortBy = "createdAt",
+			sortOrder = "desc",
+		} = req.query;
+
+		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 users per request
+
+		// Build where clause for filtering
+		const where: any = {};
+
+		// Search by username or name
+		if (search) {
+			where.OR = [
+				{
+					username: {
+						contains: search as string,
+						mode: "insensitive",
+					},
+				},
+				{
+					name: {
+						contains: search as string,
+						mode: "insensitive",
+					},
+				},
+			];
+		}
+
+		// Filter by subscription type
+		if (subscription && ["free", "premium", "pro"].includes(subscription as string)) {
+			where.subscription = subscription;
+		}
+
+		// Filter by blue check status
+		if (hasBlueCheck === "true") {
+			where.hasBlueCheck = true;
+		} else if (hasBlueCheck === "false") {
+			where.hasBlueCheck = false;
+		}
+
+		// Pagination
+		const cursorCondition = cursor
+			? {
+					id: {
+						lt: cursor as string,
+					},
+			  }
+			: {};
+
+		// Combine where conditions
+		const finalWhere = cursor ? { ...where, ...cursorCondition } : where;
+
+		// Validate sort fields
+		const validSortFields = ["createdAt", "name", "username"];
+		const sortField = validSortFields.includes(sortBy as string) ? sortBy : "createdAt";
+		const sortDirection = sortOrder === "asc" ? "asc" : "desc";
+
 		const users = await prisma.user.findMany({
+			where: finalWhere,
 			select: {
 				uid: true,
 				name: true,
@@ -48,8 +111,9 @@ export const getUsers = async (req: Request, res: Response) => {
 				},
 			},
 			orderBy: {
-				createdAt: "desc",
+				[sortField as string]: sortDirection,
 			},
+			take: limitNum + 1, // Take one extra to check if there are more
 		});
 
 		// Get current user's following list and block lists for isFollowedByCurrentUser and isBlockedByCurrentUser check
@@ -78,7 +142,12 @@ export const getUsers = async (req: Request, res: Response) => {
 			blockingIds = blocking.map((b: any) => b.blockedId);
 		}
 
-		const userList = users.map((i: any) => {
+		// Check if there are more users for pagination
+		const hasMore = users.length > limitNum;
+		const usersToReturn = hasMore ? users.slice(0, limitNum) : users;
+		const nextCursor = hasMore ? usersToReturn[usersToReturn.length - 1]?.uid : null;
+
+		const userList = usersToReturn.map((i: any) => {
 			const user = {
 				uid: i.uid,
 				name: i.name,
@@ -106,7 +175,16 @@ export const getUsers = async (req: Request, res: Response) => {
 			return user;
 		});
 
-		res.json({ status: "ok", users: userList });
+		res.json({ 
+			status: "ok", 
+			users: userList,
+			pagination: {
+				nextCursor,
+				hasMore,
+				limit: limitNum,
+				total: usersToReturn.length,
+			},
+		});
 	} catch (error: any) {
 		res
 			.status(500)
@@ -853,6 +931,182 @@ export const togglePostLike = async (req: Request, res: Response) => {
 		}
 	} catch (error: any) {
 		res.status(500).json({ error: "Error toggling post like", message: error?.message });
+	}
+};
+
+// Search users by username or name
+export const searchUsers = async (req: Request, res: Response) => {
+	try {
+		const {
+			query,
+			limit = "20",
+			cursor,
+			subscription,
+			hasBlueCheck,
+			exact = "false",
+		} = req.query;
+
+		if (!query) {
+			return res.status(400).json({ message: "Search query is required" });
+		}
+
+		const limitNum = Math.min(parseInt(limit as string), 50); // Max 50 users per search
+
+		// Build where clause for search
+		const where: any = {};
+
+		if (exact === "true") {
+			// Exact match search
+			where.OR = [
+				{
+					username: {
+						equals: query as string,
+						mode: "insensitive",
+					},
+				},
+				{
+					name: {
+						equals: query as string,
+						mode: "insensitive",
+					},
+				},
+			];
+		} else {
+			// Partial match search
+			where.OR = [
+				{
+					username: {
+						contains: query as string,
+						mode: "insensitive",
+					},
+				},
+				{
+					name: {
+						contains: query as string,
+						mode: "insensitive",
+					},
+				},
+			];
+		}
+
+		// Apply additional filters
+		if (subscription && ["free", "premium", "pro"].includes(subscription as string)) {
+			where.subscription = subscription;
+		}
+
+		if (hasBlueCheck === "true") {
+			where.hasBlueCheck = true;
+		} else if (hasBlueCheck === "false") {
+			where.hasBlueCheck = false;
+		}
+
+		// Pagination
+		const cursorCondition = cursor
+			? {
+					uid: {
+						gt: cursor as string,
+					},
+			  }
+			: {};
+
+		const finalWhere = cursor ? { ...where, ...cursorCondition } : where;
+
+		const users = await prisma.user.findMany({
+			where: finalWhere,
+			select: {
+				uid: true,
+				name: true,
+				username: true,
+				bio: true,
+				photoURL: true,
+				hasBlueCheck: true,
+				subscription: true,
+				createdAt: true,
+				_count: {
+					select: {
+						posts: true,
+						following: true,
+						followers: true,
+					},
+				},
+			},
+			orderBy: [
+				// Prioritize exact username matches
+				{
+					username: query as string ? "asc" : undefined,
+				},
+				{
+					createdAt: "desc",
+				},
+			],
+			take: limitNum + 1,
+		});
+
+		// Get current user's following and blocking lists
+		const authUser = (req as any).user as { uid: string } | undefined;
+		let followingIds: string[] = [];
+		let blockedByIds: string[] = [];
+		let blockingIds: string[] = [];
+
+		if (authUser) {
+			const following = await prisma.follow.findMany({
+				where: { followerId: authUser.uid },
+				select: { followingId: true },
+			});
+			followingIds = following.map((f: any) => f.followingId);
+
+			const blockedBy = await prisma.block.findMany({
+				where: { blockedId: authUser.uid },
+				select: { blockerId: true },
+			});
+			blockedByIds = blockedBy.map((b: any) => b.blockerId);
+
+			const blocking = await prisma.block.findMany({
+				where: { blockerId: authUser.uid },
+				select: { blockedId: true },
+			});
+			blockingIds = blocking.map((b: any) => b.blockedId);
+		}
+
+		// Check pagination
+		const hasMore = users.length > limitNum;
+		const usersToReturn = hasMore ? users.slice(0, limitNum) : users;
+		const nextCursor = hasMore ? usersToReturn[usersToReturn.length - 1]?.uid : null;
+
+		const searchResults = usersToReturn.map((user: any) => ({
+			uid: user.uid,
+			name: user.name,
+			username: user.username,
+			bio: user.bio,
+			photoURL: user.photoURL,
+			hasBlueCheck: user.hasBlueCheck,
+			membership: {
+				subscription: user.subscription,
+			},
+			createdAt: user.createdAt,
+			stats: {
+				posts: user._count.posts,
+				followers: user._count.followers,
+				following: user._count.following,
+			},
+			isFollowedByCurrentUser: authUser ? followingIds.includes(user.uid) : false,
+			isBlockedByCurrentUser: authUser ? blockedByIds.includes(user.uid) : false,
+			isCurrentUserBlocking: authUser ? blockingIds.includes(user.uid) : false,
+		}));
+
+		res.json({
+			status: "ok",
+			users: searchResults,
+			pagination: {
+				nextCursor,
+				hasMore,
+				limit: limitNum,
+				total: searchResults.length,
+			},
+			query: query as string,
+		});
+	} catch (error: any) {
+		res.status(500).json({ error: "Error searching users", message: error?.message });
 	}
 };
 

@@ -8,7 +8,8 @@ import {
 	toggleFollow,
 	getUserFollowers,
 	getUserFollowing,
-	getTotalUserEarnings
+	getTotalUserEarnings,
+	searchUsers
 } from "../controllers/user.controller";
 import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
@@ -16,6 +17,7 @@ const router = Router();
 
 // Public routes
 router.get("/", optionalAuth, getUsers);
+router.get("/search", optionalAuth, searchUsers);
 router.get("/:username", optionalAuth, getUserByUsername);
 router.get("/:username/followers", getUserFollowers);
 router.get("/:username/following", getUserFollowing);
