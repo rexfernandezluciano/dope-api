@@ -46,7 +46,7 @@ const moderateContent = async (
     `;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
+    const response = result.response;
     const text = response.text();
 
     try {
@@ -154,7 +154,7 @@ const moderateImage = async (
     };
 
     const result = await model.generateContent([prompt, imagePart]);
-    const geminiResponse = await result.response;
+    const geminiResponse =  result.response;
     const text = geminiResponse.text();
 
     try {
@@ -204,7 +204,7 @@ export const moderatePost = async (req: Request, res: Response) => {
         .json({ error: "No content or images provided for moderation" });
     }
 
-    let contentResult = { isAppropriate: true, reason: "", categories: {} };
+    let contentResult: any = { isAppropriate: true, reason: "", categories: {} };
     let imageResults: Array<{ url: string; result: any }> = [];
 
     // Moderate text content if provided
