@@ -30,6 +30,7 @@
 		"@prisma/client": "^6.14.0",
 		"@prisma/extension-accelerate": "^2.0.2",
 		"@quixo3/prisma-session-store": "^3.1.13",
+		"axios": "^1.11.0",
 		"bcryptjs": "^3.0.2",
 		"cloudinary": "^2.7.0",
 		"cors": "^2.8.5",
@@ -71,7 +72,7 @@
 		"typescript": "^5.9.2"
 	},
 	"engines": {
-		"node": ">=22.19.3",
+		"node": ">=20.19.3",
 		"npm": ">=10.8.2"
 	},
 	"packageManager": "npm@10.8.2"
