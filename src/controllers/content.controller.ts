@@ -50,7 +50,14 @@ const moderateContent = async (
     const text = response.text();
 
     try {
-      const parsedResult = JSON.parse(text);
+      // Extract JSON from markdown code blocks if present
+      let jsonText = text;
+      const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1].trim();
+      }
+      
+      const parsedResult = JSON.parse(jsonText);
       return parsedResult;
     } catch (parseError) {
       console.error("Failed to parse Gemini response:", text);
@@ -158,7 +165,14 @@ const moderateImage = async (
     const text = geminiResponse.text();
 
     try {
-      const parsedResult = JSON.parse(text);
+      // Extract JSON from markdown code blocks if present
+      let jsonText = text;
+      const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+      if (jsonMatch) {
+        jsonText = jsonMatch[1].trim();
+      }
+      
+      const parsedResult = JSON.parse(jsonText);
       return {
         isAppropriate: parsedResult.isAppropriate,
         reason: parsedResult.reason,
