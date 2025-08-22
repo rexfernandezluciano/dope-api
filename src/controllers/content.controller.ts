@@ -51,10 +51,10 @@ const moderateContent = async (
 
     try {
       // Extract JSON from markdown code blocks if present
-      let jsonText = text;
+      let jsonText: any = text;
       const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
       if (jsonMatch) {
-        jsonText = jsonMatch[1].trim();
+        jsonText = jsonMatch[1]?.trim();
       }
       
       const parsedResult = JSON.parse(jsonText);
@@ -166,10 +166,10 @@ const moderateImage = async (
 
     try {
       // Extract JSON from markdown code blocks if present
-      let jsonText = text;
+      let jsonText: any = text;
       const jsonMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
       if (jsonMatch) {
-        jsonText = jsonMatch[1].trim();
+        jsonText = jsonMatch[1]?.trim();
       }
       
       const parsedResult = JSON.parse(jsonText);
