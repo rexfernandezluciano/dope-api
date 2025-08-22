@@ -40,6 +40,7 @@ model User {
   blockedBy     Block[] @relation("BlockedBy")
   blocking      Block[] @relation("Blocking")
   paymentMethods PaymentMethod[]
+  adCampaigns    AdCampaign[]
 }
 
 model Post {
@@ -285,4 +286,62 @@ enum PaymentType {
 
 enum PaymentProvider {
   paypal
+}
+
+model AdCampaign {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  targetType     AdTargetType
+  targetId       String?
+  budget         Int          // Budget in cents
+  spent          Int          @default(0) // Amount spent in cents
+  earnings       Int          @default(0) // Earnings in cents
+  duration       Int          // Duration in days
+  targetAudience Json?
+  adType         AdType       @default(promotion)
+  status         AdStatus     @default(pending)
+  advertiserId   String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  startDate      DateTime?
+  endDate        DateTime?
+
+  advertiser User         @relation(fields: [advertiserId], references: [uid])
+  analytics  AdAnalytics?
+}
+
+model AdAnalytics {
+  id          String @id @default(cuid())
+  campaignId  String @unique
+  impressions Int    @default(0)
+  clicks      Int    @default(0)
+  conversions Int    @default(0)
+  reach       Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id])
+}
+
+enum AdTargetType {
+  post
+  profile
+  hashtag
+  general
+}
+
+enum AdType {
+  promotion
+  sponsored
+  banner
+  video
+}
+
+enum AdStatus {
+  pending
+  active
+  paused
+  completed
+  rejected
 }

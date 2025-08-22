@@ -19,6 +19,9 @@ import blockRoutes from "./routes/block.routes";
 import paymentRoutes from "./routes/payment.routes";
 import sessionRoutes from "./routes/session.routes";
 import contentRoutes from "./routes/content.routes";
+import recommendationRoutes from "./routes/recommendation.routes";
+import businessRoutes from "./routes/business.routes";
+import analyticsRoutes from "./routes/analytics.routes";
 
 dotenv.config();
 const app: Application = express();
@@ -77,6 +80,9 @@ app.use("/v1/payments", paymentRoutes);
 app.use("/v1/sessions", sessionRoutes);
 app.use("/v1/content", contentRoutes);
 app.use("/v1/images", imageRoutes);
+app.use("/v1/recommendations", recommendationRoutes);
+app.use("/v1/business", businessRoutes);
+app.use("/v1/analytics", analyticsRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";

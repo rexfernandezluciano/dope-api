@@ -1328,6 +1328,303 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
+### Recommendation Routes
+
+#### Get User Recommendations
+```http
+GET /v1/recommendations?type=users&limit=10
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters:**
+- `type`: "users" or "posts" (default: "users")
+- `limit`: Number of recommendations (default: 10)
+
+**Success Response (200):**
+```json
+{
+  "recommendations": [
+    {
+      "uid": "user_id",
+      "username": "recommended_user",
+      "name": "Recommended User",
+      "photoURL": "https://example.com/photo.jpg",
+      "hasBlueCheck": true,
+      "bio": "User bio",
+      "followersCount": 1500,
+      "postsCount": 25
+    }
+  ],
+  "type": "users"
+}
+```
+
+#### Get Trending Hashtags
+```http
+GET /v1/recommendations/trending?limit=10
+```
+
+**Success Response (200):**
+```json
+{
+  "trending": [
+    {
+      "tag": "technology",
+      "count": 1250
+    },
+    {
+      "tag": "lifestyle",
+      "count": 980
+    }
+  ]
+}
+```
+
+### Business Routes
+
+#### Create Ad Campaign
+```http
+POST /v1/business/campaigns
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "title": "Promote My Post",
+  "description": "Campaign to promote my latest post",
+  "targetType": "post",
+  "targetId": "post_id",
+  "budget": 50.00,
+  "duration": 7,
+  "adType": "promotion",
+  "targetAudience": {
+    "age": [18, 35],
+    "interests": ["technology", "lifestyle"]
+  }
+}
+```
+
+**Success Response (201):**
+```json
+{
+  "message": "Ad campaign created successfully",
+  "campaign": {
+    "id": "campaign_id",
+    "title": "Promote My Post",
+    "budget": 50.00,
+    "status": "pending"
+  }
+}
+```
+
+#### Get Ad Campaigns
+```http
+GET /v1/business/campaigns?page=1&limit=10&status=active
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "campaigns": [
+    {
+      "id": "campaign_id",
+      "title": "Promote My Post",
+      "status": "active",
+      "budget": 50.00,
+      "spent": 25.50,
+      "earnings": 12.75,
+      "analytics": {
+        "impressions": 5000,
+        "clicks": 150,
+        "conversions": 10
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 5,
+    "pages": 1
+  }
+}
+```
+
+#### Track Ad Interaction
+```http
+POST /v1/business/track
+```
+
+**Request Body:**
+```json
+{
+  "campaignId": "campaign_id",
+  "action": "click",
+  "userId": "viewer_user_id"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "message": "click tracked successfully",
+  "cost": 0.1,
+  "earnings": 0.05
+}
+```
+
+#### Get Campaign Analytics
+```http
+GET /v1/business/campaigns/:campaignId/analytics
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "campaign": {
+    "id": "campaign_id",
+    "title": "Promote My Post",
+    "status": "active",
+    "budget": 50.00,
+    "spent": 25.50,
+    "earnings": 12.75
+  },
+  "analytics": {
+    "impressions": 5000,
+    "clicks": 150,
+    "conversions": 10,
+    "ctr": 3.0,
+    "conversionRate": 6.67,
+    "costPerClick": 0.17
+  }
+}
+```
+
+#### Get Business Dashboard
+```http
+GET /v1/business/dashboard
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "overview": {
+    "totalCampaigns": 5,
+    "activeCampaigns": 3,
+    "totalSpent": 125.50,
+    "totalEarnings": 62.75,
+    "netProfit": -62.75
+  },
+  "analytics": {
+    "totalImpressions": 25000,
+    "totalClicks": 750,
+    "totalConversions": 50,
+    "averageCTR": 3.0
+  }
+}
+```
+
+### Analytics Routes
+
+#### Get User Analytics
+```http
+GET /v1/analytics/user?period=30d
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters:**
+- `period`: "7d", "30d", or "90d" (default: "30d")
+
+**Success Response (200):**
+```json
+{
+  "period": "30 days",
+  "overview": {
+    "totalPosts": 15,
+    "totalViews": 12500,
+    "totalLikes": 890,
+    "totalComments": 234,
+    "totalShares": 67,
+    "totalEarnings": 15.50,
+    "currentFollowers": 1250,
+    "followersGained": 45,
+    "engagementRate": 9.52
+  },
+  "topPosts": [
+    {
+      "id": "post_id",
+      "content": "This is my top performing post...",
+      "views": 2500,
+      "likes": 180,
+      "comments": 45,
+      "shares": 12,
+      "earnings": 5.25,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+#### Get Post Analytics
+```http
+GET /v1/analytics/post/:postId
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "post": {
+    "id": "post_id",
+    "content": "My awesome post content",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "postType": "text"
+  },
+  "analytics": {
+    "views": 2500,
+    "likes": 180,
+    "comments": 45,
+    "shares": 12,
+    "clicks": 67,
+    "earnings": 5.25,
+    "engagementRate": 9.48,
+    "totalEngagement": 237
+  },
+  "hashtags": ["technology", "innovation"],
+  "mentions": ["johndoe", "janesmith"]
+}
+```
+
+#### Get Platform Analytics
+```http
+GET /v1/analytics/platform
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "platform": {
+    "totalUsers": 10000,
+    "activeUsers": 2500,
+    "totalPosts": 50000,
+    "recentPosts": 5000,
+    "totalComments": 150000,
+    "totalLikes": 500000,
+    "totalViews": 2500000,
+    "totalEarnings": 15000.50,
+    "totalAdSpend": 25000.75
+  },
+  "growth": {
+    "userGrowthRate": 25.0,
+    "contentGrowthRate": 10.0
+  }
+}
+```
+
 ### Payment Routes
 
 #### Get Available Payment Providers
