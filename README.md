@@ -47,7 +47,7 @@ A comprehensive social media API for the DOPE Network platform supporting user p
 
 ## Base URL
 ```
-https://social.dopp.eu.org
+https://api.dopp.eu.org
 ```
 
 ## Authentication
@@ -1411,7 +1411,7 @@ Authorization: Bearer <jwt_token>
 **Request Body (Credit/Debit Card):**
 ```json
 {
-  "type": "credit_card",
+  "type": "paypal_card",
   "paymentMethodId": "pm_123456789",
   "last4": "1111",
   "expiryMonth": 12,
@@ -1421,37 +1421,11 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
-**Request Body (GCash):**
+**Request Body (PayPal):**
 ```json
 {
-  "type": "gcash",
-  "phoneNumber": "+639171234567",
-  "isDefault": false
-}
-```
-
-**Request Body (GrabPay):**
-```json
-{
-  "type": "grabpay",
-  "phoneNumber": "+639171234567",
-  "isDefault": false
-}
-```
-
-**Request Body (Maya):**
-```json
-{
-  "type": "maya",
-  "phoneNumber": "+639171234567",
-  "isDefault": false
-}
-```
-
-**Request Body (Bank Transfer):**
-```json
-{
-  "type": "bank_transfer",
+  "type": "paypal_wallet",
+  "paypalEmail": "john.doe@mail.com",
   "isDefault": false
 }
 ```
@@ -1462,8 +1436,8 @@ Authorization: Bearer <jwt_token>
   "message": "Payment method added successfully",
   "paymentMethod": {
     "id": "pm_123456789",
-    "type": "credit_card",
-    "provider": "paymongo",
+    "type": "paypal_card",
+    "provider": "paypal",
     "last4": "1111",
     "isDefault": true
   }
@@ -1706,7 +1680,7 @@ Authorization: Bearer <jwt_token>
 {
   id: string;
   userId: string;
-  type: "credit_card" | "debit_card" | "paypal" | "bank_transfer" | "crypto";
+  type: "paypal_card" | "paypal_wallet";
   provider: string;
   last4?: string;
   brand?: string;

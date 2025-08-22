@@ -5,7 +5,7 @@ This API provides payment functionality using PayPal as the exclusive payment pr
 
 ## Base URL
 ```
-https://your-domain.com/api/payment
+https://api.dopp.eu.org/v1/payments
 ```
 
 ## Authentication
@@ -260,7 +260,7 @@ All endpoints return consistent error responses:
 PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_client_secret
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com  # Use https://api-m.paypal.com for production
-FRONTEND_URL=https://your-frontend-domain.com
+FRONTEND_URL=https://www.dopp.eu.org
 ```
 
 ## Subscription Pricing
