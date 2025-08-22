@@ -134,7 +134,7 @@ const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean
     return { 
       isAppropriate: true, 
       confidence: 0.95,
-      categories: result.categories 
+      categories: result?.categories 
     };
 
   } catch (error: any) {
