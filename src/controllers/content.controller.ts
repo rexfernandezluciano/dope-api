@@ -163,19 +163,102 @@ export const moderatePost = async (req: Request, res: Response) => {
   try {
     const { content, imageUrls } = req.body;
 
-    let contentResult = { isAppropriate: true };
-    let imageResults: Array<{ url: string; result: any }> = [];
-
-    // Moderate text content
+    // Prepare input array for omni-moderation API
+    const input: any[] = [];
+    
+    // Add text content if provided
     if (content) {
-      contentResult = await moderateContent(content);
+      input.push({ type: "text", text: content });
     }
-
-    // Moderate images
+    
+    // Add images if provided
     if (imageUrls && imageUrls.length > 0) {
       for (const imageUrl of imageUrls) {
-        const result = await moderateImage(imageUrl);
-        imageResults.push({ url: imageUrl, result });
+        input.push({
+          type: "image_url",
+          image_url: { url: imageUrl }
+        });
+      }
+    }
+
+    if (input.length === 0) {
+      return res.status(400).json({ error: 'No content or images provided for moderation' });
+    }
+
+    // Use omni-moderation API for combined text and image analysis
+    const moderation = await openai.moderations.create({
+      model: "omni-moderation-latest",
+      input: input,
+    });
+
+    const result = moderation.results[0];
+    let contentResult = { isAppropriate: true, reason: '', categories: {} };
+    let imageResults: Array<{ url: string; result: any }> = [];
+
+    if (result && result.flagged) {
+      const flaggedCategories = Object.keys(result.categories).filter(
+        category => result.categories[category as keyof typeof result.categories]
+      );
+      
+      // Check which input types triggered each category
+      const textFlags = Object.keys(result.category_applied_input_types).filter(
+        category => result.category_applied_input_types[category as keyof typeof result.category_applied_input_types]?.includes('text')
+      );
+      
+      const imageFlags = Object.keys(result.category_applied_input_types).filter(
+        category => result.category_applied_input_types[category as keyof typeof result.category_applied_input_types]?.includes('image')
+      );
+
+      // Set content result
+      if (textFlags.length > 0) {
+        contentResult = {
+          isAppropriate: false,
+          reason: `Text flagged for: ${textFlags.join(', ')}`,
+          categories: result.categories
+        };
+      }
+
+      // Set image results
+      if (imageUrls && imageUrls.length > 0) {
+        for (const imageUrl of imageUrls) {
+          if (imageFlags.length > 0) {
+            imageResults.push({
+              url: imageUrl,
+              result: {
+                isAppropriate: false,
+                reason: `Image flagged for: ${imageFlags.join(', ')}`,
+                categories: result.categories
+              }
+            });
+          } else {
+            imageResults.push({
+              url: imageUrl,
+              result: {
+                isAppropriate: true,
+                categories: result.categories
+              }
+            });
+          }
+        }
+      }
+    } else {
+      // Not flagged - all content is appropriate
+      contentResult = {
+        isAppropriate: true,
+        reason: '',
+        categories: result?.categories || {}
+      };
+
+      if (imageUrls && imageUrls.length > 0) {
+        for (const imageUrl of imageUrls) {
+          imageResults.push({
+            url: imageUrl,
+            result: {
+              isAppropriate: true,
+              categories: result?.categories || {}
+            }
+          });
+        }
       }
     }
 
@@ -186,11 +269,42 @@ export const moderatePost = async (req: Request, res: Response) => {
       isAppropriate,
       content: contentResult,
       images: imageResults,
-      recommendation: isAppropriate ? 'approve' : 'reject'
+      recommendation: isAppropriate ? 'approve' : 'reject',
+      categories: result?.categories || {}
     });
   } catch (error: any) {
     console.error('Content moderation error:', error);
-    res.status(500).json({ error: 'Content moderation failed: ' + error.message });
+    
+    // Fallback to individual moderation if omni-moderation fails
+    try {
+      const { content, imageUrls } = req.body;
+      let contentResult = { isAppropriate: true };
+      let imageResults: Array<{ url: string; result: any }> = [];
+
+      if (content) {
+        contentResult = await moderateContent(content);
+      }
+
+      if (imageUrls && imageUrls.length > 0) {
+        for (const imageUrl of imageUrls) {
+          const result = await moderateImage(imageUrl);
+          imageResults.push({ url: imageUrl, result });
+        }
+      }
+
+      const hasInappropriateImages = imageResults.some(img => !img.result.isAppropriate);
+      const isAppropriate = contentResult.isAppropriate && !hasInappropriateImages;
+
+      res.json({
+        isAppropriate,
+        content: contentResult,
+        images: imageResults,
+        recommendation: isAppropriate ? 'approve' : 'reject',
+        fallback: true
+      });
+    } catch (fallbackError: any) {
+      res.status(500).json({ error: 'Content moderation failed: ' + fallbackError.message });
+    }
   }
 };
 
