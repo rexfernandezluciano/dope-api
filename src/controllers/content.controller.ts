@@ -1,7 +1,6 @@
-
-import { Request, Response } from 'express';
-import { connect } from '../database/database';
-import OpenAI from 'openai';
+import { Request, Response } from "express";
+import { connect } from "../database/database";
+import OpenAI from "openai";
 
 let prisma: any;
 
@@ -14,76 +13,114 @@ const openai = new OpenAI({
 });
 
 // Enhanced content moderation using OpenAI
-const moderateContent = async (content: string): Promise<{ isAppropriate: boolean; reason?: string; categories?: any }> => {
+const moderateContent = async (
+  content: string,
+): Promise<{ isAppropriate: boolean; reason?: string; categories?: any }> => {
   try {
     // Use OpenAI moderation API
     const moderation = await openai.moderations.create({
       input: content,
-      model: "omni-moderation-latest"
+      model: "omni-moderation-latest",
     });
 
     const result = moderation.results[0];
-    
+
     if (result && result.flagged) {
       const flaggedCategories = Object.keys(result.categories).filter(
-        category => result.categories[category as keyof typeof result.categories]
+        (category) =>
+          result.categories[category as keyof typeof result.categories],
       );
-      
+
       return {
         isAppropriate: false,
-        reason: `Content flagged for: ${flaggedCategories.join(', ')}`,
-        categories: result.categories
+        reason: `Content flagged for: ${flaggedCategories.join(", ")}`,
+        categories: result.categories,
       };
     }
 
     // Fallback to keyword filtering for additional protection
     const inappropriateWords = [
-      'spam', 'scam', 'hate', 'violence', 'drugs', 'illegal',
-      'porn', 'sex', 'nude', 'naked', 'adult', 'gambling', 'gamble', 'casino'
+      "spam",
+      "scam",
+      "hate",
+      "violence",
+      "drugs",
+      "illegal",
+      "porn",
+      "sex",
+      "nude",
+      "naked",
+      "adult",
+      "gambling",
+      "gamble",
+      "casino",
     ];
 
     const lowerContent = content.toLowerCase();
-    
+
     for (const word of inappropriateWords) {
       if (lowerContent.includes(word)) {
-        return { 
-          isAppropriate: false, 
-          reason: `Contains inappropriate content: ${word}` 
+        return {
+          isAppropriate: false,
+          reason: `Contains inappropriate content: ${word}`,
         };
       }
     }
 
     // Check for excessive repetition (spam)
-    const words = content.split(' ');
+    const words = content.split(" ");
     const uniqueWords = new Set(words);
     if (words.length > 10 && uniqueWords.size < words.length * 0.3) {
-      return { 
-        isAppropriate: false, 
-        reason: 'Detected spam-like repetition' 
+      return {
+        isAppropriate: false,
+        reason: "Detected spam-like repetition",
       };
     }
 
     return { isAppropriate: true };
   } catch (error: any) {
-    console.error('OpenAI moderation error:', error);
+    console.error("OpenAI moderation error:", error);
     // Fallback to basic keyword filtering if OpenAI fails
     return basicContentModeration(content);
   }
 };
 
 // Fallback basic content moderation
-const basicContentModeration = (content: string): { isAppropriate: boolean; reason?: string } => {
+const basicContentModeration = (
+  content: string,
+): { isAppropriate: boolean; reason?: string } => {
   const inappropriateWords = [
-    'spam', 'scam', 'hate', 'violence', 'drugs', 'illegal',
-    'porn', 'sex', 'nude', 'naked', 'adult', 'gambling', 'gamble', 'casino', 
-    'fuck', 'shit', 'bullshit', 'asshole', 'nigga', 'motherfucker', 'motherfuck'
+    "spam",
+    "scam",
+    "hate",
+    "violence",
+    "drugs",
+    "illegal",
+    "porn",
+    "sex",
+    "nude",
+    "naked",
+    "adult",
+    "gambling",
+    "gamble",
+    "casino",
+    "fuck",
+    "shit",
+    "bullshit",
+    "asshole",
+    "nigga",
+    "motherfucker",
+    "motherfuck",
   ];
 
   const lowerContent = content.toLowerCase();
-  
+
   for (const word of inappropriateWords) {
     if (lowerContent.includes(word)) {
-      return { isAppropriate: false, reason: `Contains inappropriate content: ${word}` };
+      return {
+        isAppropriate: false,
+        reason: `Contains inappropriate content: ${word}`,
+      };
     }
   }
 
@@ -91,12 +128,19 @@ const basicContentModeration = (content: string): { isAppropriate: boolean; reas
 };
 
 // Enhanced image content moderation using OpenAI omni-moderation
-const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean; reason?: string; confidence?: number; categories?: any }> => {
+const moderateImage = async (
+  imageUrl: string,
+): Promise<{
+  isAppropriate: boolean;
+  reason?: string;
+  confidence?: number;
+  categories?: any;
+}> => {
   try {
     // First check if image is accessible
-    const response = await fetch(imageUrl, { method: 'HEAD' });
+    const response = await fetch(imageUrl, { method: "HEAD" });
     if (!response.ok) {
-      return { isAppropriate: false, reason: 'Image not accessible' };
+      return { isAppropriate: false, reason: "Image not accessible" };
     }
 
     // Use OpenAI omni-moderation API for image analysis
@@ -106,55 +150,55 @@ const moderateImage = async (imageUrl: string): Promise<{ isAppropriate: boolean
         {
           type: "image_url",
           image_url: {
-            url: imageUrl
-          }
-        }
+            url: imageUrl,
+          },
+        },
       ],
     });
 
     const result = moderation.results[0];
-    
+
     if (result && result.flagged) {
       const flaggedCategories = Object.keys(result.categories).filter(
-        category => result.categories[category as keyof typeof result.categories]
+        (category) =>
+          result.categories[category as keyof typeof result.categories],
       );
-      
+
       // Calculate confidence based on highest category score
       const maxScore = Math.max(...Object.values(result.category_scores));
-      
+
       return {
         isAppropriate: false,
-        reason: `Image flagged for: ${flaggedCategories.join(', ')}`,
+        reason: `Image flagged for: ${flaggedCategories.join(", ")}`,
         confidence: maxScore,
-        categories: result.categories
+        categories: result.categories,
       };
     }
 
     // If not flagged, consider it safe
-    return { 
-      isAppropriate: true, 
+    return {
+      isAppropriate: true,
       confidence: 0.95,
-      categories: result?.categories 
+      categories: result?.categories,
     };
-
   } catch (error: any) {
-    console.error('OpenAI image moderation error:', error);
-    
+    console.error("OpenAI image moderation error:", error);
+
     // Fallback: just check if image is accessible
     try {
-      const response = await fetch(imageUrl, { method: 'HEAD' });
+      const response = await fetch(imageUrl, { method: "HEAD" });
       if (!response.ok) {
-        return { isAppropriate: false, reason: 'Image not accessible' };
+        return { isAppropriate: false, reason: "Image not accessible" };
       }
-      
+
       // If we can't analyze with AI, be more conservative
-      return { 
-        isAppropriate: true, 
-        reason: 'Could not analyze image content - assuming safe',
-        confidence: 0.5 
+      return {
+        isAppropriate: true,
+        reason: "Could not analyze image content - assuming safe",
+        confidence: 0.5,
       };
     } catch (fetchError) {
-      return { isAppropriate: false, reason: 'Failed to validate image' };
+      return { isAppropriate: false, reason: "Failed to validate image" };
     }
   }
 };
@@ -165,24 +209,26 @@ export const moderatePost = async (req: Request, res: Response) => {
 
     // Prepare input array for omni-moderation API
     const input: any[] = [];
-    
+
     // Add text content if provided
     if (content) {
       input.push({ type: "text", text: content });
     }
-    
+
     // Add images if provided
     if (imageUrls && imageUrls.length > 0) {
       for (const imageUrl of imageUrls) {
         input.push({
           type: "image_url",
-          image_url: { url: imageUrl }
+          image_url: { url: imageUrl },
         });
       }
     }
 
     if (input.length === 0) {
-      return res.status(400).json({ error: 'No content or images provided for moderation' });
+      return res
+        .status(400)
+        .json({ error: "No content or images provided for moderation" });
     }
 
     // Use omni-moderation API for combined text and image analysis
@@ -192,61 +238,45 @@ export const moderatePost = async (req: Request, res: Response) => {
     });
 
     const result = moderation.results[0];
-    let contentResult = { isAppropriate: true, reason: '', categories: {} };
+    let contentResult = { isAppropriate: true, reason: "", categories: {} };
     let imageResults: Array<{ url: string; result: any }> = [];
 
     if (result && result.flagged) {
-      const flaggedCategories = Object.keys(result.categories).filter(
-        category => result.categories[category as keyof typeof result.categories]
-      );
-      
       // Check which input types triggered each category
       const textFlags = Object.keys(result.category_applied_input_types).filter(
-        category => result.category_applied_input_types[category as keyof typeof result.category_applied_input_types]?.includes('text')
+        (category) =>
+          result.category_applied_input_types[
+            category as keyof typeof result.category_applied_input_types
+          ]?.includes("text"),
       );
-      
-      const imageFlags = Object.keys(result.category_applied_input_types).filter(
-        category => result.category_applied_input_types[category as keyof typeof result.category_applied_input_types]?.includes('image')
+
+      const imageFlags = Object.keys(
+        result.category_applied_input_types,
+      ).filter((category) =>
+        (
+          result.category_applied_input_types[
+            category as keyof typeof result.category_applied_input_types
+          ] as string[]
+        )?.includes("image"),
       );
 
       // Set content result
+      let contentReason = "";
       if (textFlags.length > 0) {
-        contentResult = {
-          isAppropriate: false,
-          reason: `Text flagged for: ${textFlags.join(', ')}`,
-          categories: result.categories
-        };
+        contentReason = `Text flagged for: ${textFlags.join(", ")}`;
       }
 
-      // Set image results
-      if (imageUrls && imageUrls.length > 0) {
-        for (const imageUrl of imageUrls) {
-          if (imageFlags.length > 0) {
-            imageResults.push({
-              url: imageUrl,
-              result: {
-                isAppropriate: false,
-                reason: `Image flagged for: ${imageFlags.join(', ')}`,
-                categories: result.categories
-              }
-            });
-          } else {
-            imageResults.push({
-              url: imageUrl,
-              result: {
-                isAppropriate: true,
-                categories: result.categories
-              }
-            });
-          }
-        }
+      // Adding image flags to the contentReason
+      if (imageFlags.length > 0) {
+        contentReason += contentReason
+          ? `, Image flagged for: ${imageFlags.join(", ")}`
+          : `Image flagged for: ${imageFlags.join(", ")}`;
       }
-    } else {
-      // Not flagged - all content is appropriate
+
       contentResult = {
-        isAppropriate: true,
-        reason: '',
-        categories: result?.categories || {}
+        isAppropriate: false,
+        reason: contentReason,
+        categories: result.categories,
       };
 
       if (imageUrls && imageUrls.length > 0) {
@@ -255,26 +285,29 @@ export const moderatePost = async (req: Request, res: Response) => {
             url: imageUrl,
             result: {
               isAppropriate: true,
-              categories: result?.categories || {}
-            }
+              categories: result?.categories || {},
+            },
           });
         }
       }
     }
 
-    const hasInappropriateImages = imageResults.some(img => !img.result.isAppropriate);
-    const isAppropriate = contentResult.isAppropriate && !hasInappropriateImages;
+    const hasInappropriateImages = imageResults.some(
+      (img) => !img.result.isAppropriate,
+    );
+    const isAppropriate =
+      contentResult.isAppropriate && !hasInappropriateImages;
 
     res.json({
       isAppropriate,
       content: contentResult,
       images: imageResults,
-      recommendation: isAppropriate ? 'approve' : 'reject',
-      categories: result?.categories || {}
+      recommendation: isAppropriate ? "approve" : "reject",
+      categories: result?.categories || {},
     });
   } catch (error: any) {
-    console.error('Content moderation error:', error);
-    
+    console.error("Content moderation error:", error);
+
     // Fallback to individual moderation if omni-moderation fails
     try {
       const { content, imageUrls } = req.body;
@@ -292,18 +325,23 @@ export const moderatePost = async (req: Request, res: Response) => {
         }
       }
 
-      const hasInappropriateImages = imageResults.some(img => !img.result.isAppropriate);
-      const isAppropriate = contentResult.isAppropriate && !hasInappropriateImages;
+      const hasInappropriateImages = imageResults.some(
+        (img) => !img.result.isAppropriate,
+      );
+      const isAppropriate =
+        contentResult.isAppropriate && !hasInappropriateImages;
 
       res.json({
         isAppropriate,
         content: contentResult,
         images: imageResults,
-        recommendation: isAppropriate ? 'approve' : 'reject',
-        fallback: true
+        recommendation: isAppropriate ? "approve" : "reject",
+        fallback: true,
       });
     } catch (fallbackError: any) {
-      res.status(500).json({ error: 'Content moderation failed: ' + fallbackError.message });
+      res
+        .status(500)
+        .json({ error: "Content moderation failed: " + fallbackError.message });
     }
   }
 };
