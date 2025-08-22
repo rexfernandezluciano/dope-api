@@ -23,6 +23,7 @@ model User {
   hasBlueCheck      Boolean @default(false)
   stripeCustomerId  String?  @unique
   stripeSubscriptionId String? @unique
+  paymongoCustomerId String? @unique
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
   isBlocked         Boolean @default(false)
@@ -200,13 +201,17 @@ model PaymentMethod {
   id          String           @id @default(cuid())
   userId      String
   type        PaymentType
-  provider    String
+  provider    PaymentProvider  @default(paymongo)
   stripePaymentMethodId String? @unique
+  paymongoPaymentMethodId String? @unique
+  razorpayPaymentMethodId String?
+  xenditPaymentMethodId String?
   last4       String?
   expiryMonth Int?
   expiryYear  Int?
   holderName  String?
   paypalEmail String?
+  phoneNumber String?
   isDefault   Boolean         @default(false)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -285,4 +290,15 @@ enum PaymentType {
   paypal
   bank_transfer
   crypto
+  gcash
+  grabpay
+  maya
+}
+
+enum PaymentProvider {
+  stripe
+  paymongo
+  razorpay
+  xendit
+  paypal
 }
