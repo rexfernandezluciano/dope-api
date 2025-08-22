@@ -6,7 +6,8 @@ import {
   deletePaymentMethod, 
   getAvailablePaymentProviders,
   purchaseMembership,
-  handlePayMongoWebhook
+  handlePayMongoWebhook,
+  handlePayPalWebhook
 } from '../controllers/payment.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
@@ -18,5 +19,6 @@ router.get('/methods', requireAuth, getPaymentMethods);
 router.delete('/methods/:paymentMethodId', requireAuth, deletePaymentMethod);
 router.post('/purchase-membership', requireAuth, purchaseMembership);
 router.post('/webhook/paymongo', handlePayMongoWebhook); // PayMongo webhook
+router.post('/webhook/paypal', handlePayPalWebhook); // PayPal webhook
 
 export default router;

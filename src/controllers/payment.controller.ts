@@ -18,6 +18,43 @@ const paymongoAPI = axios.create({
   },
 });
 
+// PayPal API helper
+const paypalAPI = axios.create({
+  baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com", // Use sandbox for testing
+  headers: {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Accept-Language": "en_US",
+  },
+});
+
+// PayPal OAuth token cache
+let paypalAccessToken: string | null = null;
+let tokenExpiry: number | null = null;
+
+const getPayPalAccessToken = async () => {
+  if (paypalAccessToken && tokenExpiry && Date.now() < tokenExpiry) {
+    return paypalAccessToken;
+  }
+
+  try {
+    const response = await paypalAPI.post("/v1/oauth2/token", 
+      "grant_type=client_credentials", {
+      headers: {
+        "Authorization": `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    paypalAccessToken = response.data.access_token;
+    tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000; // Subtract 1 minute for safety
+    return paypalAccessToken;
+  } catch (error) {
+    console.error("PayPal token error:", error);
+    throw error;
+  }
+};
+
 const PaymentMethodSchema = z
   .object({
     type: z.enum([
@@ -27,13 +64,18 @@ const PaymentMethodSchema = z
       "grabpay",
       "maya",
       "bank_transfer",
+      "paypal_card",
+      "paypal_wallet",
     ]),
+    provider: z.enum(["paymongo", "paypal"]).optional(),
     paymentMethodId: z.string().optional(),
+    paypalPaymentMethodId: z.string().optional(),
     last4: z.string().optional(),
     expiryMonth: z.number().min(1).max(12).optional(),
     expiryYear: z.number().min(2024).optional(),
     holderName: z.string().optional(),
     phoneNumber: z.string().optional(), // For mobile wallets
+    paypalEmail: z.string().email().optional(), // For PayPal wallet
     isDefault: z.boolean().default(false),
   })
   .refine(
@@ -50,6 +92,12 @@ const PaymentMethodSchema = z
         data.type === "maya"
       ) {
         return data.phoneNumber;
+      }
+      if (data.type === "paypal_card") {
+        return data.paypalPaymentMethodId || (data.last4 && data.expiryMonth && data.expiryYear && data.holderName);
+      }
+      if (data.type === "paypal_wallet") {
+        return data.paypalEmail || data.paypalPaymentMethodId;
       }
       return true;
     },
@@ -73,9 +121,10 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
     }
 
     let providerPaymentMethod: any = null;
+    const provider = paymentData.provider || (paymentData.type.startsWith('paypal') ? 'paypal' : 'paymongo');
 
     // PayMongo payment method handling
-    if (paymentData.paymentMethodId) {
+    if (provider === 'paymongo' && paymentData.paymentMethodId) {
       try {
         const response = await paymongoAPI.get(
           `/payment_methods/${paymentData.paymentMethodId}`,
@@ -83,6 +132,24 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
         providerPaymentMethod = response.data.data;
       } catch (error) {
         console.error("PayMongo payment method error:", error);
+      }
+    }
+
+    // PayPal payment method handling
+    if (provider === 'paypal' && paymentData.paypalPaymentMethodId) {
+      try {
+        const accessToken = await getPayPalAccessToken();
+        const response = await paypalAPI.get(
+          `/v3/vault/payment-tokens/${paymentData.paypalPaymentMethodId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+        providerPaymentMethod = response.data;
+      } catch (error) {
+        console.error("PayPal payment method error:", error);
       }
     }
 
@@ -97,15 +164,23 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
         type: paymentData.type,
-        provider: "paymongo",
-        paymongoPaymentMethodId: paymentData.paymentMethodId,
-        last4: paymentData.last4 || providerPaymentMethod?.card?.last4,
+        provider: provider,
+        paymongoPaymentMethodId: provider === 'paymongo' ? paymentData.paymentMethodId : null,
+        paypalPaymentMethodId: provider === 'paypal' ? paymentData.paypalPaymentMethodId : null,
+        last4: paymentData.last4 || 
+              (provider === 'paymongo' ? providerPaymentMethod?.card?.last4 : null) ||
+              (provider === 'paypal' ? providerPaymentMethod?.payment_source?.card?.last_digits : null),
         expiryMonth:
-          paymentData.expiryMonth || providerPaymentMethod?.card?.exp_month,
+          paymentData.expiryMonth || 
+          (provider === 'paymongo' ? providerPaymentMethod?.card?.exp_month : null) ||
+          (provider === 'paypal' ? providerPaymentMethod?.payment_source?.card?.expiry?.split('/')[0] : null),
         expiryYear:
-          paymentData.expiryYear || providerPaymentMethod?.card?.exp_year,
-        holderName: paymentData.holderName,
+          paymentData.expiryYear || 
+          (provider === 'paymongo' ? providerPaymentMethod?.card?.exp_year : null) ||
+          (provider === 'paypal' ? parseInt('20' + providerPaymentMethod?.payment_source?.card?.expiry?.split('/')[1]) : null),
+        holderName: paymentData.holderName || providerPaymentMethod?.payment_source?.card?.name,
         phoneNumber: paymentData.phoneNumber,
+        paypalEmail: paymentData.paypalEmail,
         isDefault: paymentData.isDefault,
         userId: authUser.uid,
       },
@@ -116,12 +191,13 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
       paymentMethod: {
         id: paymentMethod.id,
         type: paymentMethod.type,
-        provider: "paymongo",
+        provider: provider,
         last4: paymentMethod.last4,
         isDefault: paymentMethod.isDefault,
         phoneNumber: ["gcash", "grabpay", "maya"].includes(paymentData.type)
           ? paymentData.phoneNumber
           : undefined,
+        paypalEmail: paymentData.type === "paypal_wallet" ? paymentData.paypalEmail : undefined,
       },
     });
   } catch (err: any) {
@@ -149,6 +225,7 @@ export const getPaymentMethods = async (req: Request, res: Response) => {
         expiryMonth: true,
         expiryYear: true,
         holderName: true,
+        paypalEmail: true,
         isDefault: true,
         createdAt: true,
       },
@@ -238,48 +315,102 @@ export const purchaseMembership = async (req: Request, res: Response) => {
       subscriptionPrices[subscription as keyof typeof subscriptionPrices];
 
     try {
-      // Create PayMongo payment intent
-      const paymongoPayment = await paymongoAPI.post("/payment_intents", {
-        data: {
-          attributes: {
-            amount: selectedPlan.php_amount, // Amount in centavos
-            payment_method_allowed: ["card", "gcash", "grab_pay", "maya"],
-            payment_method_options: {
-              card: {
-                request_three_d_secure: "automatic",
+      let subscriptionResult: any;
+      
+      if (paymentMethod.provider === 'paypal') {
+        // Create PayPal order
+        const accessToken = await getPayPalAccessToken();
+        
+        const paypalOrder = await paypalAPI.post("/v2/checkout/orders", {
+          intent: "CAPTURE",
+          purchase_units: [{
+            amount: {
+              currency_code: "PHP",
+              value: (selectedPlan.php_amount / 100).toFixed(2), // Convert centavos to peso
+            },
+            description: selectedPlan.description,
+            custom_id: `${authUser.uid}_${subscription}_${paymentMethodId}`,
+          }],
+          payment_source: paymentMethod.type === 'paypal_wallet' ? {
+            paypal: {
+              email_address: paymentMethod.paypalEmail,
+              experience_context: {
+                return_url: `${process.env.FRONTEND_URL}/payment/success`,
+                cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+              }
+            }
+          } : {
+            card: {
+              vault_id: paymentMethod.paypalPaymentMethodId,
+            }
+          },
+        }, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        subscriptionResult = {
+          id: paypalOrder.data.id,
+          provider: 'paypal',
+          status: paypalOrder.data.status,
+          approveUrl: paypalOrder.data.links?.find((link: any) => link.rel === 'approve')?.href,
+        };
+
+        res.json({
+          message: "Payment initiated - complete payment to activate subscription",
+          paymentIntentId: subscriptionResult.id,
+          provider: 'paypal',
+          approveUrl: subscriptionResult.approveUrl,
+          amount: selectedPlan.php_amount,
+          currency: "PHP",
+          description: selectedPlan.description,
+        });
+      } else {
+        // Create PayMongo payment intent
+        const paymongoPayment = await paymongoAPI.post("/payment_intents", {
+          data: {
+            attributes: {
+              amount: selectedPlan.php_amount, // Amount in centavos
+              payment_method_allowed: ["card", "gcash", "grab_pay", "maya"],
+              payment_method_options: {
+                card: {
+                  request_three_d_secure: "automatic",
+                },
+              },
+              currency: "PHP",
+              description: selectedPlan.description,
+              statement_descriptor: "DOPE Network",
+              metadata: {
+                user_id: authUser.uid,
+                subscription: subscription,
+                payment_method_id: paymentMethodId,
               },
             },
-            currency: "PHP",
-            description: selectedPlan.description,
-            statement_descriptor: "DOPE Network",
-            metadata: {
-              user_id: authUser.uid,
-              subscription: subscription,
-              payment_method_id: paymentMethodId,
-            },
           },
-        },
-      });
+        });
 
-      const subscriptionResult = paymongoPayment.data.data;
+        subscriptionResult = paymongoPayment.data.data;
 
-      res.json({
-        message:
-          "Payment initiated - complete payment to activate subscription",
-        paymentIntentId: subscriptionResult.id,
-        clientKey: subscriptionResult.attributes.client_key,
-        nextActionUrl: subscriptionResult.attributes.next_action?.redirect?.url,
-        amount: selectedPlan.php_amount,
-        currency: "PHP",
-        description: selectedPlan.description,
-      });
+        res.json({
+          message: "Payment initiated - complete payment to activate subscription",
+          paymentIntentId: subscriptionResult.id,
+          provider: 'paymongo',
+          clientKey: subscriptionResult.attributes.client_key,
+          nextActionUrl: subscriptionResult.attributes.next_action?.redirect?.url,
+          amount: selectedPlan.php_amount,
+          currency: "PHP",
+          description: selectedPlan.description,
+        });
+      }
     } catch (providerError: any) {
-      console.error("PayMongo payment error:", providerError);
+      console.error("Payment provider error:", providerError);
 
       return res.status(400).json({
         message: "Payment failed",
         error:
           providerError.response?.data?.errors?.[0]?.detail ||
+          providerError.response?.data?.message ||
           providerError.message,
       });
     }
@@ -325,6 +456,42 @@ export const handlePayMongoWebhook = async (req: Request, res: Response) => {
   }
 };
 
+export const handlePayPalWebhook = async (req: Request, res: Response) => {
+  try {
+    const event = req.body;
+
+    if (event.event_type === "CHECKOUT.ORDER.APPROVED") {
+      const resource = event.resource;
+      const customId = resource.purchase_units?.[0]?.custom_id;
+
+      if (customId) {
+        const [userId, subscription, paymentMethodId] = customId.split('_');
+        
+        if (userId && subscription) {
+          const nextBillingDate = new Date();
+          nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+
+          await prisma.user.update({
+            where: { uid: userId },
+            data: {
+              subscription: subscription as "premium" | "pro",
+              nextBillingDate,
+              hasBlueCheck: true,
+            },
+          });
+
+          console.log(`PayPal subscription activated for user ${userId}: ${subscription}`);
+        }
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error: any) {
+    console.error("PayPal webhook handler error:", error);
+    res.status(500).json({ error: "PayPal webhook handler failed" });
+  }
+};
+
 export const getAvailablePaymentProviders = async (
   req: Request,
   res: Response,
@@ -333,39 +500,60 @@ export const getAvailablePaymentProviders = async (
     const paymentMethods = [
       {
         type: "credit_card",
-        name: "Credit Card",
+        name: "Credit Card (PayMongo)",
+        provider: "paymongo",
         supportedCards: ["Visa", "Mastercard", "JCB"],
         fees: "3.9% + ₱15",
         processingTime: "Instant",
       },
       {
         type: "debit_card",
-        name: "Debit Card",
+        name: "Debit Card (PayMongo)",
+        provider: "paymongo",
         supportedCards: ["Visa", "Mastercard"],
         fees: "3.9% + ₱15",
         processingTime: "Instant",
       },
       {
+        type: "paypal_card",
+        name: "Credit/Debit Card (PayPal)",
+        provider: "paypal",
+        supportedCards: ["Visa", "Mastercard", "American Express", "Discover"],
+        fees: "4.4% + ₱15",
+        processingTime: "Instant",
+      },
+      {
+        type: "paypal_wallet",
+        name: "PayPal Wallet",
+        provider: "paypal",
+        fees: "4.4% + ₱15",
+        processingTime: "Instant",
+      },
+      {
         type: "gcash",
         name: "GCash",
+        provider: "paymongo",
         fees: "₱15 flat fee",
         processingTime: "Instant",
       },
       {
         type: "grabpay",
         name: "GrabPay",
+        provider: "paymongo",
         fees: "₱15 flat fee",
         processingTime: "Instant",
       },
       {
         type: "maya",
         name: "Maya (PayMaya)",
+        provider: "paymongo",
         fees: "₱15 flat fee",
         processingTime: "Instant",
       },
       {
         type: "bank_transfer",
         name: "Online Banking",
+        provider: "paymongo",
         supportedBanks: [
           "BPI",
           "BDO",
@@ -410,7 +598,7 @@ export const getAvailablePaymentProviders = async (
     ];
 
     res.json({
-      provider: "PayMongo",
+      providers: ["PayMongo", "PayPal"],
       availableIn: "Philippines",
       paymentMethods,
       membershipPlans,
