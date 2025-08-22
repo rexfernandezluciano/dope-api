@@ -32,7 +32,7 @@ router.post("/:id/engagement", updatePostEngagement);
 router.post("/", requireAuth, createPost);
 router.put("/:id", requireAuth, updatePost);
 router.delete("/:id", requireAuth, deletePost);
-router.post("/:id/like", requireAuth, togglePostLike);
+router.post("/:postId/like", requireAuth, togglePostLike);
 router.get("/user/me", requireAuth, getCurrentUserPosts);
 
 // Share post route
