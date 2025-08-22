@@ -1330,21 +1330,102 @@ Authorization: Bearer <jwt_token>
 
 ### Payment Routes
 
+#### Get Available Payment Providers
+```http
+GET /v1/payments/providers
+```
+
+**Success Response (200):**
+```json
+{
+  "providers": [
+    {
+      "type": "credit_card",
+      "name": "Credit Card",
+      "providers": ["Visa", "Mastercard", "American Express", "Discover"],
+      "fees": "2.9% + $0.30",
+      "processingTime": "Instant"
+    },
+    {
+      "type": "paypal",
+      "name": "PayPal",
+      "providers": ["PayPal"],
+      "fees": "2.9% + $0.30",
+      "processingTime": "Instant"
+    },
+    {
+      "type": "crypto",
+      "name": "Cryptocurrency",
+      "providers": ["Bitcoin", "Ethereum", "USDC"],
+      "fees": "1.5%",
+      "processingTime": "10-60 minutes"
+    }
+  ],
+  "membershipPlans": [
+    {
+      "type": "premium",
+      "name": "Premium",
+      "price": 9.99,
+      "currency": "USD",
+      "interval": "month",
+      "features": ["Ad-free experience", "Priority support", "Extended analytics", "Custom themes"]
+    },
+    {
+      "type": "pro",
+      "name": "Pro",
+      "price": 19.99,
+      "currency": "USD",
+      "interval": "month",
+      "features": ["All Premium features", "Advanced analytics", "API access", "Custom branding", "Priority moderation"]
+    }
+  ]
+}
+```
+
 #### Add Payment Method
 ```http
 POST /v1/payments/methods
 Authorization: Bearer <jwt_token>
 ```
 
-**Request Body:**
+**Request Body (Credit/Debit Card):**
 ```json
 {
-  "type": "card",
-  "cardNumber": "4111111111111111",
-  "expiryMonth": "12",
-  "expiryYear": "2025",
-  "cvv": "123",
-  "holderName": "John Doe"
+  "type": "credit_card",
+  "provider": "Visa",
+  "last4": "1111",
+  "expiryMonth": 12,
+  "expiryYear": 2025,
+  "holderName": "John Doe",
+  "isDefault": true
+}
+```
+
+**Request Body (PayPal):**
+```json
+{
+  "type": "paypal",
+  "provider": "PayPal",
+  "paypalEmail": "john@example.com",
+  "isDefault": false
+}
+```
+
+**Request Body (Bank Transfer):**
+```json
+{
+  "type": "bank_transfer",
+  "provider": "ACH",
+  "isDefault": false
+}
+```
+
+**Request Body (Cryptocurrency):**
+```json
+{
+  "type": "crypto",
+  "provider": "Bitcoin",
+  "isDefault": false
 }
 ```
 
@@ -1352,7 +1433,29 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "message": "Payment method added successfully",
-  "paymentMethodId": "pm_123456789"
+  "paymentMethod": {
+    "id": "pm_123456789",
+    "type": "credit_card",
+    "provider": "Visa",
+    "last4": "1111",
+    "isDefault": true
+  }
+}
+```
+
+**Error Response (400):**
+```json
+{
+  "message": "Invalid payload",
+  "errors": [
+    {
+      "code": "invalid_type",
+      "expected": "number",
+      "received": "string",
+      "path": ["expiryMonth"],
+      "message": "Expected number, received string"
+    }
+  ]
 }
 ```
 
@@ -1368,14 +1471,21 @@ Authorization: Bearer <jwt_token>
   "paymentMethods": [
     {
       "id": "pm_123456789",
-      "type": "card",
+      "type": "credit_card",
+      "provider": "Visa",
       "last4": "1111",
-      "brand": "visa",
-      "expiryMonth": "12",
-      "expiryYear": "2025",
+      "expiryMonth": 12,
+      "expiryYear": 2025,
       "holderName": "John Doe",
       "isDefault": true,
       "createdAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "pm_987654321",
+      "type": "paypal",
+      "provider": "PayPal",
+      "isDefault": false,
+      "createdAt": "2024-01-10T08:15:00Z"
     }
   ]
 }
@@ -1391,6 +1501,13 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "message": "Payment method deleted successfully"
+}
+```
+
+**Error Response (404):**
+```json
+{
+  "message": "Payment method not found"
 }
 ```
 
@@ -1414,6 +1531,18 @@ Authorization: Bearer <jwt_token>
   "message": "Membership purchased successfully",
   "subscription": "premium",
   "nextBillingDate": "2025-02-15T10:30:00Z"
+}
+```
+
+**Error Responses:**
+```json
+{
+  "message": "Invalid subscription type"
+}
+```
+```json
+{
+  "message": "Payment method not found"
 }
 ```
 
