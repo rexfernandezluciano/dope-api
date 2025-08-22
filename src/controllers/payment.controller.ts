@@ -236,7 +236,7 @@ export const purchaseMembership = async (req: Request, res: Response) => {
 
     const user = await prisma.user.findUnique({
       where: { uid: authUser.uid },
-      select: { email: true, name: true, paypalCustomerId: true },
+      select: { email: true, name: true },
     });
 
     if (!user) {

@@ -21,7 +21,6 @@ model User {
   subscription      Subscription @default(free)
   nextBillingDate   DateTime?
   hasBlueCheck      Boolean @default(false)
-  paymongoCustomerId String? @unique
   privacy           Json?
   hasVerifiedEmail  Boolean @default(false)
   isBlocked         Boolean @default(false)
@@ -199,13 +198,14 @@ model PaymentMethod {
   id          String           @id @default(cuid())
   userId      String
   type        PaymentType
-  provider    PaymentProvider  @default(paymongo)
-  paymongoPaymentMethodId String? @unique
+  provider    PaymentProvider  @default(paypal)
+  paypalPaymentMethodId String @unique
   last4       String?
   expiryMonth Int?
   expiryYear  Int?
   holderName  String?
   phoneNumber String?
+  paypalEmail String?
   isDefault   Boolean         @default(false)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -279,14 +279,10 @@ enum BlockReason {
 }
 
 enum PaymentType {
-  credit_card
-  debit_card
-  bank_transfer
-  gcash
-  grabpay
-  maya
+  paypal_card
+  paypal_wallet
 }
 
 enum PaymentProvider {
-  paymongo
+  paypal
 }
