@@ -32,7 +32,8 @@ app.set("json spaces", 2);
 
 // Add server name to response headers
 app.use((req, res, next) => {
-	res.setHeader("Server", "YourAppName/1.0");
+	res.setHeader("Server", "DOPE/1.0");
+	res.setHeader("X-Powered-By", "DOPE/1.0");
 	next();
 });
 
