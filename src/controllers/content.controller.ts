@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { connect } from "../database/database";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 let prisma: any;
 
@@ -8,79 +8,56 @@ let prisma: any;
   prisma = await connect();
 })();
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-// Enhanced content moderation using OpenAI
+// Enhanced content moderation using Google Gemini
 const moderateContent = async (
   content: string,
 ): Promise<{ isAppropriate: boolean; reason?: string; categories?: any }> => {
   try {
-    // Use OpenAI moderation API
-    const moderation = await openai.moderations.create({
-      input: content,
-      model: "omni-moderation-latest",
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const result = moderation.results[0];
+    const prompt = `
+    Analyze the following content for appropriateness and safety. Check for:
+    - Hate speech or harassment
+    - Violence or threats
+    - Sexual content
+    - Spam or scam content
+    - Illegal activities
+    - Drug-related content
+    - Gambling content
 
-    if (result && result.flagged) {
-      const flaggedCategories = Object.keys(result.categories).filter(
-        (category) =>
-          result.categories[category as keyof typeof result.categories],
-      );
+    Content to analyze: "${content}"
 
-      return {
-        isAppropriate: false,
-        reason: `Content flagged for: ${flaggedCategories.join(", ")}`,
-        categories: result.categories,
-      };
-    }
-
-    // Fallback to keyword filtering for additional protection
-    const inappropriateWords = [
-      "spam",
-      "scam",
-      "hate",
-      "violence",
-      "drugs",
-      "illegal",
-      "porn",
-      "sex",
-      "nude",
-      "naked",
-      "adult",
-      "gambling",
-      "gamble",
-      "casino",
-    ];
-
-    const lowerContent = content.toLowerCase();
-
-    for (const word of inappropriateWords) {
-      if (lowerContent.includes(word)) {
-        return {
-          isAppropriate: false,
-          reason: `Contains inappropriate content: ${word}`,
-        };
+    Respond with a JSON object in this exact format:
+    {
+      "isAppropriate": boolean,
+      "reason": "explanation if inappropriate, null if appropriate",
+      "categories": {
+        "hate": boolean,
+        "violence": boolean,
+        "sexual": boolean,
+        "spam": boolean,
+        "illegal": boolean,
+        "drugs": boolean,
+        "gambling": boolean
       }
     }
+    `;
 
-    // Check for excessive repetition (spam)
-    const words = content.split(" ");
-    const uniqueWords = new Set(words);
-    if (words.length > 10 && uniqueWords.size < words.length * 0.3) {
-      return {
-        isAppropriate: false,
-        reason: "Detected spam-like repetition",
-      };
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    try {
+      const parsedResult = JSON.parse(text);
+      return parsedResult;
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      return basicContentModeration(content);
     }
-
-    return { isAppropriate: true };
   } catch (error: any) {
-    console.error("OpenAI moderation error:", error);
-    // Fallback to basic keyword filtering if OpenAI fails
+    console.error("Gemini moderation error:", error);
     return basicContentModeration(content);
   }
 };
@@ -127,7 +104,7 @@ const basicContentModeration = (
   return { isAppropriate: true };
 };
 
-// Enhanced image content moderation using OpenAI omni-moderation
+// Enhanced image content moderation using Google Gemini
 const moderateImage = async (
   imageUrl: string,
 ): Promise<{
@@ -138,51 +115,66 @@ const moderateImage = async (
 }> => {
   try {
     // First check if image is accessible
-    const response = await fetch(imageUrl, { method: "HEAD" });
+    const response = await fetch(imageUrl);
     if (!response.ok) {
       return { isAppropriate: false, reason: "Image not accessible" };
     }
 
-    // Use OpenAI omni-moderation API for image analysis
-    const moderation = await openai.moderations.create({
-      model: "omni-moderation-latest",
-      input: [
-        {
-          type: "image_url",
-          image_url: {
-            url: imageUrl,
-          },
-        },
-      ],
-    });
+    const imageBuffer = await response.arrayBuffer();
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const result = moderation.results[0];
+    const prompt = `
+    Analyze this image for safety and appropriateness. Check for:
+    - Sexual or adult content
+    - Violence or graphic content
+    - Hate symbols or offensive material
+    - Illegal activities
+    - Inappropriate content for general audiences
 
-    if (result && result.flagged) {
-      const flaggedCategories = Object.keys(result.categories).filter(
-        (category) =>
-          result.categories[category as keyof typeof result.categories],
-      );
+    Respond with a JSON object in this exact format:
+    {
+      "isAppropriate": boolean,
+      "reason": "explanation if inappropriate, null if appropriate",
+      "confidence": number between 0 and 1,
+      "categories": {
+        "sexual": boolean,
+        "violence": boolean,
+        "hate": boolean,
+        "illegal": boolean,
+        "inappropriate": boolean
+      }
+    }
+    `;
 
-      // Calculate confidence based on highest category score
-      const maxScore = Math.max(...Object.values(result.category_scores));
+    const imagePart = {
+      inlineData: {
+        data: Buffer.from(imageBuffer).toString("base64"),
+        mimeType: response.headers.get("content-type") || "image/jpeg"
+      }
+    };
 
+    const result = await model.generateContent([prompt, imagePart]);
+    const geminiResponse = await result.response;
+    const text = geminiResponse.text();
+
+    try {
+      const parsedResult = JSON.parse(text);
       return {
-        isAppropriate: false,
-        reason: `Image flagged for: ${flaggedCategories.join(", ")}`,
-        confidence: maxScore,
-        categories: result.categories,
+        isAppropriate: parsedResult.isAppropriate,
+        reason: parsedResult.reason,
+        confidence: parsedResult.confidence || 0.8,
+        categories: parsedResult.categories
+      };
+    } catch (parseError) {
+      console.error("Failed to parse Gemini image response:", text);
+      return {
+        isAppropriate: true,
+        reason: "Could not analyze image content - assuming safe",
+        confidence: 0.5,
       };
     }
-
-    // If not flagged, consider it safe
-    return {
-      isAppropriate: true,
-      confidence: 0.95,
-      categories: result?.categories,
-    };
   } catch (error: any) {
-    console.error("OpenAI image moderation error:", error);
+    console.error("Gemini image moderation error:", error);
 
     // Fallback: just check if image is accessible
     try {
@@ -191,7 +183,6 @@ const moderateImage = async (
         return { isAppropriate: false, reason: "Image not accessible" };
       }
 
-      // If we can't analyze with AI, be more conservative
       return {
         isAppropriate: true,
         reason: "Could not analyze image content - assuming safe",
@@ -207,88 +198,25 @@ export const moderatePost = async (req: Request, res: Response) => {
   try {
     const { content, imageUrls } = req.body;
 
-    // Prepare input array for omni-moderation API
-    const input: any[] = [];
-
-    // Add text content if provided
-    if (content) {
-      input.push({ type: "text", text: content });
-    }
-
-    // Add images if provided
-    if (imageUrls && imageUrls.length > 0) {
-      for (const imageUrl of imageUrls) {
-        input.push({
-          type: "image_url",
-          image_url: { url: imageUrl },
-        });
-      }
-    }
-
-    if (input.length === 0) {
+    if (!content && (!imageUrls || imageUrls.length === 0)) {
       return res
         .status(400)
         .json({ error: "No content or images provided for moderation" });
     }
 
-    // Use omni-moderation API for combined text and image analysis
-    const moderation = await openai.moderations.create({
-      model: "omni-moderation-latest",
-      input: input,
-    });
-
-    const result = moderation.results[0];
     let contentResult = { isAppropriate: true, reason: "", categories: {} };
     let imageResults: Array<{ url: string; result: any }> = [];
 
-    if (result && result.flagged) {
-      // Check which input types triggered each category
-      const textFlags = Object.keys(result.category_applied_input_types).filter(
-        (category) =>
-          result.category_applied_input_types[
-            category as keyof typeof result.category_applied_input_types
-          ]?.includes("text"),
-      );
+    // Moderate text content if provided
+    if (content) {
+      contentResult = await moderateContent(content);
+    }
 
-      const imageFlags = Object.keys(
-        result.category_applied_input_types,
-      ).filter((category) =>
-        (
-          result.category_applied_input_types[
-            category as keyof typeof result.category_applied_input_types
-          ] as string[]
-        )?.includes("image"),
-      );
-
-      // Set content result
-      let contentReason = "";
-      if (textFlags.length > 0) {
-        contentReason = `Text flagged for: ${textFlags.join(", ")}`;
-      }
-
-      // Adding image flags to the contentReason
-      if (imageFlags.length > 0) {
-        contentReason += contentReason
-          ? `, Image flagged for: ${imageFlags.join(", ")}`
-          : `Image flagged for: ${imageFlags.join(", ")}`;
-      }
-
-      contentResult = {
-        isAppropriate: false,
-        reason: contentReason,
-        categories: result.categories,
-      };
-
-      if (imageUrls && imageUrls.length > 0) {
-        for (const imageUrl of imageUrls) {
-          imageResults.push({
-            url: imageUrl,
-            result: {
-              isAppropriate: true,
-              categories: result?.categories || {},
-            },
-          });
-        }
+    // Moderate images if provided
+    if (imageUrls && imageUrls.length > 0) {
+      for (const imageUrl of imageUrls) {
+        const result = await moderateImage(imageUrl);
+        imageResults.push({ url: imageUrl, result });
       }
     }
 
@@ -303,46 +231,13 @@ export const moderatePost = async (req: Request, res: Response) => {
       content: contentResult,
       images: imageResults,
       recommendation: isAppropriate ? "approve" : "reject",
-      categories: result?.categories || {},
+      categories: contentResult.categories,
     });
   } catch (error: any) {
     console.error("Content moderation error:", error);
-
-    // Fallback to individual moderation if omni-moderation fails
-    try {
-      const { content, imageUrls } = req.body;
-      let contentResult = { isAppropriate: true };
-      let imageResults: Array<{ url: string; result: any }> = [];
-
-      if (content) {
-        contentResult = await moderateContent(content);
-      }
-
-      if (imageUrls && imageUrls.length > 0) {
-        for (const imageUrl of imageUrls) {
-          const result = await moderateImage(imageUrl);
-          imageResults.push({ url: imageUrl, result });
-        }
-      }
-
-      const hasInappropriateImages = imageResults.some(
-        (img) => !img.result.isAppropriate,
-      );
-      const isAppropriate =
-        contentResult.isAppropriate && !hasInappropriateImages;
-
-      res.json({
-        isAppropriate,
-        content: contentResult,
-        images: imageResults,
-        recommendation: isAppropriate ? "approve" : "reject",
-        fallback: true,
-      });
-    } catch (fallbackError: any) {
-      res
-        .status(500)
-        .json({ error: "Content moderation failed: " + fallbackError.message });
-    }
+    res
+      .status(500)
+      .json({ error: "Content moderation failed: " + error.message });
   }
 };
 
