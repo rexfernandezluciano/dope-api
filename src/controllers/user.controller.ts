@@ -13,7 +13,10 @@ let prisma: any;
 const UpdateUserSchema = z.object({
 	name: z.string().min(1).optional(),
 	bio: z.string().max(500).optional(),
-	photoURL: z.string().regex(new RegExp(/^https?:\/\/.*/)).optional(),
+	photoURL: z
+		.string()
+		.regex(new RegExp(/^https?:\/\/.*/))
+		.optional(),
 	privacy: z
 		.object({
 			profile: z.enum(["public", "private"]).optional(),
@@ -63,7 +66,10 @@ export const getUsers = async (req: Request, res: Response) => {
 		}
 
 		// Filter by subscription type
-		if (subscription && ["free", "premium", "pro"].includes(subscription as string)) {
+		if (
+			subscription &&
+			["free", "premium", "pro"].includes(subscription as string)
+		) {
 			where.subscription = subscription;
 		}
 
@@ -77,10 +83,10 @@ export const getUsers = async (req: Request, res: Response) => {
 		// Pagination
 		const cursorCondition = cursor
 			? {
-					id: {
+					uid: {
 						lt: cursor as string,
 					},
-			  }
+				}
 			: {};
 
 		// Combine where conditions
@@ -88,7 +94,9 @@ export const getUsers = async (req: Request, res: Response) => {
 
 		// Validate sort fields
 		const validSortFields = ["createdAt", "name", "username"];
-		const sortField = validSortFields.includes(sortBy as string) ? sortBy : "createdAt";
+		const sortField = validSortFields.includes(sortBy as string)
+			? sortBy
+			: "createdAt";
 		const sortDirection = sortOrder === "asc" ? "asc" : "desc";
 
 		const users = await prisma.user.findMany({
@@ -145,7 +153,9 @@ export const getUsers = async (req: Request, res: Response) => {
 		// Check if there are more users for pagination
 		const hasMore = users.length > limitNum;
 		const usersToReturn = hasMore ? users.slice(0, limitNum) : users;
-		const nextCursor = hasMore ? usersToReturn[usersToReturn.length - 1]?.uid : null;
+		const nextCursor = hasMore
+			? usersToReturn[usersToReturn.length - 1]?.uid
+			: null;
 
 		const userList = usersToReturn.map((i: any) => {
 			const user = {
@@ -175,8 +185,8 @@ export const getUsers = async (req: Request, res: Response) => {
 			return user;
 		});
 
-		res.json({ 
-			status: "ok", 
+		res.json({
+			status: "ok",
 			users: userList,
 			pagination: {
 				nextCursor,
@@ -303,7 +313,9 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			filteredPosts = user.posts.filter((p: any) => {
 				const authorId = p.author.uid;
 				// Hide post if the viewer has blocked the author OR if the author has blocked the viewer
-				return !blockingIds.includes(authorId) && !blockedByIds.includes(authorId);
+				return (
+					!blockingIds.includes(authorId) && !blockedByIds.includes(authorId)
+				);
 			});
 		} else {
 			// If not authenticated, we might not have blocking information, or we might want to hide posts from private users.
@@ -364,13 +376,17 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			isFollowedByCurrentUser: authUser
 				? followingIds.includes(user.uid)
 				: false,
-			isBlockedByCurrentUser: authUser ? blockedByIds.includes(user.uid) : false, // Check if current user is blocked by this user
+			isBlockedByCurrentUser: authUser
+				? blockedByIds.includes(user.uid)
+				: false, // Check if current user is blocked by this user
 			isCurrentUserBlocking: authUser ? blockingIds.includes(user.uid) : false, // Check if current user is blocking this user
 		};
 
 		res.json({ status: "ok", user: output });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching user", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error fetching user", message: error?.message });
 	}
 };
 
@@ -436,7 +452,9 @@ export const updateUser = async (req: Request, res: Response) => {
 				.status(400)
 				.json({ message: "Invalid payload", errors: err.errors });
 		}
-		res.status(500).json({ error: "Error updating user", message: err?.message });
+		res
+			.status(500)
+			.json({ error: "Error updating user", message: err?.message });
 	}
 };
 
@@ -471,7 +489,11 @@ export const toggleFollow = async (req: Request, res: Response) => {
 		});
 
 		if (isBlockedByTarget) {
-			return res.status(403).json({ message: "You are blocked by this user and cannot follow them." });
+			return res
+				.status(403)
+				.json({
+					message: "You are blocked by this user and cannot follow them.",
+				});
 		}
 
 		// Check if the current user has blocked the target user
@@ -483,9 +505,12 @@ export const toggleFollow = async (req: Request, res: Response) => {
 		});
 
 		if (isBlockingTarget) {
-			return res.status(403).json({ message: "You have blocked this user and cannot follow them." });
+			return res
+				.status(403)
+				.json({
+					message: "You have blocked this user and cannot follow them.",
+				});
 		}
-
 
 		const existingFollow = await prisma.follow.findFirst({
 			where: {
@@ -511,7 +536,9 @@ export const toggleFollow = async (req: Request, res: Response) => {
 			res.json({ message: "User followed", following: true });
 		}
 	} catch (error: any) {
-		res.status(500).json({ error: "Error toggling follow", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error toggling follow", message: error?.message });
 	}
 };
 
@@ -559,37 +586,42 @@ export const getUserFollowers = async (req: Request, res: Response) => {
 			},
 		});
 
-		const userFollowers = followers.map((f: any) => {
-			// Filter out followers who are blocked by the current user or who have blocked the current user
-			// This check assumes the current user is the one requesting the list of followers.
-			// If the current user is viewing someone else's followers, this logic might need adjustment.
-			let isCurrentUserBlockingThisFollower = false;
-			if (authUser) {
-				isCurrentUserBlockingThisFollower = blockingIds.includes(f.follower.uid);
-			}
+		const userFollowers = followers
+			.map((f: any) => {
+				// Filter out followers who are blocked by the current user or who have blocked the current user
+				// This check assumes the current user is the one requesting the list of followers.
+				// If the current user is viewing someone else's followers, this logic might need adjustment.
+				let isCurrentUserBlockingThisFollower = false;
+				if (authUser) {
+					isCurrentUserBlockingThisFollower = blockingIds.includes(
+						f.follower.uid,
+					);
+				}
 
-			return {
-				uid: f.follower.uid,
-				name: f.follower.name,
-				username: f.follower.username,
-				photoURL: f.follower.photoURL,
-				hasBlueCheck: f.follower.hasBlueCheck,
-				isBlocked: f.follower.isBlocked,
-				isRestricted: f.follower.isRestricted,
-				// Add a flag if the current user is blocking this follower
-				isCurrentUserBlocking: isCurrentUserBlockingThisFollower,
-			};
-		}).filter((f: any) => {
-			// Only return followers that the current user is NOT blocking and who are NOT blocking the current user
-			// If authUser is undefined, no filtering is applied regarding blocking.
-			if (!authUser) return true;
-			return !f.isCurrentUserBlocking && !f.isBlocked; // Assuming f.isBlocked refers to the follower's blocked status impacting the viewer
-		});
-
+				return {
+					uid: f.follower.uid,
+					name: f.follower.name,
+					username: f.follower.username,
+					photoURL: f.follower.photoURL,
+					hasBlueCheck: f.follower.hasBlueCheck,
+					isBlocked: f.follower.isBlocked,
+					isRestricted: f.follower.isRestricted,
+					// Add a flag if the current user is blocking this follower
+					isCurrentUserBlocking: isCurrentUserBlockingThisFollower,
+				};
+			})
+			.filter((f: any) => {
+				// Only return followers that the current user is NOT blocking and who are NOT blocking the current user
+				// If authUser is undefined, no filtering is applied regarding blocking.
+				if (!authUser) return true;
+				return !f.isCurrentUserBlocking && !f.isBlocked; // Assuming f.isBlocked refers to the follower's blocked status impacting the viewer
+			});
 
 		res.json({ status: "ok", followers: userFollowers });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching followers", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error fetching followers", message: error?.message });
 	}
 };
 
@@ -637,39 +669,49 @@ export const getUserFollowing = async (req: Request, res: Response) => {
 			},
 		});
 
-		const userFollowings = following.map((f: any) => {
-			// Filter out users that the current user is blocking or who have blocked the current user
-			let isCurrentUserBlockingThisFollowing = false;
-			if (authUser) {
-				isCurrentUserBlockingThisFollowing = blockingIds.includes(f.following.uid);
-			}
+		const userFollowings = following
+			.map((f: any) => {
+				// Filter out users that the current user is blocking or who have blocked the current user
+				let isCurrentUserBlockingThisFollowing = false;
+				if (authUser) {
+					isCurrentUserBlockingThisFollowing = blockingIds.includes(
+						f.following.uid,
+					);
+				}
 
-			return {
-				uid: f.following.uid,
-				name: f.following.name,
-				username: f.following.username,
-				photoURL: f.following.photoURL,
-				hasBlueCheck: f.following.hasBlueCheck,
-				isBlocked: f.following.isBlocked,
-				isRestricted: f.following.isRestricted,
-				// Add a flag if the current user is blocking this following
-				isCurrentUserBlocking: isCurrentUserBlockingThisFollowing,
-			};
-		}).filter((f: any) => {
-			// Only return users that the current user is NOT blocking and who are NOT blocking the current user
-			if (!authUser) return true;
-			return !f.isCurrentUserBlocking && !f.isBlocked; // Assuming f.isBlocked refers to the following's blocked status impacting the viewer
-		});
+				return {
+					uid: f.following.uid,
+					name: f.following.name,
+					username: f.following.username,
+					photoURL: f.following.photoURL,
+					hasBlueCheck: f.following.hasBlueCheck,
+					isBlocked: f.following.isBlocked,
+					isRestricted: f.following.isRestricted,
+					// Add a flag if the current user is blocking this following
+					isCurrentUserBlocking: isCurrentUserBlockingThisFollowing,
+				};
+			})
+			.filter((f: any) => {
+				// Only return users that the current user is NOT blocking and who are NOT blocking the current user
+				if (!authUser) return true;
+				return !f.isCurrentUserBlocking && !f.isBlocked; // Assuming f.isBlocked refers to the following's blocked status impacting the viewer
+			});
 
 		res.json({ status: "ok", following: userFollowings });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching following", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error fetching following", message: error?.message });
 	}
 };
 
 // Mock function for processing payments, placeholder for PayPal integration
-const processPayment = async (paymentMethod: string, amount: number, userId: string) => {
-	if (paymentMethod === 'paypal') {
+const processPayment = async (
+	paymentMethod: string,
+	amount: number,
+	userId: string,
+) => {
+	if (paymentMethod === "paypal") {
 		console.log(`Processing PayPal payment of ${amount} for user ${userId}`);
 		// In a real application, you would integrate with PayPal SDK here
 		// This is a placeholder and does not actually process payments
@@ -701,7 +743,12 @@ export const getTotalUserEarnings = async (req: Request, res: Response) => {
 			totalEarningsInCents: totalEarnings,
 		});
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching total earnings", message: error?.message });
+		res
+			.status(500)
+			.json({
+				error: "Error fetching total earnings",
+				message: error?.message,
+			});
 	}
 };
 
@@ -714,34 +761,41 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
 
 		// Validate payment method and details
 		if (!paymentMethod || !paymentDetails) {
-			return res.status(400).json({ message: "Payment method and details are required" });
+			return res
+				.status(400)
+				.json({ message: "Payment method and details are required" });
 		}
 
-		if (paymentMethod === 'paypal') {
+		if (paymentMethod === "paypal") {
 			// Example: Store PayPal email or token associated with the user
 			// In a real app, you'd validate paymentDetails for PayPal more thoroughly
 			// and potentially use a payment gateway SDK.
 			const updatedUser = await prisma.user.update({
 				where: { uid: authUser.uid },
 				data: {
-					paymentMethods: { // Assuming paymentMethods is a JSON or array field in the User model
-						push: { method: 'paypal', details: paymentDetails } // Example structure
-					}
+					paymentMethods: {
+						// Assuming paymentMethods is a JSON or array field in the User model
+						push: { method: "paypal", details: paymentDetails }, // Example structure
+					},
 				},
 				select: {
 					uid: true,
 					name: true,
 					paymentMethods: true,
-				}
+				},
 			});
-			return res.json({ message: "PayPal payment method added", user: updatedUser });
+			return res.json({
+				message: "PayPal payment method added",
+				user: updatedUser,
+			});
 		}
 		// Add other payment methods here
 
 		res.status(400).json({ message: "Unsupported payment method" });
-
 	} catch (error: any) {
-		res.status(500).json({ error: "Error adding payment method", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error adding payment method", message: error?.message });
 	}
 };
 
@@ -757,7 +811,8 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 		const replies = await prisma.comment.findMany({
 			where: { parentId: commentId }, // Use parentId to link replies
 			include: {
-				author: { // Include user details for the author of the reply
+				author: {
+					// Include user details for the author of the reply
 					select: {
 						uid: true,
 						name: true,
@@ -768,7 +823,8 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 						isRestricted: true,
 					},
 				},
-				likes: { // Include likes for each individual reply
+				likes: {
+					// Include likes for each individual reply
 					select: {
 						user: {
 							select: {
@@ -785,37 +841,45 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 		});
 
 		// Import mention parsing utility
-		const { parseMentionsToNames } = await import('../utils/mentions');
+		const { parseMentionsToNames } = await import("../utils/mentions");
 
-		const processedReplies = await Promise.all(replies.map(async (reply: any) => {
-			const processedContent = await parseMentionsToNames(reply.content);
+		const processedReplies = await Promise.all(
+			replies.map(async (reply: any) => {
+				const processedContent = await parseMentionsToNames(reply.content);
 
-			return {
-				id: reply.id,
-				content: processedContent,
-				createdAt: reply.createdAt,
-				author: {
-					uid: reply.user.uid,
-					name: reply.user.name,
-					username: reply.user.username,
-					photoURL: reply.user.photoURL,
-					hasBlueCheck: reply.user.hasBlueCheck,
-					isBlocked: reply.user.isBlocked,
-					isRestricted: reply.user.isRestricted,
-				},
-				likesCount: reply.likes.length, // Count of likes for this reply
-				likes: reply.likes.map((l: any) => ({ // List of users who liked this reply
-					user: {
-						uid: l.user.uid,
-						username: l.user.username,
+				return {
+					id: reply.id,
+					content: processedContent,
+					createdAt: reply.createdAt,
+					author: {
+						uid: reply.user.uid,
+						name: reply.user.name,
+						username: reply.user.username,
+						photoURL: reply.user.photoURL,
+						hasBlueCheck: reply.user.hasBlueCheck,
+						isBlocked: reply.user.isBlocked,
+						isRestricted: reply.user.isRestricted,
 					},
-				})),
-			};
-		}));
+					likesCount: reply.likes.length, // Count of likes for this reply
+					likes: reply.likes.map((l: any) => ({
+						// List of users who liked this reply
+						user: {
+							uid: l.user.uid,
+							username: l.user.username,
+						},
+					})),
+				};
+			}),
+		);
 
 		res.json({ status: "ok", replies: processedReplies });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching comment replies", message: error?.message });
+		res
+			.status(500)
+			.json({
+				error: "Error fetching comment replies",
+				message: error?.message,
+			});
 	}
 };
 
@@ -831,7 +895,8 @@ export const getPostLikes = async (req: Request, res: Response) => {
 		const likes = await prisma.like.findMany({
 			where: { postId: postId },
 			include: {
-				user: { // Include user details for the user who liked the post
+				user: {
+					// Include user details for the user who liked the post
 					select: {
 						uid: true,
 						name: true,
@@ -865,7 +930,9 @@ export const getPostLikes = async (req: Request, res: Response) => {
 
 		res.json({ status: "ok", likes: filteredLikes });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching post likes", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error fetching post likes", message: error?.message });
 	}
 };
 
@@ -882,11 +949,19 @@ export const togglePostLike = async (req: Request, res: Response) => {
 		// Check if the user is blocked or restricted
 		const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 		if (user?.isBlocked || user?.isRestricted) {
-			return res.status(403).json({ message: "You cannot perform this action because your account is blocked or restricted." });
+			return res
+				.status(403)
+				.json({
+					message:
+						"You cannot perform this action because your account is blocked or restricted.",
+				});
 		}
 
 		// Check if the post author has blocked the current user or vice versa
-		const post = await prisma.post.findUnique({ where: { id: postId }, include: { author: true } });
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			include: { author: true },
+		});
 		if (!post) {
 			return res.status(404).json({ message: "Post not found" });
 		}
@@ -895,16 +970,19 @@ export const togglePostLike = async (req: Request, res: Response) => {
 			where: { blockerId: post.author.uid, blockedId: authUser.uid },
 		});
 		if (isBlockedByAuthor) {
-			return res.status(403).json({ message: "You are blocked by the author of this post." });
+			return res
+				.status(403)
+				.json({ message: "You are blocked by the author of this post." });
 		}
 
 		const isBlockingAuthor = await prisma.block.findFirst({
 			where: { blockerId: authUser.uid, blockedId: post.author.uid },
 		});
 		if (isBlockingAuthor) {
-			return res.status(403).json({ message: "You have blocked the author of this post." });
+			return res
+				.status(403)
+				.json({ message: "You have blocked the author of this post." });
 		}
-
 
 		const existingLike = await prisma.like.findFirst({
 			where: {
@@ -930,7 +1008,9 @@ export const togglePostLike = async (req: Request, res: Response) => {
 			res.json({ message: "Post liked successfully" });
 		}
 	} catch (error: any) {
-		res.status(500).json({ error: "Error toggling post like", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error toggling post like", message: error?.message });
 	}
 };
 
@@ -990,7 +1070,10 @@ export const searchUsers = async (req: Request, res: Response) => {
 		}
 
 		// Apply additional filters
-		if (subscription && ["free", "premium", "pro"].includes(subscription as string)) {
+		if (
+			subscription &&
+			["free", "premium", "pro"].includes(subscription as string)
+		) {
 			where.subscription = subscription;
 		}
 
@@ -1006,7 +1089,7 @@ export const searchUsers = async (req: Request, res: Response) => {
 					uid: {
 						gt: cursor as string,
 					},
-			  }
+				}
 			: {};
 
 		const finalWhere = cursor ? { ...where, ...cursorCondition } : where;
@@ -1033,7 +1116,7 @@ export const searchUsers = async (req: Request, res: Response) => {
 			orderBy: [
 				// Prioritize exact username matches
 				{
-					username: query as string ? "asc" : undefined,
+					username: (query as string) ? "asc" : undefined,
 				},
 				{
 					createdAt: "desc",
@@ -1071,7 +1154,9 @@ export const searchUsers = async (req: Request, res: Response) => {
 		// Check pagination
 		const hasMore = users.length > limitNum;
 		const usersToReturn = hasMore ? users.slice(0, limitNum) : users;
-		const nextCursor = hasMore ? usersToReturn[usersToReturn.length - 1]?.uid : null;
+		const nextCursor = hasMore
+			? usersToReturn[usersToReturn.length - 1]?.uid
+			: null;
 
 		const searchResults = usersToReturn.map((user: any) => ({
 			uid: user.uid,
@@ -1089,8 +1174,12 @@ export const searchUsers = async (req: Request, res: Response) => {
 				followers: user._count.followers,
 				following: user._count.following,
 			},
-			isFollowedByCurrentUser: authUser ? followingIds.includes(user.uid) : false,
-			isBlockedByCurrentUser: authUser ? blockedByIds.includes(user.uid) : false,
+			isFollowedByCurrentUser: authUser
+				? followingIds.includes(user.uid)
+				: false,
+			isBlockedByCurrentUser: authUser
+				? blockedByIds.includes(user.uid)
+				: false,
 			isCurrentUserBlocking: authUser ? blockingIds.includes(user.uid) : false,
 		}));
 
@@ -1106,7 +1195,9 @@ export const searchUsers = async (req: Request, res: Response) => {
 			query: query as string,
 		});
 	} catch (error: any) {
-		res.status(500).json({ error: "Error searching users", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error searching users", message: error?.message });
 	}
 };
 
@@ -1118,17 +1209,27 @@ export const addComment = async (req: Request, res: Response) => {
 		const { content, parentCommentId } = req.body; // parentCommentId for threaded comments
 
 		if (!postId || !content) {
-			return res.status(400).json({ message: "Post ID and comment content are required" });
+			return res
+				.status(400)
+				.json({ message: "Post ID and comment content are required" });
 		}
 
 		// Check if the user is blocked or restricted
 		const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 		if (user?.isBlocked || user?.isRestricted) {
-			return res.status(403).json({ message: "You cannot perform this action because your account is blocked or restricted." });
+			return res
+				.status(403)
+				.json({
+					message:
+						"You cannot perform this action because your account is blocked or restricted.",
+				});
 		}
 
 		// Check if the post author has blocked the current user or vice versa
-		const post = await prisma.post.findUnique({ where: { id: postId }, include: { author: true } });
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			include: { author: true },
+		});
 		if (!post) {
 			return res.status(404).json({ message: "Post not found" });
 		}
@@ -1137,16 +1238,19 @@ export const addComment = async (req: Request, res: Response) => {
 			where: { blockerId: post.author.uid, blockedId: authUser.uid },
 		});
 		if (isBlockedByAuthor) {
-			return res.status(403).json({ message: "You are blocked by the author of this post." });
+			return res
+				.status(403)
+				.json({ message: "You are blocked by the author of this post." });
 		}
 
 		const isBlockingAuthor = await prisma.block.findFirst({
 			where: { blockerId: authUser.uid, blockedId: post.author.uid },
 		});
 		if (isBlockingAuthor) {
-			return res.status(403).json({ message: "You have blocked the author of this post." });
+			return res
+				.status(403)
+				.json({ message: "You have blocked the author of this post." });
 		}
-
 
 		// Create the comment
 		const newComment = await prisma.comment.create({
@@ -1171,9 +1275,13 @@ export const addComment = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(201).json({ message: "Comment added successfully", comment: newComment });
+		res
+			.status(201)
+			.json({ message: "Comment added successfully", comment: newComment });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error adding comment", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error adding comment", message: error?.message });
 	}
 };
 
@@ -1193,7 +1301,8 @@ export const getPostComments = async (req: Request, res: Response) => {
 				parentCommentId: null, // Get only top-level comments
 			},
 			include: {
-				user: { // Include user details for the author of the comment
+				user: {
+					// Include user details for the author of the comment
 					select: {
 						uid: true,
 						name: true,
@@ -1204,7 +1313,8 @@ export const getPostComments = async (req: Request, res: Response) => {
 						isRestricted: true,
 					},
 				},
-				likes: { // Include likes for each individual comment
+				likes: {
+					// Include likes for each individual comment
 					select: {
 						user: {
 							select: {
@@ -1227,52 +1337,55 @@ export const getPostComments = async (req: Request, res: Response) => {
 			let processedContent = comment.content;
 			// Regex to find mentions like @userId
 			const mentionRegex = /@(\w+)/g;
-			processedContent = processedContent.replace(mentionRegex, (match: string, userId: string) => {
-				// Placeholder for user ID to name lookup
-				// In a real app, you'd fetch the user by userId and return their name.
-				// For example: `return `@${getUserNameById(userId)}`;`
-				// For now, return the mention as is.
-				// If we assume the mention is @username and reply.user.username is the author of the reply:
-				// We can't use reply.user for mentioned users unless the mention is of the author itself.
+			processedContent = processedContent.replace(
+				mentionRegex,
+				(match: string, userId: string) => {
+					// Placeholder for user ID to name lookup
+					// In a real app, you'd fetch the user by userId and return their name.
+					// For example: `return `@${getUserNameById(userId)}`;`
+					// For now, return the mention as is.
+					// If we assume the mention is @username and reply.user.username is the author of the reply:
+					// We can't use reply.user for mentioned users unless the mention is of the author itself.
 
-				// A practical approach:
-				// 1. Find all mentions in `reply.content`.
-				// 2. Extract the user IDs from these mentions.
-				// 3. Fetch the user objects for these IDs.
-				// 4. Replace the mentions in the content with "@" + user.name.
+					// A practical approach:
+					// 1. Find all mentions in `reply.content`.
+					// 2. Extract the user IDs from these mentions.
+					// 3. Fetch the user objects for these IDs.
+					// 4. Replace the mentions in the content with "@" + user.name.
 
-				// For simplicity in this example, let's demonstrate the replacement logic:
-				// If the mention format is "@username" and we want to display "@Username", we can do this:
-				// return `@${userId}`; // This might be enough if userId is actually a username.
+					// For simplicity in this example, let's demonstrate the replacement logic:
+					// If the mention format is "@username" and we want to display "@Username", we can do this:
+					// return `@${userId}`; // This might be enough if userId is actually a username.
 
-				// If it's "@userId" and we want "@Name", we need a lookup.
-				// Let's assume for now, the mention is meant to be a username.
-				// If the `reply.user` in the `likes` section contains the username, we can potentially use that.
-				// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
+					// If it's "@userId" and we want "@Name", we need a lookup.
+					// Let's assume for now, the mention is meant to be a username.
+					// If the `reply.user` in the `likes` section contains the username, we can potentially use that.
+					// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
 
-				// If the original content is "Hello @user123", and we need to find user123's name.
-				// This requires a separate lookup.
-				// For this example, we'll just return the mention as is, or a placeholder.
+					// If the original content is "Hello @user123", and we need to find user123's name.
+					// This requires a separate lookup.
+					// For this example, we'll just return the mention as is, or a placeholder.
 
-				// If the requirement is "mention as user id then parse the user id to be displayed as their name in the post, like @userId"
-				// This implies the content has "@userId", and we need to convert it to "@UserName".
-				// We don't have the user information for the mentioned ID directly in this `reply` object.
-				// This requires a separate fetch or pre-population of mentioned users.
-				// Let's simulate this by returning "@MentionedUser" as a placeholder.
-				// In a real app, you would fetch users by ID and replace.
+					// If the requirement is "mention as user id then parse the user id to be displayed as their name in the post, like @userId"
+					// This implies the content has "@userId", and we need to convert it to "@UserName".
+					// We don't have the user information for the mentioned ID directly in this `reply` object.
+					// This requires a separate fetch or pre-population of mentioned users.
+					// Let's simulate this by returning "@MentionedUser" as a placeholder.
+					// In a real app, you would fetch users by ID and replace.
 
-				// If the mention is of the author of the reply:
-				// if (reply.user && userId === reply.user.username) {
-				//     return `@${reply.user.name}`;
-				// }
+					// If the mention is of the author of the reply:
+					// if (reply.user && userId === reply.user.username) {
+					//     return `@${reply.user.name}`;
+					// }
 
-				// For now, let's implement a placeholder or a simple conversion if userId is found in fetched data.
-				// This is a complex requirement and might need a dedicated function to resolve mentions.
-				// Let's assume we have a function `getUserById(userId)` that returns user object.
-				// For this context, we'll simply return the mention as is, or a placeholder.
-				// The best we can do here is to acknowledge the need for a lookup.
-				return `@${userId}`; // Placeholder: Replace with actual user name lookup
-			});
+					// For now, let's implement a placeholder or a simple conversion if userId is found in fetched data.
+					// This is a complex requirement and might need a dedicated function to resolve mentions.
+					// Let's assume we have a function `getUserById(userId)` that returns user object.
+					// For this context, we'll simply return the mention as is, or a placeholder.
+					// The best we can do here is to acknowledge the need for a lookup.
+					return `@${userId}`; // Placeholder: Replace with actual user name lookup
+				},
+			);
 
 			return {
 				id: comment.id,
@@ -1302,6 +1415,8 @@ export const getPostComments = async (req: Request, res: Response) => {
 
 		res.json({ status: "ok", comments: processedComments });
 	} catch (error: any) {
-		res.status(500).json({ error: "Error fetching post comments", message: error?.message });
+		res
+			.status(500)
+			.json({ error: "Error fetching post comments", message: error?.message });
 	}
 };
