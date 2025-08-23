@@ -40,10 +40,33 @@ const activityPubContentNegotiation = (req: any, res: any, next: any) => {
 	next();
 };
 
+// HTTP signature validation middleware (basic implementation)
+const validateSignature = (req: any, res: any, next: any) => {
+	const signature = req.headers.signature;
+	const contentType = req.headers['content-type'];
+	
+	// Log incoming activity for debugging
+	console.log(`Incoming ${req.method} ${req.url}`);
+	console.log(`Content-Type: ${contentType}`);
+	console.log(`Signature: ${signature ? 'present' : 'missing'}`);
+	
+	if (req.body && typeof req.body === 'object') {
+		console.log(`Activity Type: ${req.body.type}`);
+		console.log(`Actor: ${req.body.actor}`);
+	}
+	
+	// For now, we'll be permissive but log signature validation
+	if (!signature) {
+		console.warn('No signature present in ActivityPub request');
+	}
+	
+	next();
+};
+
 // ActivityPub routes
 router.get('/users/:username', activityPubContentNegotiation, asyncHandler(getActor));
-router.post('/users/:username/inbox', asyncHandler(handleInbox));
-router.post('/inbox', asyncHandler(handleSharedInbox)); // Shared inbox for efficiency
+router.post('/users/:username/inbox', validateSignature, asyncHandler(handleInbox));
+router.post('/inbox', validateSignature, asyncHandler(handleSharedInbox)); // Shared inbox for efficiency
 router.get('/users/:username/outbox', asyncHandler(getOutbox));
 router.get('/users/:username/followers', asyncHandler(getFollowers));
 router.get('/users/:username/following', asyncHandler(getFollowing));

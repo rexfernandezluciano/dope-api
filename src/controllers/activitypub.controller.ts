@@ -233,10 +233,17 @@ export const handleInbox = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: "User not found" });
 		}
 
+		// Validate activity structure
+		if (!activity.id || !activity.actor) {
+			return res.status(400).json({ error: "Invalid activity: missing id or actor" });
+		}
+
+		console.log(`Processing ${activity.type} activity from ${activity.actor} for ${user.username}`);
+
 		// Process different activity types
 		switch (activity.type) {
 			case "Follow":
-				await handleFollowActivity(activity, user);
+				await handleFollowActivity(activity, user, req);
 				break;
 			case "Undo":
 				if (activity.object?.type === "Follow") {
@@ -332,24 +339,22 @@ export const deliverActivityToFollowers = async (activity: any, authorUsername: 
 };
 
 // Deliver activity to a specific inbox
-const deliverActivity = async (activity: any, inboxUrl: string, privateKey: string, keyId: string) => {
+const deliverActivity = async (activity: any, inboxUrl: string, privateKey: string, keyId: string): Promise<boolean> => {
 	try {
 		const activityJson = JSON.stringify(activity);
 		const url = new URL(inboxUrl);
 		const date = new Date().toUTCString();
 		
 		// Create digest
-		const crypto = require('crypto');
 		const bodyHash = crypto.createHash('sha256').update(activityJson).digest('base64');
 		const digest = `SHA-256=${bodyHash}`;
 		
-		// Create signature string
+		// Create signature string - simplified headers for better compatibility
 		const stringToSign = [
 			`(request-target): post ${url.pathname}`,
 			`host: ${url.host}`,
 			`date: ${date}`,
-			`digest: ${digest}`,
-			`content-type: application/activity+json`
+			`digest: ${digest}`
 		].join('\n');
 
 		// Sign the string
@@ -357,7 +362,10 @@ const deliverActivity = async (activity: any, inboxUrl: string, privateKey: stri
 		signer.update(stringToSign);
 		const signature = signer.sign(privateKey, 'base64');
 
-		const signatureHeader = `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest content-type",signature="${signature}"`;
+		const signatureHeader = `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="${signature}"`;
+
+		console.log(`Delivering activity to ${inboxUrl}`);
+		console.log(`Activity: ${activity.type} ${activity.id}`);
 
 		// Send the activity
 		const response = await fetch(inboxUrl, {
@@ -367,18 +375,25 @@ const deliverActivity = async (activity: any, inboxUrl: string, privateKey: stri
 				'Date': date,
 				'Digest': digest,
 				'Signature': signatureHeader,
-				'User-Agent': 'Dopp/1.0'
+				'User-Agent': 'Dopp/1.0',
+				'Accept': 'application/activity+json'
 			},
 			body: activityJson
 		});
 
+		const responseText = await response.text();
+		
 		if (!response.ok) {
-			console.log(`Failed to deliver to ${inboxUrl}: ${response.status} ${response.statusText}`);
+			console.error(`Failed to deliver to ${inboxUrl}: ${response.status} ${response.statusText}`);
+			console.error(`Response body: ${responseText}`);
+			return false;
 		} else {
 			console.log(`Successfully delivered activity to ${inboxUrl}`);
+			return true;
 		}
 	} catch (error) {
 		console.error(`Error delivering to ${inboxUrl}:`, error);
+		return false;
 	}
 };
 
@@ -558,7 +573,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 };
 
 // Activity handlers
-async function handleFollowActivity(activity: any, user: any) {
+async function handleFollowActivity(activity: any, user: any, req: any) {
 	try {
 		// Store the federated follow relationship
 		console.log(`${activity.actor} wants to follow ${user.username}`);
@@ -579,7 +594,7 @@ async function handleFollowActivity(activity: any, user: any) {
 		});
 
 		// Send Accept activity back to the follower
-		const baseUrl = getBaseUrl({ protocol: 'https', get: () => activityPubConfig.domain });
+		const baseUrl = getBaseUrl(req);
 		const acceptActivity = {
 			"@context": activityPubConfig.context,
 			id: `${baseUrl}/activitypub/activities/${crypto.randomUUID()}`,
@@ -599,20 +614,29 @@ async function handleFollowActivity(activity: any, user: any) {
 			if (userWithKeys?.userKeys?.privateKey) {
 				// Fetch the actor to get their inbox
 				const actorResponse = await fetch(activity.actor, {
-					headers: { 'Accept': 'application/activity+json' }
+					headers: { 
+						'Accept': 'application/activity+json',
+						'User-Agent': 'Dopp/1.0'
+					}
 				});
 
 				if (actorResponse.ok) {
 					const actorData = await actorResponse.json();
 					if (actorData.inbox) {
-						await deliverActivity(
+						console.log(`Sending Accept activity to ${actorData.inbox}`);
+						const success = await deliverActivity(
 							acceptActivity, 
 							actorData.inbox, 
 							userWithKeys.userKeys.privateKey,
 							`${baseUrl}/activitypub/users/${user.username}#main-key`
 						);
+						console.log(`Accept activity delivery ${success ? 'succeeded' : 'failed'}`);
 					}
+				} else {
+					console.error(`Failed to fetch actor ${activity.actor}: ${actorResponse.status}`);
 				}
+			} else {
+				console.error('No private key found for user');
 			}
 		} catch (error) {
 			console.error('Failed to send Accept activity:', error);
