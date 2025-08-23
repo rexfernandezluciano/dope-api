@@ -301,7 +301,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 						email: user.email,
 						username: user.username,
 					});
-					
+
 					return res.json({
 						token,
 						sessionId: session.id,
@@ -380,7 +380,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 						email: user.email,
 						username: user.username,
 					});
-					
+
 					return res.status(201).json({
 						token,
 						sessionId: session.id,
@@ -496,27 +496,11 @@ export const googleCallback = async (
 					username: user.username,
 				});
 
-				// Return JSON response with token and session
-				return res.json({
-					token,
-					sessionId: session.id,
-					user: {
-						uid: user.uid,
-						name: user.name,
-						email: user.email,
-						username: user.username,
-						photoURL: user.photoURL,
-						hasBlueCheck: user.hasBlueCheck,
-						membership: {
-							subscription: user.subscription,
-							nextBillingDate: user.nextBillingDate,
-						},
-						privacy: user.privacy,
-						hasVerifiedEmail: user.hasVerifiedEmail,
-						createdAt: user.createdAt,
-						updatedAt: user.updatedAt,
-					},
-				});
+				// Redirect to frontend with token and session info
+				const frontendUrl = process.env.FRONTEND_URL || 'https://www.dopp.eu.org';
+				const redirectUrl = `${frontendUrl}/auth/google/callback?token=${token}&sessionId=${session.id}&uid=${user.uid}`;
+
+				return res.redirect(redirectUrl);
 			} catch (sessionError) {
 				console.error("Session creation error:", sessionError);
 				return res.status(500).json({ message: "Session creation failed" });
