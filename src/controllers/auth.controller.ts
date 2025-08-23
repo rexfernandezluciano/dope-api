@@ -205,7 +205,7 @@ export const login = async (
 					.json({ message: info.message || "Invalid credentials" });
 			}
 
-			req.logIn(user, (err) => {
+			req.logIn(user, async (err) => {
 				if (err) {
 					console.error("Login error:", err);
 					return res
@@ -214,6 +214,10 @@ export const login = async (
 				}
 
 				try {
+					// Create session with device tracking
+					const { createUserSession } = await import('../middleware/session.middleware');
+					const session = await createUserSession(user.uid, req.sessionID, req);
+
 					const token = signToken({
 						uid: user.uid,
 						email: user.email,
@@ -222,6 +226,7 @@ export const login = async (
 
 					return res.json({
 						token,
+						sessionId: session.id,
 						user: {
 							uid: user.uid,
 							name: user.name,
@@ -280,29 +285,47 @@ export const googleLogin = async (req: Request, res: Response) => {
 
 		if (user) {
 			// If user exists, log them in
-			const token = signToken({
-				uid: user.uid,
-				email: user.email,
-				username: user.username,
-			});
-			return res.json({
-				token,
-				user: {
-					uid: user.uid,
-					name: user.name,
-					email: user.email,
-					username: user.username,
-					photoURL: user.photoURL,
-					hasBlueCheck: user.hasBlueCheck,
-					membership: {
-						subscription: user.subscription,
-						nextBillingDate: user.nextBillingDate,
-					},
-					privacy: user.privacy,
-					hasVerifiedEmail: user.hasVerifiedEmail,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
-				},
+			// Create session for existing user
+			req.logIn(user, async (loginErr) => {
+				if (loginErr) {
+					console.error("Google login session error:", loginErr);
+					return res.status(500).json({ message: "Session creation failed" });
+				}
+
+				try {
+					const { createUserSession } = await import('../middleware/session.middleware');
+					const session = await createUserSession(user.uid, req.sessionID, req);
+
+					const token = signToken({
+						uid: user.uid,
+						email: user.email,
+						username: user.username,
+					});
+					
+					return res.json({
+						token,
+						sessionId: session.id,
+						user: {
+							uid: user.uid,
+							name: user.name,
+							email: user.email,
+							username: user.username,
+							photoURL: user.photoURL,
+							hasBlueCheck: user.hasBlueCheck,
+							membership: {
+								subscription: user.subscription,
+								nextBillingDate: user.nextBillingDate,
+							},
+							privacy: user.privacy,
+							hasVerifiedEmail: user.hasVerifiedEmail,
+							createdAt: user.createdAt,
+							updatedAt: user.updatedAt,
+						},
+					});
+				} catch (sessionError) {
+					console.error("Session creation error:", sessionError);
+					return res.status(500).json({ message: "Session creation failed" });
+				}
 			});
 		} else {
 			// If user doesn't exist, create a new user
@@ -341,29 +364,47 @@ export const googleLogin = async (req: Request, res: Response) => {
 				},
 			});
 
-			const token = signToken({
-				uid: user.uid,
-				email: user.email,
-				username: user.username,
-			});
-			return res.status(201).json({
-				token,
-				user: {
-					uid: user.uid,
-					name: user.name,
-					email: user.email,
-					username: user.username,
-					photoURL: user.photoURL,
-					hasBlueCheck: user.hasBlueCheck,
-					membership: {
-						subscription: user.subscription,
-						nextBillingDate: user.nextBillingDate,
-					},
-					privacy: user.privacy,
-					hasVerifiedEmail: user.hasVerifiedEmail,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
-				},
+			// Create session for new user
+			req.logIn(user, async (loginErr) => {
+				if (loginErr) {
+					console.error("Google new user session error:", loginErr);
+					return res.status(500).json({ message: "Session creation failed" });
+				}
+
+				try {
+					const { createUserSession } = await import('../middleware/session.middleware');
+					const session = await createUserSession(user.uid, req.sessionID, req);
+
+					const token = signToken({
+						uid: user.uid,
+						email: user.email,
+						username: user.username,
+					});
+					
+					return res.status(201).json({
+						token,
+						sessionId: session.id,
+						user: {
+							uid: user.uid,
+							name: user.name,
+							email: user.email,
+							username: user.username,
+							photoURL: user.photoURL,
+							hasBlueCheck: user.hasBlueCheck,
+							membership: {
+								subscription: user.subscription,
+								nextBillingDate: user.nextBillingDate,
+							},
+							privacy: user.privacy,
+							hasVerifiedEmail: user.hasVerifiedEmail,
+							createdAt: user.createdAt,
+							updatedAt: user.updatedAt,
+						},
+					});
+				} catch (sessionError) {
+					console.error("Session creation error:", sessionError);
+					return res.status(500).json({ message: "Session creation failed" });
+				}
 			});
 		}
 	} catch (err: any) {

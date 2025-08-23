@@ -17,22 +17,60 @@ export const validateSession = async (req: Request, res: Response, next: NextFun
     }
 
     // Get session from headers or token payload
-    const sessionId = req.headers['x-session-id'] as string;
+    const sessionId = req.headers['x-session-id'] as string || req.sessionID;
     
     if (sessionId) {
-      const session = await prisma.session.findUnique({
-        where: { id: sessionId },
+      const session = await prisma.session.findFirst({
+        where: { 
+          OR: [
+            { id: sessionId },
+            { sid: sessionId }
+          ],
+          userId: authUser.uid,
+          expiresAt: {
+            gt: new Date()
+          }
+        },
       });
 
-      if (!session || session.userId !== authUser.uid || !session.isActive || new Date() > session.expiresAt) {
+      if (!session) {
         return res.status(401).json({ message: 'Invalid or expired session' });
       }
 
-      // Update session activity
+      // Check if session is marked as active in the data
+      const sessionData = session.data as any;
+      const isActive = sessionData?.isActive !== false;
+      
+      if (!isActive) {
+        return res.status(401).json({ message: 'Session has been deactivated' });
+      }
+
+      // Update session activity with current device info
+      const { device, browser } = getDeviceInfo(req.get('User-Agent') || '');
+      const ipAddress = getClientIP(req);
+      
       await prisma.session.update({
-        where: { id: sessionId },
-        data: { updatedAt: new Date() },
+        where: { id: session.id },
+        data: { 
+          updatedAt: new Date(),
+          ipAddress,
+          data: {
+            ...sessionData,
+            device,
+            browser,
+            lastActivity: new Date().toISOString(),
+            isActive: true
+          }
+        },
       });
+
+      // Store session info in request for later use
+      (req as any).sessionInfo = {
+        sessionId: session.id,
+        device,
+        browser,
+        ipAddress
+      };
     }
 
     next();
@@ -80,6 +118,72 @@ export const enhanceSession = (req: Request, res: Response, next: NextFunction) 
   next();
 };
 
+export const createUserSession = async (userId: string, sessionId: string, req: Request) => {
+  try {
+    const { device, browser } = getDeviceInfo(req.get('User-Agent') || '');
+    const ipAddress = getClientIP(req);
+    let location = null;
+    
+    // Get location from IP if possible
+    try {
+      const geoip = await import('geoip-lite');
+      const geo = geoip.default.lookup(ipAddress);
+      if (geo) {
+        location = `${geo.city || 'Unknown'}, ${geo.region || ''}, ${geo.country || 'Unknown'}`;
+      }
+    } catch (geoError) {
+      console.warn("GeoIP lookup failed:", geoError);
+    }
+
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const sessionData = {
+      device,
+      browser,
+      ipAddress,
+      location,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      lastActivity: new Date().toISOString()
+    };
+
+    // Check if session already exists
+    const existingSession = await prisma.session.findUnique({
+      where: { sid: sessionId }
+    });
+
+    if (existingSession) {
+      // Update existing session
+      return await prisma.session.update({
+        where: { sid: sessionId },
+        data: {
+          userId,
+          ipAddress,
+          location,
+          data: sessionData,
+          expiresAt,
+          updatedAt: new Date()
+        }
+      });
+    } else {
+      // Create new session
+      return await prisma.session.create({
+        data: {
+          sid: sessionId,
+          userId,
+          ipAddress,
+          location,
+          data: sessionData,
+          expiresAt
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error creating user session:', error);
+    throw error;
+  }
+};
+
 export const validateUserSession = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req.user as any)?.uid;
@@ -88,9 +192,6 @@ export const validateUserSession = async (req: Request, res: Response, next: Nex
     if (!userId || !sessionId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
-
-    const { connect } = await import('../database/database');
-    const prisma = await connect();
 
     const session = await prisma.session.findFirst({
       where: {
@@ -105,6 +206,24 @@ export const validateUserSession = async (req: Request, res: Response, next: Nex
     if (!session) {
       return res.status(401).json({ message: 'Session invalid or expired' });
     }
+
+    // Check if session is active
+    const sessionData = session.data as any;
+    if (sessionData?.isActive === false) {
+      return res.status(401).json({ message: 'Session has been deactivated' });
+    }
+
+    // Update last activity
+    await prisma.session.update({
+      where: { id: session.id },
+      data: {
+        data: {
+          ...sessionData,
+          lastActivity: new Date().toISOString()
+        },
+        updatedAt: new Date()
+      }
+    });
 
     next();
   } catch (error: any) {
