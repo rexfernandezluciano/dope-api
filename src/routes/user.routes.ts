@@ -9,7 +9,8 @@ import {
 	getUserFollowers,
 	getUserFollowing,
 	getTotalUserEarnings,
-	searchUsers
+	searchUsers,
+	uploadProfilePicture
 } from "../controllers/user.controller";
 import { requireAuth, optionalAuth } from "../middleware/auth.middleware";
 
@@ -186,6 +187,29 @@ router.put("/:username", requireAuth, updateUser);
  *         description: Follow status updated
  */
 router.post("/:username/follow", requireAuth, toggleFollow);
+
+/**
+ * @swagger
+ * /users/profile-picture:
+ *   post:
+ *     summary: Upload profile picture
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               photoURL:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile picture updated successfully
+ */
+router.post("/profile-picture", requireAuth, uploadProfilePicture);
 
 /**
  * @swagger

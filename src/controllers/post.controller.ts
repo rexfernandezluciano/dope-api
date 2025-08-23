@@ -15,6 +15,16 @@ let prisma: any;
 	prisma = await connect();
 })();
 
+// Helper function to determine age range for content matching
+function getAgeRange(age: number): { min: number; max: number } {
+	if (age < 18) return { min: 13, max: 17 };
+	if (age < 25) return { min: 18, max: 24 };
+	if (age < 35) return { min: 25, max: 34 };
+	if (age < 45) return { min: 35, max: 44 };
+	if (age < 55) return { min: 45, max: 54 };
+	return { min: 55, max: 100 };
+}
+
 const CreatePollOptionSchema = z.object({
 	text: z.string().min(1).max(100)
 });
@@ -85,18 +95,75 @@ export const getPosts = async (req: Request, res: Response) => {
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
 				where: { username: author as string },
-				select: { uid: true },
 			});
 			if (authorUser) {
 				where.authorId = authorUser.uid;
-			} else {
-				return res.json({ posts: [], nextCursor: null, hasMore: false });
 			}
 		}
 
-		if (postType && (postType === "text" || postType === "live_video")) {
+		if (postType && ["text", "live_video", "poll"].includes(postType as string)) {
 			where.postType = postType;
 		}
+
+		// Age and gender-based filtering for authenticated users
+		const authUser = (req as any).user as { uid: string } | undefined;
+		if (authUser) {
+			const currentUser = await prisma.user.findUnique({
+				where: { uid: authUser.uid },
+				select: { gender: true, birthday: true }
+			});
+
+			if (currentUser?.gender || currentUser?.birthday) {
+				const ageGroupAuthors: string[] = [];
+				const genderMatchAuthors: string[] = [];
+
+				if (currentUser.birthday) {
+					const userAge = new Date().getFullYear() - new Date(currentUser.birthday).getFullYear();
+					const ageRange = getAgeRange(userAge);
+
+					// Find users within similar age range
+					const usersInAgeRange = await prisma.user.findMany({
+						where: {
+							birthday: {
+								not: null,
+								gte: new Date(new Date().getFullYear() - ageRange.max, 0, 1),
+								lte: new Date(new Date().getFullYear() - ageRange.min, 11, 31)
+							}
+						},
+						select: { uid: true }
+					});
+					ageGroupAuthors.push(...usersInAgeRange.map(u => u.uid));
+				}
+
+				if (currentUser.gender) {
+					// Find users with same gender or inclusive preferences
+					const usersWithSameGender = await prisma.user.findMany({
+						where: {
+							OR: [
+								{ gender: currentUser.gender },
+								{ gender: "prefer_not_to_say" }
+							]
+						},
+						select: { uid: true }
+					});
+					genderMatchAuthors.push(...usersWithSameGender.map(u => u.uid));
+				}
+
+				// Combine filters - prioritize posts from users with matching demographics
+				if (ageGroupAuthors.length > 0 || genderMatchAuthors.length > 0) {
+					const matchingAuthors = [
+						...new Set([...ageGroupAuthors, ...genderMatchAuthors])
+					];
+
+					// Use OR condition to show matching demographics first, then others
+					where.OR = [
+						{ authorId: { in: matchingAuthors } },
+						{ authorId: { notIn: matchingAuthors } }
+					];
+				}
+			}
+		}
+
 
 		if (hasImages === "true") {
 			where.imageUrls = { isEmpty: false };
@@ -221,35 +288,34 @@ export const getPosts = async (req: Request, res: Response) => {
 				: null;
 
 		// Get current user's following list for isFollowedByCurrentUser check
-		const authUser = (req as any).user as User | undefined;
-		let followingIds: string[] = [];
-		let blockedByIds: string[] = [];
-		let blockingIds: string[] = [];
+		const followingIds: string[] = [];
+		const blockedByIds: string[] = [];
+		const blockingIds: string[] = [];
 		if (authUser) {
 			const following = await prisma.follow.findMany({
 				where: { followerId: authUser.uid },
 				select: { followingId: true },
 			});
-			followingIds = following.map((f: any) => f.followingId);
+			followingIds.push(...following.map((f: any) => f.followingId));
 
 			// Get blocked users
 			const blockedBy = await prisma.block.findMany({
 				where: { blockedId: authUser.uid },
 				select: { blockerId: true },
 			});
-			blockedByIds = blockedBy.map((b: any) => b.blockerId);
+			blockedByIds.push(...blockedBy.map((b: any) => b.blockerId));
 
 			const blocking = await prisma.block.findMany({
 				where: { blockerId: authUser.uid },
 				select: { blockedId: true },
 			});
-			blockingIds = blocking.map((b: any) => b.blockerId);
+			blockingIds.push(...blocking.map((b: any) => b.blockerId));
 
 			// Filter out posts from blocked users
 			if (blockedByIds.length > 0 || blockingIds.length > 0) {
 				const allBlockedIds = [...new Set([...blockedByIds, ...blockingIds])];
-				where.authorId = where.authorId ? 
-					{ ...where.authorId, notIn: allBlockedIds } : 
+				where.authorId = where.authorId ?
+					{ ...where.authorId, notIn: allBlockedIds } :
 					{ notIn: allBlockedIds };
 			}
 		}
@@ -339,6 +405,7 @@ export const getPosts = async (req: Request, res: Response) => {
 			limit: limitNum,
 		});
 	} catch (error) {
+		console.error("Error fetching posts:", error);
 		res.status(500).json({ error: "Error fetching posts" });
 	}
 };
@@ -424,7 +491,7 @@ export const getPost = async (req: Request, res: Response) => {
 		const authUser = (req as any).user as User | undefined;
 		let isFollowedByCurrentUser = false;
 		let userVotes: any[] = [];
-		
+
 		if (authUser) {
 			const follow = await prisma.follow.findFirst({
 				where: {
@@ -506,6 +573,7 @@ export const getPost = async (req: Request, res: Response) => {
 
 		res.json({ status: "ok", post: output });
 	} catch (error) {
+		console.error("Error fetching post:", error);
 		res.status(500).json({ error: "Error fetching post" });
 	}
 };
@@ -524,9 +592,9 @@ export const createPost = async (req: Request, res: Response) => {
 		if (content) {
 			const contentModeration = await moderateContent(content);
 			if (!contentModeration.isAppropriate) {
-				return res.status(400).json({ 
-					message: "Content violates community guidelines", 
-					reason: contentModeration.reason 
+				return res.status(400).json({
+					message: "Content violates community guidelines",
+					reason: contentModeration.reason
 				});
 			}
 		}
@@ -536,10 +604,10 @@ export const createPost = async (req: Request, res: Response) => {
 			for (const imageUrl of imageUrls) {
 				const imageModeration = await moderateImage(imageUrl);
 				if (!imageModeration.isAppropriate) {
-					return res.status(400).json({ 
-						message: "Image violates community guidelines", 
+					return res.status(400).json({
+						message: "Image violates community guidelines",
 						reason: imageModeration.reason,
-						imageUrl 
+						imageUrl
 					});
 				}
 			}
@@ -575,7 +643,7 @@ export const createPost = async (req: Request, res: Response) => {
 
 		// Create poll if it's a poll post
 		if (postType === "poll" && poll) {
-			const expiresAt = poll.expiresIn 
+			const expiresAt = poll.expiresIn
 				? new Date(Date.now() + poll.expiresIn * 60 * 1000)
 				: null;
 
@@ -714,6 +782,7 @@ export const updatePost = async (req: Request, res: Response) => {
 				.status(400)
 				.json({ message: "Invalid payload", errors: err.errors });
 		}
+		console.error("Error updating post:", err);
 		res.status(500).json({ error: "Error updating post" });
 	}
 };
@@ -743,7 +812,7 @@ export const deletePost = async (req: Request, res: Response) => {
 
 		// Delete images from Cloudinary before deleting the post
 		if (existingPost.imageUrls && existingPost.imageUrls.length > 0) {
-			const deletePromises = existingPost.imageUrls.map((imageUrl: string) => 
+			const deletePromises = existingPost.imageUrls.map((imageUrl: string) =>
 				deleteImage(imageUrl)
 			);
 			await Promise.allSettled(deletePromises);
@@ -755,6 +824,7 @@ export const deletePost = async (req: Request, res: Response) => {
 
 		res.json({ message: "Post deleted successfully" });
 	} catch (error) {
+		console.error("Error deleting post:", error);
 		res.status(500).json({ error: "Error deleting post" });
 	}
 };
@@ -817,11 +887,12 @@ export const toggleLike = async (req: Request, res: Response) => {
 		if (postWithCounts) {
 			const newEarnings = calculatePostEarnings(postWithCounts);
 			await prisma.postAnalytics.update({
-				where: { id },
+				where: { postId: id },
 				data: { earnings: newEarnings },
 			});
 		}
 	} catch (error) {
+		console.error("Error toggling like:", error);
 		res.status(500).json({ error: "Error toggling like" });
 	}
 };
@@ -928,8 +999,8 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 				...p.author,
 				isFollowedByCurrentUser: true,
 			},
-			comments: p.comments.map((c: 
-																Comment) => ({
+			comments: p.comments.map((c:
+				Comment) => ({
 				id: c.id,
 				content: c.content,
 				createdAt: c.createdAt,
@@ -954,6 +1025,7 @@ export const getFollowingFeed = async (req: Request, res: Response) => {
 			limit: limitNum,
 		});
 	} catch (error) {
+		console.error("Error fetching following feed:", error);
 		res.status(500).json({ error: "Error fetching following feed" });
 	}
 };
@@ -994,6 +1066,7 @@ export const trackPostView = async (req: Request, res: Response) => {
 
 		res.json({ message: "View tracked and earnings updated" });
 	} catch (error: any) {
+		console.error("Error tracking view:", error);
 		res.status(500).json({ error: "Error tracking view: " + error?.message });
 	}
 };
@@ -1057,6 +1130,7 @@ export const trackEarnings = async (req: Request, res: Response) => {
 			earningsInCents: earnings,
 		});
 	} catch (error) {
+		console.error("Error tracking earnings:", error);
 		res.status(500).json({ error: "Error tracking earnings" });
 	}
 };
@@ -1113,6 +1187,7 @@ export const updatePostEngagement = async (req: Request, res: Response) => {
 			res.status(404).json({ message: "Post not found" });
 		}
 	} catch (error) {
+		console.error("Error updating engagement:", error);
 		res.status(500).json({ error: "Error updating engagement" });
 	}
 };
@@ -1134,6 +1209,7 @@ export const sharePost = async (req: Request, res: Response) => {
 
 		res.json({ message: "Post shared successfully" });
 	} catch (error) {
+		console.error("Error sharing post:", error);
 		res.status(500).json({ error: "Error sharing post" });
 	}
 };
@@ -1245,6 +1321,7 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 
 		res.json({ status: "ok", posts: output });
 	} catch (error) {
+		console.error("Error fetching user posts:", error);
 		res.status(500).json({ error: "Error fetching user posts" });
 	}
 };

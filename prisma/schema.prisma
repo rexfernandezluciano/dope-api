@@ -17,6 +17,8 @@ model User {
   name             String?
   bio              String?
   photoURL         String?
+  gender           Gender?
+  birthday         DateTime?
   subscription     Subscription @default(free)
   nextBillingDate  DateTime?
   hasBlueCheck     Boolean      @default(false)
@@ -302,6 +304,13 @@ enum PaymentType {
 
 enum PaymentProvider {
   paypal
+}
+
+enum Gender {
+  male
+  female
+  non_binary
+  prefer_not_to_say
 }
 
 model AdCampaign {

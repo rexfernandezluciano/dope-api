@@ -17,6 +17,8 @@ const UpdateUserSchema = z.object({
 		.string()
 		.regex(new RegExp(/^https?:\/\/.*/))
 		.optional(),
+	gender: z.enum(["male", "female", "non_binary", "prefer_not_to_say"]).optional(),
+	birthday: z.string().datetime().optional(),
 	privacy: z
 		.object({
 			profile: z.enum(["public", "private"]).optional(),
@@ -425,6 +427,8 @@ export const updateUser = async (req: Request, res: Response) => {
 				...(data.name !== undefined && { name: data.name }),
 				...(data.bio !== undefined && { bio: data.bio }),
 				...(data.photoURL !== undefined && { photoURL: data.photoURL }),
+				...(data.gender !== undefined && { gender: data.gender }),
+				...(data.birthday !== undefined && { birthday: new Date(data.birthday) }),
 				...(data.privacy !== undefined && { privacy: data.privacy }),
 				// If directly updating blocked/restricted status:
 				// ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
@@ -436,6 +440,8 @@ export const updateUser = async (req: Request, res: Response) => {
 				username: true,
 				bio: true,
 				photoURL: true,
+				gender: true,
+				birthday: true,
 				hasBlueCheck: true,
 				subscription: true,
 				privacy: true,
@@ -880,6 +886,45 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 				error: "Error fetching comment replies",
 				message: error?.message,
 			});
+	}
+};
+
+// Upload profile picture
+export const uploadProfilePicture = async (req: Request, res: Response) => {
+	try {
+		const authUser = (req as any).user as { uid: string };
+		const { photoURL } = req.body;
+
+		if (!photoURL) {
+			return res.status(400).json({ message: "Photo URL is required" });
+		}
+
+		// Validate URL format
+		const urlRegex = /^https?:\/\/.*/;
+		if (!urlRegex.test(photoURL)) {
+			return res.status(400).json({ message: "Invalid photo URL format" });
+		}
+
+		const updatedUser = await prisma.user.update({
+			where: { uid: authUser.uid },
+			data: { photoURL },
+			select: {
+				uid: true,
+				name: true,
+				username: true,
+				photoURL: true,
+			},
+		});
+
+		res.json({
+			message: "Profile picture updated successfully",
+			user: updatedUser,
+		});
+	} catch (error: any) {
+		res.status(500).json({
+			error: "Error updating profile picture",
+			message: error?.message,
+		});
 	}
 };
 

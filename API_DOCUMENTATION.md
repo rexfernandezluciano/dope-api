@@ -606,6 +606,8 @@ Authorization: Bearer <jwt_token>
   "name": "Updated Name",
   "bio": "Updated bio",
   "photoURL": "https://example.com/new-photo.jpg",
+  "gender": "male",
+  "birthday": "1990-05-15T00:00:00.000Z",
   "privacy": {
     "profile": "private",
     "comments": "followers",
@@ -691,6 +693,32 @@ GET /v1/users/:username/following
 }
 ```
 
+#### Upload Profile Picture
+```http
+POST /v1/users/profile-picture
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "photoURL": "https://example.com/new-profile-picture.jpg"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Profile picture updated successfully",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "photoURL": "https://example.com/new-profile-picture.jpg"
+  }
+}
+```
+
 #### Get User Total Earnings
 ```http
 GET /v1/users/analytics/earnings
@@ -725,6 +753,8 @@ GET /v1/posts
 - `search`: Search term
 - `random`: "true" for randomized feed
 - `quality`: "true" for high-quality content
+
+**Note:** For authenticated users, the feed algorithm automatically prioritizes posts from users with similar age ranges and gender preferences based on the user's profile information.
 
 **Response (200):**
 ```json
@@ -2696,6 +2726,8 @@ GET /.well-known/nodeinfo/2.0
   name?: string;
   bio?: string;
   photoURL?: string;
+  gender?: "male" | "female" | "non_binary" | "prefer_not_to_say";
+  birthday?: Date;
   subscription: "free" | "premium" | "pro";
   nextBillingDate?: Date;
   hasBlueCheck: boolean;
