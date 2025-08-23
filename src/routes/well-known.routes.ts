@@ -32,4 +32,71 @@ router.get(
 	}),
 );
 
+// NodeInfo Discovery endpoint
+router.get(
+	"/nodeinfo",
+	asyncHandler((req: Request, res: Response) => {
+		const baseUrl = getBaseUrl(req);
+
+		res.json({
+			links: [
+				{
+					rel: "http://nodeinfo.diaspora.software/ns/schema/2.0",
+					href: `${baseUrl}/.well-known/nodeinfo/2.0`,
+				},
+			],
+		});
+	}),
+);
+
+// NodeInfo 2.0 endpoint
+router.get(
+	"/nodeinfo/2.0",
+	asyncHandler(async (req: Request, res: Response) => {
+		// You might want to fetch actual statistics from your database
+		// For now, using placeholder values as shown in your API docs
+		
+		res.json({
+			version: "2.0",
+			software: {
+				name: "dope-network",
+				version: "1.0.0",
+			},
+			protocols: ["activitypub"],
+			services: {
+				outbound: [],
+				inbound: [],
+			},
+			usage: {
+				users: {
+					total: 10000,
+					activeMonth: 2500,
+					activeHalfyear: 5000,
+				},
+				localPosts: 50000,
+				localComments: 150000,
+			},
+			openRegistrations: true,
+			metadata: {
+				nodeName: "DOPE Network",
+				nodeDescription: "A comprehensive social media platform",
+			},
+		});
+	}),
+);
+
+// Host Meta endpoint
+router.get(
+	"/host-meta",
+	asyncHandler((req: Request, res: Response) => {
+		const baseUrl = getBaseUrl(req);
+
+		res.set("Content-Type", "application/xrd+xml");
+		res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0">
+  <Link rel="lrdd" type="application/xrd+xml" template="${baseUrl}/.well-known/webfinger?resource={uri}"/>
+</XRD>`);
+	}),
+);
+
 export default router;
