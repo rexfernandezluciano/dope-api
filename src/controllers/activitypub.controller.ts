@@ -89,7 +89,7 @@ export const getActor = async (req: Request, res: Response) => {
 				username: true,
 				name: true,
 				bio: true,
-				profilePic: true,
+				photoURL: true,
 				followers: true,
 				following: true,
 				userKeys: true
@@ -138,10 +138,10 @@ export const getActor = async (req: Request, res: Response) => {
 			preferredUsername: username,
 			name: user.name,
 			summary: user.bio || "",
-			icon: user.profilePic ? {
+			icon: user.photoURL ? {
 				type: "Image",
 				mediaType: "image/jpeg",
-				url: user.profilePic,
+				url: user.photoURL,
 			} : undefined,
 			inbox: `${baseUrl}/activitypub/users/${username}/inbox`,
 			outbox: `${baseUrl}/activitypub/users/${username}/outbox`,
