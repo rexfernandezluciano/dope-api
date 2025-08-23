@@ -19,6 +19,7 @@ export const getUserSessions = async (req: Request, res: Response) => {
         sid: true,
         ipAddress: true,
         location: true,
+        data: true,
         createdAt: true,
         expiresAt: true,
       },

@@ -1,11 +1,16 @@
-
 import { Request, Response } from "express";
-import { prisma } from "../database/database";
+import { connect } from "../database/database";
+
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
 
 // Create advertisement campaign
 export const createAdCampaign = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId: string = (req.user as any).uid;
 		const {
 			title,
 			description,
@@ -78,7 +83,7 @@ export const getAdCampaigns = async (req: Request, res: Response) => {
 		const total = await prisma.adCampaign.count({ where });
 
 		res.json({
-			campaigns: campaigns.map((campaign) => ({
+			campaigns: campaigns.map((campaign: any) => ({
 				...campaign,
 				budget: campaign.budget / 100,
 				spent: campaign.spent / 100,
@@ -237,9 +242,16 @@ export const getAdAnalytics = async (req: Request, res: Response) => {
 			conversions: 0,
 		};
 
-		const ctr = analytics.impressions > 0 ? (analytics.clicks / analytics.impressions) * 100 : 0;
-		const conversionRate = analytics.clicks > 0 ? (analytics.conversions / analytics.clicks) * 100 : 0;
-		const costPerClick = analytics.clicks > 0 ? campaign.spent / 100 / analytics.clicks : 0;
+		const ctr =
+			analytics.impressions > 0
+				? (analytics.clicks / analytics.impressions) * 100
+				: 0;
+		const conversionRate =
+			analytics.clicks > 0
+				? (analytics.conversions / analytics.clicks) * 100
+				: 0;
+		const costPerClick =
+			analytics.clicks > 0 ? campaign.spent / 100 / analytics.clicks : 0;
 
 		res.json({
 			campaign: {
@@ -279,13 +291,26 @@ export const getBusinessDashboard = async (req: Request, res: Response) => {
 		});
 
 		const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0) / 100;
-		const totalEarnings = campaigns.reduce((sum, c) => sum + c.earnings, 0) / 100;
-		const totalImpressions = campaigns.reduce((sum, c) => sum + (c.analytics?.impressions || 0), 0);
-		const totalClicks = campaigns.reduce((sum, c) => sum + (c.analytics?.clicks || 0), 0);
-		const totalConversions = campaigns.reduce((sum, c) => sum + (c.analytics?.conversions || 0), 0);
+		const totalEarnings =
+			campaigns.reduce((sum, c) => sum + c.earnings, 0) / 100;
+		const totalImpressions = campaigns.reduce(
+			(sum, c) => sum + (c.analytics?.impressions || 0),
+			0,
+		);
+		const totalClicks = campaigns.reduce(
+			(sum, c) => sum + (c.analytics?.clicks || 0),
+			0,
+		);
+		const totalConversions = campaigns.reduce(
+			(sum, c) => sum + (c.analytics?.conversions || 0),
+			0,
+		);
 
-		const activeCampaigns = campaigns.filter(c => c.status === "active").length;
-		const avgCTR = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+		const activeCampaigns = campaigns.filter(
+			(c) => c.status === "active",
+		).length;
+		const avgCTR =
+			totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
 		res.json({
 			overview: {

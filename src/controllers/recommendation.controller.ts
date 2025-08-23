@@ -1,11 +1,17 @@
 
 import { Request, Response } from "express";
-import { prisma } from "../database/database";
+import { connect } from "../database/database";
+
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
 
 // Get user recommendations based on activities
 export const getUserRecommendations = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { limit = 10, type = "users" } = req.query;
 
 		if (!userId) {
@@ -19,7 +25,7 @@ export const getUserRecommendations = async (req: Request, res: Response) => {
 				select: { followingId: true },
 			});
 
-			const followingIds = userFollowing.map((f) => f.followingId);
+			const followingIds = userFollowing.map((f: any) => f.followingId);
 
 			// Find users that followed users also follow (collaborative filtering)
 			const recommendations = await prisma.user.findMany({
@@ -59,7 +65,7 @@ export const getUserRecommendations = async (req: Request, res: Response) => {
 			});
 
 			res.json({
-				recommendations: recommendations.map((user) => ({
+				recommendations: recommendations.map((user: any) => ({
 					...user,
 					followersCount: user._count.followers,
 					postsCount: user._count.posts,
@@ -83,8 +89,8 @@ export const getUserRecommendations = async (req: Request, res: Response) => {
 			});
 
 			// Extract hashtags from liked posts
-			const hashtagsFromLikes = userInterests.flatMap((like) =>
-				like.post.hashtags.map((h) => h.tag)
+			const hashtagsFromLikes = userInterests.flatMap((like: any) =>
+				like.post.hashtags.map((h: any) => h.tag)
 			);
 
 			// Find posts with similar hashtags
@@ -124,7 +130,7 @@ export const getUserRecommendations = async (req: Request, res: Response) => {
 			});
 
 			res.json({
-				recommendations: recommendedPosts.map((post) => ({
+				recommendations: recommendedPosts.map((post: any) => ({
 					...post,
 					likesCount: post._count.likes,
 					commentsCount: post._count.comments,
@@ -161,7 +167,7 @@ export const getTrendingHashtags = async (req: Request, res: Response) => {
 		});
 
 		res.json({
-			trending: trendingHashtags.map((hashtag) => ({
+			trending: trendingHashtags.map((hashtag: any) => ({
 				tag: hashtag.tag,
 				count: hashtag._count.tag,
 			})),

@@ -1,11 +1,17 @@
 
 import { Request, Response } from "express";
-import { prisma } from "../database/database";
+import { connect } from "../database/database";
+
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
 
 // Get user analytics and statistics
 export const getUserAnalytics = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { period = "30d" } = req.query;
 
 		if (!userId) {
@@ -32,11 +38,11 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 			},
 		});
 
-		const totalViews = userPosts.reduce((sum, post) => sum + (post.analytics?.views || 0), 0);
-		const totalShares = userPosts.reduce((sum, post) => sum + (post.analytics?.shares || 0), 0);
-		const totalLikes = userPosts.reduce((sum, post) => sum + post._count.likes, 0);
-		const totalComments = userPosts.reduce((sum, post) => sum + post._count.comments, 0);
-		const totalEarnings = userPosts.reduce((sum, post) => sum + (post.analytics?.earnings || 0), 0);
+		const totalViews = userPosts.reduce((sum: number, post: any) => sum + (post.analytics?.views || 0), 0);
+		const totalShares = userPosts.reduce((sum: number, post: any) => sum + (post.analytics?.shares || 0), 0);
+		const totalLikes = userPosts.reduce((sum: number, post: any) => sum + post._count.likes, 0);
+		const totalComments = userPosts.reduce((sum: number, post: any) => sum + post._count.comments, 0);
+		const totalEarnings = userPosts.reduce((sum: number, post: any) => sum + (post.analytics?.earnings || 0), 0);
 
 		// Get follower growth
 		const followers = await prisma.follow.findMany({
@@ -58,9 +64,9 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 
 		// Top performing posts
 		const topPosts = userPosts
-			.sort((a, b) => (b.analytics?.views || 0) - (a.analytics?.views || 0))
+			.sort((a: any, b: any) => (b.analytics?.views || 0) - (a.analytics?.views || 0))
 			.slice(0, 5)
-			.map(post => ({
+			.map((post: any) => ({
 				id: post.id,
 				content: post.content?.substring(0, 100) + "...",
 				views: post.analytics?.views || 0,
@@ -94,7 +100,7 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 // Get detailed post analytics
 export const getPostAnalytics = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { postId } = req.params;
 
 		if (!userId) {
@@ -147,8 +153,8 @@ export const getPostAnalytics = async (req: Request, res: Response) => {
 				engagementRate: Math.round(engagementRate * 100) / 100,
 				totalEngagement,
 			},
-			hashtags: post.hashtags.map(h => h.tag),
-			mentions: post.mentions.map(m => m.username),
+			hashtags: post.hashtags.map((h: any) => h.tag),
+			mentions: post.mentions.map((m: any) => m.username),
 		});
 	} catch (error) {
 		res.status(500).json({ error: "Error fetching post analytics" });
