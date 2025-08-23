@@ -18,6 +18,7 @@
   - [Report Routes](#report-routes)
   - [Block Routes](#block-routes)
   - [Payment Routes](#payment-routes)
+- [ActivityPub Routes](#activitypub-routes)
 - [Data Models](#data-models)
 - [Error Handling](#error-handling)
 
@@ -2127,7 +2128,209 @@ Built-in creator earnings system:
 - Automatic earnings calculation based on engagement
 - View, share, and click tracking
 - Earnings stored in cents for precision
-- Analytics dashboard for creators
+- Analytics dashboard
+
+## ActivityPub Routes
+
+### WebFinger Discovery
+```
+GET /.well-known/webfinger?resource=acct:username@domain
+```
+Discover ActivityPub actors for federation with Mastodon and other ActivityPub services.
+
+**Query Parameters:**
+- `resource` (required): Resource identifier in format `acct:username@domain`
+
+**Response:**
+```json
+{
+  "subject": "acct:john@example.com",
+  "links": [
+    {
+      "rel": "self",
+      "type": "application/activity+json",
+      "href": "https://example.com/users/john"
+    }
+  ]
+}
+```
+
+### User Actor Profile
+```
+GET /users/:username
+```
+Returns the ActivityPub actor profile for federation.
+
+**Headers Required:**
+- `Accept: application/activity+json`
+
+**Response:**
+```json
+{
+  "@context": [
+    "https://www.w3.org/ns/activitystreams",
+    "https://w3id.org/security/v1"
+  ],
+  "id": "https://example.com/users/john",
+  "type": "Person",
+  "preferredUsername": "john",
+  "name": "John Doe",
+  "summary": "User bio here",
+  "icon": {
+    "type": "Image",
+    "mediaType": "image/jpeg",
+    "url": "https://example.com/avatar.jpg"
+  },
+  "inbox": "https://example.com/users/john/inbox",
+  "outbox": "https://example.com/users/john/outbox",
+  "followers": "https://example.com/users/john/followers",
+  "following": "https://example.com/users/john/following",
+  "publicKey": {
+    "id": "https://example.com/users/john#main-key",
+    "owner": "https://example.com/users/john",
+    "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n..."
+  }
+}
+```
+
+### User Outbox
+```
+GET /users/:username/outbox
+GET /users/:username/outbox?page=1
+```
+Returns user's public posts in ActivityPub format.
+
+**Headers Required:**
+- `Accept: application/activity+json`
+
+**Response (Collection Summary):**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example.com/users/john/outbox",
+  "type": "OrderedCollection",
+  "totalItems": 42,
+  "first": "https://example.com/users/john/outbox?page=1"
+}
+```
+
+**Response (Paginated Posts):**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://example.com/users/john/outbox?page=1",
+  "type": "OrderedCollectionPage",
+  "partOf": "https://example.com/users/john/outbox",
+  "orderedItems": [
+    {
+      "id": "https://example.com/posts/123/activity",
+      "type": "Create",
+      "actor": "https://example.com/users/john",
+      "published": "2024-01-15T10:30:00Z",
+      "object": {
+        "id": "https://example.com/posts/123",
+        "type": "Note",
+        "content": "Hello, fediverse!",
+        "attributedTo": "https://example.com/users/john",
+        "to": ["https://www.w3.org/ns/activitystreams#Public"],
+        "published": "2024-01-15T10:30:00Z"
+      }
+    }
+  ]
+}
+```
+
+### User Inbox
+```
+POST /users/:username/inbox
+POST /inbox
+```
+Receives ActivityPub activities from other federated instances.
+
+**Headers Required:**
+- `Content-Type: application/activity+json`
+- `Signature: keyId="...",algorithm="rsa-sha256",headers="...",signature="..."`
+
+**Supported Activity Types:**
+
+**Follow Activity:**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://mastodon.social/activities/123",
+  "type": "Follow",
+  "actor": "https://mastodon.social/users/alice",
+  "object": "https://example.com/users/john"
+}
+```
+
+**Undo Follow Activity:**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://mastodon.social/activities/124",
+  "type": "Undo",
+  "actor": "https://mastodon.social/users/alice",
+  "object": {
+    "id": "https://mastodon.social/activities/123",
+    "type": "Follow",
+    "actor": "https://mastodon.social/users/alice",
+    "object": "https://example.com/users/john"
+  }
+}
+```
+
+**Like Activity:**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://mastodon.social/activities/125",
+  "type": "Like",
+  "actor": "https://mastodon.social/users/alice",
+  "object": "https://example.com/posts/123"
+}
+```
+
+**Create Note Activity:**
+```json
+{
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "id": "https://mastodon.social/activities/126",
+  "type": "Create",
+  "actor": "https://mastodon.social/users/alice",
+  "object": {
+    "id": "https://mastodon.social/posts/456",
+    "type": "Note",
+    "content": "@john Hello from Mastodon!",
+    "attributedTo": "https://mastodon.social/users/alice",
+    "to": ["https://www.w3.org/ns/activitystreams#Public"],
+    "published": "2024-01-15T11:00:00Z"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Activity accepted"
+}
+```
+
+### ActivityPub Federation Features
+
+- **User Discovery**: WebFinger protocol for finding users across instances
+- **Follow/Unfollow**: Users from other ActivityPub instances can follow your users
+- **Content Sharing**: Public posts are federated to follower instances
+- **Interactions**: Receive likes, replies, and mentions from federated users
+- **HTTP Signatures**: Cryptographic verification of federated requests
+- **Content Types**: Support for Note objects (posts) with text and images
+
+### Federation Security
+
+- RSA key pairs generated for each user for message signing
+- HTTP signature verification for incoming activities
+- Actor verification through public key cryptography
+- Secure inbox delivery with proper authentication for creators
 
 ## Rate Limiting
 The API implements rate limiting to prevent abuse. Current limits:
