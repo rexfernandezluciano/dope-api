@@ -335,26 +335,56 @@ async function handleFollowActivity(activity: any) {
 		const actorUrl = activity.actor;
 		const objectUrl = activity.object;
 		
-		// Extract username from object URL
-		const match = objectUrl.match(/\/users\/(.+)$/);
-		if (!match) return;
+		console.log(`Processing follow activity: ${actorUrl} -> ${objectUrl}`);
+		
+		// Extract username from object URL - handle both /activitypub/users/ and /users/ patterns
+		const match = objectUrl.match(/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/);
+		if (!match) {
+			console.log(`Could not extract username from object URL: ${objectUrl}`);
+			return;
+		}
 		
 		const username = match[1];
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true }
+			select: { uid: true, username: true }
 		});
 
-		if (!user) return;
+		if (!user) {
+			console.log(`User not found: ${username}`);
+			return;
+		}
 
-		// Store the follow relationship (you might want to add a federated_follows table)
-		await prisma.federatedFollow?.create({
+		// Check if this follow already exists
+		const existingFollow = await prisma.federatedFollow?.findUnique({
+			where: {
+				actorUrl_followingId: {
+					actorUrl,
+					followingId: user.uid
+				}
+			}
+		});
+
+		if (existingFollow) {
+			console.log(`Follow already exists: ${actorUrl} -> ${user.username}`);
+			return;
+		}
+
+		// Store the federated follow relationship
+		const federatedFollow = await prisma.federatedFollow?.create({
 			data: {
 				actorUrl,
 				followingId: user.uid,
-				activityId: activity.id
+				activityId: activity.id,
+				createdAt: new Date()
 			}
 		});
+
+		console.log(`Created federated follow: ${actorUrl} -> ${user.username}`);
+		
+		// TODO: Send Accept activity back to the follower's inbox
+		// await sendAcceptActivity(activity, actorUrl);
+		
 	} catch (error) {
 		console.error("Error handling follow activity:", error);
 	}
@@ -364,15 +394,43 @@ async function handleFollowActivity(activity: any) {
 async function handleUnfollowActivity(activity: any) {
 	try {
 		const actorUrl = activity.actor;
+		const followActivity = activity.object;
 		
-		await prisma.federatedFollow?.delete({
+		console.log(`Processing unfollow activity: ${actorUrl}`);
+		
+		// Try to delete by actorUrl and original follow activity ID
+		const deletedFollow = await prisma.federatedFollow?.deleteMany({
 			where: {
-				actorUrl_activityId: {
-					actorUrl,
-					activityId: activity.object.id
-				}
+				actorUrl: actorUrl,
+				activityId: followActivity.id
 			}
 		});
+
+		// If that doesn't work, try deleting by actorUrl and the current user
+		if (!deletedFollow || deletedFollow.count === 0) {
+			const objectUrl = followActivity.object;
+			const match = objectUrl?.match(/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/);
+			
+			if (match) {
+				const username = match[1];
+				const user = await prisma.user.findUnique({
+					where: { username },
+					select: { uid: true }
+				});
+
+				if (user) {
+					await prisma.federatedFollow?.deleteMany({
+						where: {
+							actorUrl: actorUrl,
+							followingId: user.uid
+						}
+					});
+					console.log(`Deleted federated follow by user lookup: ${actorUrl} -> ${username}`);
+				}
+			}
+		} else {
+			console.log(`Deleted federated follow by activity ID: ${actorUrl}`);
+		}
 	} catch (error) {
 		console.error("Error handling unfollow activity:", error);
 	}
@@ -480,16 +538,19 @@ export const getFollowers = async (req: Request, res: Response) => {
 			});
 
 			// Get federated followers
-			const federatedFollowers = await prisma.federatedFollow?.findMany({
+			const remainingSlots = Math.max(0, limit - localFollowers.length);
+			const federatedFollowers = remainingSlots > 0 ? await prisma.federatedFollow?.findMany({
 				where: { followingId: user.uid },
-				take: limit - localFollowers.length,
+				take: remainingSlots,
 				skip: Math.max(0, offset - localFollowers.length)
-			}) || [];
+			}) || [] : [];
 
 			const followers = [
 				...localFollowers.map((f: any) => `${baseUrl}/activitypub/users/${f.follower.username}`),
 				...federatedFollowers.map((f: any) => f.actorUrl)
 			];
+
+			console.log(`Followers page ${page}: ${localFollowers.length} local + ${federatedFollowers.length} federated = ${followers.length} total`);
 
 			res.setHeader('Content-Type', 'application/activity+json');
 			res.json({
