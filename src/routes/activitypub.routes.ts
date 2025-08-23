@@ -8,6 +8,8 @@ import {
 	getOutbox,
 	getFollowers,
 	getFollowing,
+	getFeatured,
+	getFeaturedTags,
 } from '../controllers/activitypub.controller';
 import { asyncHandler } from '../middleware/error.middleware';
 
@@ -37,5 +39,7 @@ router.post('/inbox', asyncHandler(handleSharedInbox)); // Shared inbox for effi
 router.get('/users/:username/outbox', asyncHandler(getOutbox));
 router.get('/users/:username/followers', asyncHandler(getFollowers));
 router.get('/users/:username/following', asyncHandler(getFollowing));
+router.get('/users/:username/collections/featured', asyncHandler(getFeatured));
+router.get('/users/:username/collections/tags', asyncHandler(getFeaturedTags));
 
 export default router;

@@ -89,6 +89,7 @@ export const getActor = async (req: Request, res: Response) => {
 				name: true,
 				bio: true,
 				photoURL: true,
+				createdAt: true,
 				followers: true,
 				following: true,
 				userKeys: true
@@ -131,27 +132,77 @@ export const getActor = async (req: Request, res: Response) => {
 		}
 
 		const actor = {
-			"@context": activityPubConfig.context,
+			"@context": [
+				"https://www.w3.org/ns/activitystreams",
+				"https://w3id.org/security/v1",
+				{
+					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
+					"toot": "http://joinmastodon.org/ns#",
+					"featured": {
+						"@id": "toot:featured",
+						"@type": "@id"
+					},
+					"featuredTags": {
+						"@id": "toot:featuredTags",
+						"@type": "@id"
+					},
+					"alsoKnownAs": {
+						"@id": "as:alsoKnownAs",
+						"@type": "@id"
+					},
+					"movedTo": {
+						"@id": "as:movedTo",
+						"@type": "@id"
+					},
+					"schema": "http://schema.org#",
+					"PropertyValue": "schema:PropertyValue",
+					"value": "schema:value",
+					"discoverable": "toot:discoverable",
+					"suspended": "toot:suspended",
+					"memorial": "toot:memorial",
+					"indexable": "toot:indexable",
+					"attributionDomains": {
+						"@id": "toot:attributionDomains",
+						"@type": "@id"
+					},
+					"focalPoint": {
+						"@container": "@list",
+						"@id": "toot:focalPoint"
+					}
+				}
+			],
 			id: `${baseUrl}/activitypub/users/${username}`,
 			type: "Person",
-			preferredUsername: username,
-			name: user.name,
-			summary: user.bio || "",
-			icon: user.photoURL ? {
-				type: "Image",
-				mediaType: "image/jpeg",
-				url: user.photoURL,
-			} : undefined,
+			following: `${baseUrl}/activitypub/users/${username}/following`,
+			followers: `${baseUrl}/activitypub/users/${username}/followers`,
 			inbox: `${baseUrl}/activitypub/users/${username}/inbox`,
 			outbox: `${baseUrl}/activitypub/users/${username}/outbox`,
-			followers: `${baseUrl}/activitypub/users/${username}/followers`,
-			following: `${baseUrl}/activitypub/users/${username}/following`,
-			liked: `${baseUrl}/activitypub/users/${username}/liked`,
+			featured: `${baseUrl}/activitypub/users/${username}/collections/featured`,
+			featuredTags: `${baseUrl}/activitypub/users/${username}/collections/tags`,
+			preferredUsername: username,
+			name: user.name || username,
+			summary: user.bio ? `<p>${user.bio}</p>` : "",
+			url: `${baseUrl}/@${username}`,
+			manuallyApprovesFollowers: false,
+			discoverable: true,
+			indexable: true,
+			published: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
+			memorial: false,
 			publicKey: {
 				id: `${baseUrl}/activitypub/users/${username}#main-key`,
 				owner: `${baseUrl}/activitypub/users/${username}`,
 				publicKeyPem: publicKeyPem,
 			},
+			tag: [],
+			attachment: [],
+			endpoints: {
+				sharedInbox: `${baseUrl}/activitypub/inbox`
+			},
+			icon: user.photoURL ? {
+				type: "Image",
+				mediaType: "image/jpeg",
+				url: user.photoURL,
+			} : undefined,
 		};
 
 		res.setHeader("Content-Type", "application/activity+json");
@@ -492,6 +543,110 @@ async function handleCreateNoteActivity(activity: any, user: any) {
 		console.error("Error handling create note activity:", error);
 	}
 }
+
+// Get featured posts collection
+export const getFeatured = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true },
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		// Get featured/pinned posts (you can add a 'pinned' field to posts later)
+		const featuredPosts = await prisma.post.findMany({
+			where: {
+				authorUid: user.uid,
+				privacy: "public",
+				// Add pinned: true when you implement pinning functionality
+			},
+			orderBy: { createdAt: "desc" },
+			take: 5,
+			select: {
+				id: true,
+				content: true,
+				createdAt: true,
+			},
+		});
+
+		const author = await prisma.user.findUnique({
+			where: { uid: user.uid },
+			select: { username: true }
+		});
+
+		const featured = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/collections/featured`,
+			type: "OrderedCollection",
+			totalItems: featuredPosts.length,
+			orderedItems: await Promise.all(featuredPosts.map(async (post: any) => 
+				await createPostActivity(post, author, baseUrl)
+			)),
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(featured);
+	} catch (error) {
+		console.error("Error fetching featured collection:", error);
+		res.status(500).json({ error: "Failed to fetch featured collection" });
+	}
+};
+
+// Get featured tags collection
+export const getFeaturedTags = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true },
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		// Get hashtags from user's posts (simplified implementation)
+		const posts = await prisma.post.findMany({
+			where: {
+				authorUid: user.uid,
+				privacy: "public",
+			},
+			select: {
+				hashtags: true,
+			},
+		});
+
+		// Extract unique hashtags
+		const allHashtags = posts.flatMap(post => post.hashtags || []);
+		const uniqueHashtags = [...new Set(allHashtags)].slice(0, 10); // Top 10 hashtags
+
+		const featuredTags = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/collections/tags`,
+			type: "Collection",
+			totalItems: uniqueHashtags.length,
+			items: uniqueHashtags.map(tag => ({
+				type: "Hashtag",
+				href: `${baseUrl}/tags/${tag.replace('#', '')}`,
+				name: tag
+			})),
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(featuredTags);
+	} catch (error) {
+		console.error("Error fetching featured tags:", error);
+		res.status(500).json({ error: "Failed to fetch featured tags" });
+	}
+};
 
 // Handle shared inbox for efficiency (used by Mastodon and other servers)
 export const handleSharedInbox = async (req: Request, res: Response) => {
