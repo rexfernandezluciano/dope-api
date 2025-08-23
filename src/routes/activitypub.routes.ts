@@ -5,8 +5,7 @@ import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
 
-// WebFinger endpoint for user discovery
-router.get('/.well-known/webfinger', asyncHandler(webfinger));
+// WebFinger is now handled at root level in index.ts
 
 // Actor endpoints
 router.get('/users/:username', asyncHandler(getActor));

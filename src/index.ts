@@ -89,7 +89,13 @@ app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
 // Register ActivityPub routes
-app.use("/activitypub/", activitypubRoutes);
+app.use("/activitypub", activitypubRoutes);
+
+// WebFinger discovery route (must be at root level)
+app.get('/.well-known/webfinger', async (req, res) => {
+  const { webfinger } = await import('./controllers/activitypub.controller');
+  return webfinger(req, res);
+});
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
