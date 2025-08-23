@@ -8,8 +8,10 @@ export const createActivityPubApp = async () => {
 	if (!prisma) {
 		prisma = await connect();
 	}
+	const domain = process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : 'localhost:5000';
+	
 	const apex = ActivitypubExpress({
-		domain: process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : '0.0.0.0:5000',
+		domain,
 		context: [
 			'https://www.w3.org/ns/activitystreams',
 			'https://w3id.org/security/v1',
@@ -65,8 +67,7 @@ export const createActivityPubApp = async () => {
 			blocked: '/activitypub/users/:username/blocked',
 			rejections: '/activitypub/users/:username/rejections',
 			rejected: '/activitypub/users/:username/rejected',
-			shares: '/activitypub/users/:username/shares',
-			liked_: '/activitypub/users/:username/liked/:id'
+			shares: '/activitypub/users/:username/shares'
 		},
 		endpoints: {
 			proxyUrl: '/activitypub/proxy',
