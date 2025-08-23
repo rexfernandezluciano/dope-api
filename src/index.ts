@@ -34,7 +34,6 @@ import activityPubRoutes from "./routes/activitypub.routes";
 import {
 	errorHandler,
 	notFoundHandler,
-	asyncHandler,
 } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -160,10 +159,10 @@ const wellKnownRoutes = require("./routes/well-known.routes").default;
 app.use("/.well-known", wellKnownRoutes);
 
 // Poll routes
-app.use("/api/polls", pollRoutes);
+app.use(`${API_VERSION}/polls`, pollRoutes);
 
 // Swagger API documentation
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'DOPE Network API Documentation',
   customfavIcon: '/favicon.ico'
@@ -190,7 +189,7 @@ app.get("/@:username", (req: Request, res: Response) => {
 	}
 
 	// For web browsers, you could serve a user profile page here
-	res.status(404).json({ error: "Profile page not implemented" });
+	res.status(404).json({ error: "Profile page not yet implemented" });
 });
 
 // 404 handler - must be after all routes
