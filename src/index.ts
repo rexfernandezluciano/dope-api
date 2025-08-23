@@ -38,8 +38,8 @@ dotenv.config();
 
 const app: Application = express();
 
-// Trust proxy for proper IP detection behind reverse proxy
-app.set('trust proxy', true);
+// Configure trust proxy more securely for rate limiting
+app.set("trust proxy", 1); // Trust first proxy only
 
 // Global middleware setup
 app.use(cors({ origin: "*" }));
@@ -47,13 +47,10 @@ app.use(cors({ origin: "*" }));
 // Rate limiting middleware
 const limiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 1000, // Limit each IP to 1000 requests per windowMs
-	message: {
-		error: "Too many requests from this IP, please try again later.",
-		retryAfter: "15 minutes"
-	},
-	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+	max: 100, // limit each IP to 100 requests per windowMs
+	trustProxy: 1, // Trust first proxy only
+	standardHeaders: true,
+	legacyHeaders: false,
 });
 
 // Stricter rate limiting for auth endpoints
@@ -92,7 +89,7 @@ async function initializeSession() {
 	if (!sessionMiddleware) {
 		prisma = await connect();
 		sessionStore = new CustomPrismaSessionStore(prisma);
-		
+
 		sessionMiddleware = session({
 			secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
 			resave: false,
