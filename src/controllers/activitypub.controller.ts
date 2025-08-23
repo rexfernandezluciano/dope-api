@@ -212,7 +212,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 			id: `${baseUrl}/activitypub/users/${username}/outbox`,
 			type: "OrderedCollection",
 			totalItems: posts.length,
-			orderedItems: posts.map(post => ({
+			orderedItems: posts.map((post: any) => ({
 				id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
 				type: "Create",
 				actor: `${baseUrl}/activitypub/users/${username}`,
@@ -263,7 +263,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 			id: `${baseUrl}/activitypub/users/${username}/followers`,
 			type: "OrderedCollection",
 			totalItems: user.followers.length,
-			orderedItems: user.followers.map(f => 
+			orderedItems: user.followers.map((f: any) => 
 				`${baseUrl}/activitypub/users/${f.follower.username}`
 			),
 		};
@@ -304,7 +304,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 			id: `${baseUrl}/activitypub/users/${username}/following`,
 			type: "OrderedCollection",
 			totalItems: user.following.length,
-			orderedItems: user.following.map(f => 
+			orderedItems: user.following.map((f: any) => 
 				`${baseUrl}/activitypub/users/${f.following.username}`
 			),
 		};
