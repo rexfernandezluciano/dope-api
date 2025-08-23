@@ -186,7 +186,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 				skip: offset
 			});
 
-			const activities = posts.map(post => convertPostToActivity(post, baseUrl));
+			const activities = posts.map((post: any) => convertPostToActivity(post, baseUrl));
 
 			res.setHeader('Content-Type', 'application/activity+json');
 			res.json({
