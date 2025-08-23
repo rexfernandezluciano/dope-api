@@ -16,8 +16,8 @@ export const ResetPasswordSchema = z.object({
 export const RegisterSchema = z.object({
 	name: z.string().min(1),
 	email: z.string().email(),
-	username: z.string().min(3),
-	photoURL: z.string().url(),
+	username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+	photoURL: z.string().url().optional(),
 	password: z.string().min(8),
 	subscription: z.enum(["free", "premium", "pro"]).optional(),
 	privacy: z
@@ -28,6 +28,14 @@ export const RegisterSchema = z.object({
 			chat: z.enum(["public", "followers", "private"]).default("public"),
 		})
 		.optional(),
+});
+
+export const CheckUsernameSchema = z.object({
+	username: z.string().min(3).max(30).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores"),
+});
+
+export const CheckEmailSchema = z.object({
+	email: z.string().email(),
 });
 
 export const LoginSchema = z.object({

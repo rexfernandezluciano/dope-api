@@ -10,6 +10,8 @@ import {
 	ResendCodeSchema,
 	ForgotPasswordSchema,
 	ResetPasswordSchema,
+	CheckUsernameSchema,
+	CheckEmailSchema,
 } from "../utils/validate";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
@@ -756,4 +758,48 @@ export const validateVerificationId = async (req: Request, res: Response) => {
 		message: "Verification ID is valid",
 		email: record.email,
 	});
+};
+
+export const checkUsername = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const prisma = await connect();
+		const { username } = CheckUsernameSchema.parse(req.body);
+
+		const existingUser = await prisma.user.findUnique({
+			where: { username },
+		});
+
+		return res.json({
+			available: !existingUser,
+			message: existingUser ? "Username is already taken" : "Username is available",
+		});
+	} catch (err: any) {
+		next(err);
+	}
+};
+
+export const checkEmail = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const prisma = await connect();
+		const { email } = CheckEmailSchema.parse(req.body);
+
+		const existingUser = await prisma.user.findUnique({
+			where: { email },
+		});
+
+		return res.json({
+			available: !existingUser,
+			message: existingUser ? "Email is already registered" : "Email is available",
+		});
+	} catch (err: any) {
+		next(err);
+	}
 };

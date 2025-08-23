@@ -15,6 +15,8 @@ import {
 	resetPassword,
 	validateResetId,
 	me,
+	checkUsername,
+	checkEmail,
 } from "../controllers/auth.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { asyncHandler } from "../middleware/error.middleware";
@@ -36,6 +38,8 @@ router.get(
 	"/validate-verification-id/:verificationId",
 	asyncHandler(validateVerificationId),
 );
+router.post("/check-username", asyncHandler(checkUsername));
+router.post("/check-email", asyncHandler(checkEmail));
 router.get("/me", requireAuth, asyncHandler(me));
 
 export default router;
@@ -251,4 +255,79 @@ export default router;
  *                 message:
  *                   type: string
  *                   example: Logged out successfully
+ */
+
+/**
+ * @swagger
+ * /v1/auth/check-username:
+ *   post:
+ *     summary: Check username availability
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - username
+ *             properties:
+ *               username:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Username is available
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 isAvailable:
+ *                   type: boolean
+ *       400:
+ *         description: Username is already taken or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /v1/auth/check-email:
+ *   post:
+ *     summary: Check email availability
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Email is available
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 isAvailable:
+ *                   type: boolean
+ *       400:
+ *         description: Email is already taken or invalid
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */

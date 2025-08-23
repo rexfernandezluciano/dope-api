@@ -120,6 +120,50 @@ POST /v1/auth/register
 }
 ```
 
+**Error Responses:**
+- `409`: Email already registered
+- `400`: Username already taken or invalid format
+
+#### Check Username Availability
+```http
+POST /v1/auth/check-username
+```
+
+**Request Body:**
+```json
+{
+  "username": "johndoe"
+}
+```
+
+**Response (200):**
+```json
+{
+  "available": true,
+  "message": "Username is available"
+}
+```
+
+#### Check Email Availability
+```http
+POST /v1/auth/check-email
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "available": false,
+  "message": "Email is already registered"
+}
+```
+
 #### Verify Email
 ```http
 POST /v1/auth/verify-email
