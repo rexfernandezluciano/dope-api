@@ -1,5 +1,7 @@
 
 declare module 'activitypub-express' {
+  import { RequestHandler } from 'express';
+
   export interface ActivityPubExpressOptions {
     domain: string;
     context: any[];
@@ -28,7 +30,7 @@ declare module 'activitypub-express' {
     };
   }
 
-  export interface ActivityPubExpress {
+  export interface ActivityPubExpress extends RequestHandler {
     domain: string;
     context: any[];
     resolveActor: (username: string) => Promise<any>;
