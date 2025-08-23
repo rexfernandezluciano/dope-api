@@ -124,12 +124,22 @@ model Credential {
 }
 
 model Email {
-  id             String   @id @default(cuid())
+  verificationId String   @id @db.VarChar(50)
   email          String
-  code           String
-  verificationId String   @unique
+  code           String   @db.VarChar(10)
   expireAt       DateTime
-  createdAt      DateTime @default(now())
+
+  @@map("emails")
+}
+
+model PasswordReset {
+  resetId  String   @id @db.VarChar(50)
+  email    String
+  code     String   @db.VarChar(10)
+  expireAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
 }
 
 enum Subscription {

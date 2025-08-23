@@ -2,6 +2,17 @@
 
 import { z } from "zod";
 
+export const ForgotPasswordSchema = z.object({
+	email: z.string().email("Invalid email format"),
+});
+
+export const ResetPasswordSchema = z.object({
+	email: z.string().email("Invalid email format"),
+	code: z.string().length(6, "Verification code must be 6 digits"),
+	resetId: z.string().min(1, "Reset ID is required"),
+	newPassword: z.string().min(6, "Password must be at least 6 characters"),
+});
+
 export const RegisterSchema = z.object({
 	name: z.string().min(1),
 	email: z.string().email(),

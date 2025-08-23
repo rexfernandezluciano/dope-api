@@ -8,8 +8,10 @@ import {
 	RegisterSchema,
 	VerifyEmailSchema,
 	ResendCodeSchema,
+	ForgotPasswordSchema,
+	ResetPasswordSchema,
 } from "../utils/validate";
-import { sendVerificationEmail } from "../utils/mailer";
+import { sendVerificationEmail, sendPasswordResetEmail } from "../utils/mailer";
 import { signToken } from "../utils/jwt";
 import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
@@ -571,6 +573,156 @@ export const logout = async (req: Request, res: Response) => {
 		console.error("Logout error:", error);
 		res.status(500).json({ message: "Logout failed" });
 	}
+};
+
+export const forgotPassword = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const prisma = await connect();
+		const { email } = ForgotPasswordSchema.parse(req.body);
+
+		// Check if user exists
+		const user = await prisma.user.findUnique({ where: { email } });
+		if (!user) {
+			// Don't reveal if email exists or not for security
+			return res.json({ 
+				message: "If your email is registered, you will receive a password reset code shortly." 
+			});
+		}
+
+		// Check if user has a local credential (password-based account)
+		const localCredential = await prisma.credential.findFirst({
+			where: { 
+				userId: user.uid,
+				provider: "local"
+			}
+		});
+
+		if (!localCredential) {
+			return res.status(400).json({
+				message: "This account uses social login. Please sign in with your social account."
+			});
+		}
+
+		// Delete any existing password reset requests for this email
+		await prisma.passwordReset.deleteMany({ where: { email } });
+
+		// Create new password reset request
+		const code = makeCode()();
+		const resetId = makeVerificationId()();
+		const expireAt = dayjs().add(15, "minute").toDate();
+
+		await prisma.passwordReset.create({
+			data: { email, code, resetId, expireAt },
+		});
+
+		await sendPasswordResetEmail(email, code, resetId);
+
+		return res.json({
+			message: "If your email is registered, you will receive a password reset code shortly.",
+			resetId,
+		});
+	} catch (err: any) {
+		console.error("Forgot password error:", err);
+		next(err);
+	}
+};
+
+export const resetPassword = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
+	try {
+		const prisma = await connect();
+		const { email, code, resetId, newPassword } = ResetPasswordSchema.parse(req.body);
+
+		// Find the reset request
+		const resetRequest = await prisma.passwordReset.findUnique({ 
+			where: { resetId } 
+		});
+
+		if (!resetRequest || resetRequest.email !== email) {
+			return res.status(400).json({ message: "Invalid password reset request" });
+		}
+
+		if (dayjs(resetRequest.expireAt).isBefore(dayjs())) {
+			return res.status(400).json({ message: "Password reset code expired" });
+		}
+
+		if (resetRequest.code !== code) {
+			return res.status(400).json({ message: "Incorrect reset code" });
+		}
+
+		// Find the user and update their password
+		const user = await prisma.user.findUnique({ where: { email } });
+		if (!user) {
+			return res.status(404).json({ message: "User not found" });
+		}
+
+		// Hash the new password
+		const passwordHash = await bcrypt.hash(newPassword, 12);
+
+		// Update user's password in credential table
+		await prisma.credential.updateMany({
+			where: { 
+				userId: user.uid,
+				provider: "local"
+			},
+			data: { passwordHash }
+		});
+
+		// Also update in user table for compatibility
+		await prisma.user.update({
+			where: { uid: user.uid },
+			data: { password: passwordHash }
+		});
+
+		// Clean up the reset request
+		await prisma.passwordReset.delete({ where: { resetId } });
+		await prisma.passwordReset.deleteMany({ where: { email } });
+
+		return res.json({ message: "Password reset successfully" });
+	} catch (err: any) {
+		console.error("Reset password error:", err);
+		next(err);
+	}
+};
+
+export const validateResetId = async (req: Request, res: Response) => {
+	const prisma = await connect();
+	const { resetId } = req.params;
+
+	if (!resetId) {
+		return res.status(400).json({
+			message: "Reset ID is required",
+		});
+	}
+
+	const record = await prisma.passwordReset.findUnique({
+		where: { resetId },
+	});
+
+	if (!record) {
+		return res.status(404).json({
+			message: "Reset ID not found",
+		});
+	}
+
+	const isExpired = dayjs(record.expireAt).isBefore(dayjs());
+
+	if (isExpired)
+		return res.status(400).json({
+			message: "Password reset code expired",
+		});
+
+	return res.json({
+		message: "Reset ID is valid",
+		email: record.email,
+	});
 };
 
 export const validateVerificationId = async (req: Request, res: Response) => {
