@@ -625,7 +625,7 @@ export const getFeaturedTags = async (req: Request, res: Response) => {
 		});
 
 		// Extract unique hashtags
-		const allHashtags = posts.flatMap(post => post.hashtags || []);
+		const allHashtags = posts.flatMap((post: any) => post.hashtags || []);
 		const uniqueHashtags = [...new Set(allHashtags)].slice(0, 10); // Top 10 hashtags
 
 		const featuredTags = {
@@ -633,7 +633,7 @@ export const getFeaturedTags = async (req: Request, res: Response) => {
 			id: `${baseUrl}/activitypub/users/${username}/collections/tags`,
 			type: "Collection",
 			totalItems: uniqueHashtags.length,
-			items: uniqueHashtags.map(tag => ({
+			items: uniqueHashtags.map((tag: any) => ({
 				type: "Hashtag",
 				href: `${baseUrl}/tags/${tag.replace('#', '')}`,
 				name: tag
