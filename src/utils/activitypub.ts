@@ -54,9 +54,9 @@ async function createHttpSignature(
 		`digest: ${digest}`
 	].join('\n');
 
-	const signature = crypto.sign('sha256', Buffer.from(stringToSign))
-		.update(stringToSign)
-		.sign(privateKey, 'base64');
+	const signer = crypto.createSign('sha256');
+	signer.update(stringToSign);
+	const signature = signer.sign(privateKey, 'base64');
 
 	return `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest",signature="${signature}"`;
 }
