@@ -391,6 +391,21 @@ export const getPost = async (req: Request, res: Response) => {
 						},
 					},
 				},
+				poll: {
+					include: {
+						options: {
+							include: {
+								_count: {
+									select: { votes: true }
+								}
+							},
+							orderBy: { position: 'asc' }
+						},
+						_count: {
+							select: { votes: true }
+						}
+					}
+				},
 				analytics: true,
 				_count: {
 					select: {
@@ -408,6 +423,8 @@ export const getPost = async (req: Request, res: Response) => {
 		// Check if current user follows the post author
 		const authUser = (req as any).user as User | undefined;
 		let isFollowedByCurrentUser = false;
+		let userVotes: any[] = [];
+		
 		if (authUser) {
 			const follow = await prisma.follow.findFirst({
 				where: {
@@ -416,7 +433,35 @@ export const getPost = async (req: Request, res: Response) => {
 				},
 			});
 			isFollowedByCurrentUser = !!follow;
+
+			// Get user's votes if post has a poll
+			if (post.poll) {
+				userVotes = await prisma.pollVote.findMany({
+					where: {
+						pollId: post.poll.id,
+						userId: authUser.uid
+					}
+				});
+			}
 		}
+
+		const pollData = post.poll ? {
+			id: post.poll.id,
+			question: post.poll.question,
+			expiresAt: post.poll.expiresAt,
+			allowMultiple: post.poll.allowMultiple,
+			isExpired: post.poll.expiresAt ? post.poll.expiresAt < new Date() : false,
+			totalVotes: post.poll._count.votes,
+			options: post.poll.options.map((option: any) => ({
+				id: option.id,
+				text: option.text,
+				position: option.position,
+				votes: option._count.votes,
+				percentage: post.poll._count.votes > 0 ? Math.round((option._count.votes / post.poll._count.votes) * 100) : 0,
+				isUserChoice: userVotes.some((vote: any) => vote.optionId === option.id)
+			})),
+			hasUserVoted: userVotes.length > 0
+		} : null;
 
 		const output = {
 			id: post.id,
@@ -456,6 +501,7 @@ export const getPost = async (req: Request, res: Response) => {
 			postType: post.postType,
 			liveVideoUrl: post.liveVideoUrl,
 			privacy: post.privacy,
+			poll: pollData,
 		};
 
 		res.json({ status: "ok", post: output });
