@@ -5,6 +5,8 @@ import { connect } from "../database/database";
 import { z } from "zod";
 import type Comment from "../types/types.comments";
 import { deleteImage } from "./image.controller";
+import { createPostActivity, deliverActivityToFollowers } from './activitypub.controller';
+import { getBaseUrl } from '../config/activitypub';
 
 let prisma: any;
 
@@ -436,7 +438,7 @@ export const createPost = async (req: Request, res: Response) => {
 			}
 		}
 
-		const post = await prisma.post.create({
+		const newPost = await prisma.post.create({
 			data: {
 				content: content || null,
 				imageUrls: imageUrls || [],
@@ -464,7 +466,51 @@ export const createPost = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(201).json(post);
+		// If post is public, federate it to ActivityPub followers
+		if ((privacy || 'public') === 'public') {
+			try {
+				const baseUrl = getBaseUrl({ protocol: 'https', get: () => 'api.dopp.eu.org' });
+				const activity = await createPostActivity(newPost, authUser, baseUrl);
+
+				// Deliver to federated followers asynchronously
+				deliverActivityToFollowers(activity, authUser.username).catch(error => {
+					console.error('Federation delivery failed:', error);
+				});
+			} catch (error) {
+				console.error('Error creating ActivityPub activity:', error);
+			}
+		}
+
+		res.status(201).json({
+			success: true,
+			message: 'Post created successfully',
+			post: {
+				id: newPost.id,
+				content: newPost.content,
+				author: {
+					uid: authUser.uid,
+					username: authUser.username,
+					name: authUser.name,
+					photoURL: authUser.photoURL,
+				},
+				createdAt: newPost.createdAt,
+				likes: [],
+				comments: [],
+				isLiked: false,
+				commentCount: 0,
+				likeCount: 0,
+				shares: 0,
+				views: 0,
+				clicks: 0,
+				earnings: 0,
+				hashtags: [],
+				mentions: [],
+				images: imageUrls || [],
+				postType: postType || 'text',
+				liveVideoUrl: liveVideoUrl || null,
+				privacy: privacy || 'public'
+			},
+		});
 	} catch (err: any) {
 		if (err.name === "ZodError") {
 			return res

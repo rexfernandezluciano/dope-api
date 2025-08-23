@@ -286,6 +286,102 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 	};
 };
 
+// Deliver activity to federated followers
+export const deliverActivityToFollowers = async (activity: any, authorUsername: string) => {
+	try {
+		// Get user's private key for signing
+		const user = await prisma.user.findUnique({
+			where: { username: authorUsername },
+			include: { userKeys: true }
+		});
+
+		if (!user || !user.userKeys?.privateKey) {
+			console.log('No private key found for user:', authorUsername);
+			return;
+		}
+
+		// Get federated followers
+		const federatedFollowers = await prisma.federatedFollow.findMany({
+			where: { followingId: user.uid }
+		});
+
+		// Deliver to each federated follower's inbox
+		for (const follower of federatedFollowers) {
+			try {
+				// Fetch follower's actor to get their inbox
+				const response = await fetch(follower.actorUrl, {
+					headers: { 'Accept': 'application/activity+json' }
+				});
+
+				if (!response.ok) continue;
+
+				const actor = await response.json();
+				const inboxUrl = actor.inbox;
+
+				if (!inboxUrl) continue;
+
+				// Send activity to follower's inbox
+				await deliverActivity(activity, inboxUrl, user.userKeys.privateKey, activity.actor + '#main-key');
+			} catch (error) {
+				console.error(`Failed to deliver to ${follower.actorUrl}:`, error);
+			}
+		}
+	} catch (error) {
+		console.error('Error delivering activity to followers:', error);
+	}
+};
+
+// Deliver activity to a specific inbox
+const deliverActivity = async (activity: any, inboxUrl: string, privateKey: string, keyId: string) => {
+	try {
+		const activityJson = JSON.stringify(activity);
+		const url = new URL(inboxUrl);
+		const date = new Date().toUTCString();
+		
+		// Create digest
+		const crypto = require('crypto');
+		const bodyHash = crypto.createHash('sha256').update(activityJson).digest('base64');
+		const digest = `SHA-256=${bodyHash}`;
+		
+		// Create signature string
+		const stringToSign = [
+			`(request-target): post ${url.pathname}`,
+			`host: ${url.host}`,
+			`date: ${date}`,
+			`digest: ${digest}`,
+			`content-type: application/activity+json`
+		].join('\n');
+
+		// Sign the string
+		const signer = crypto.createSign('sha256');
+		signer.update(stringToSign);
+		const signature = signer.sign(privateKey, 'base64');
+
+		const signatureHeader = `keyId="${keyId}",algorithm="rsa-sha256",headers="(request-target) host date digest content-type",signature="${signature}"`;
+
+		// Send the activity
+		const response = await fetch(inboxUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				'Date': date,
+				'Digest': digest,
+				'Signature': signatureHeader,
+				'User-Agent': 'Dopp/1.0'
+			},
+			body: activityJson
+		});
+
+		if (!response.ok) {
+			console.log(`Failed to deliver to ${inboxUrl}: ${response.status} ${response.statusText}`);
+		} else {
+			console.log(`Successfully delivered activity to ${inboxUrl}`);
+		}
+	} catch (error) {
+		console.error(`Error delivering to ${inboxUrl}:`, error);
+	}
+};
+
 // Get user outbox
 export const getOutbox = async (req: Request, res: Response) => {
 	try {
@@ -492,8 +588,35 @@ async function handleFollowActivity(activity: any, user: any) {
 			object: activity
 		};
 
-		// TODO: Send accept activity to actor's inbox
-		console.log("Accept activity created:", acceptActivity);
+		// Send accept activity to actor's inbox
+		try {
+			// Get user's private key
+			const userWithKeys = await prisma.user.findUnique({
+				where: { uid: user.uid },
+				include: { userKeys: true }
+			});
+
+			if (userWithKeys?.userKeys?.privateKey) {
+				// Fetch the actor to get their inbox
+				const actorResponse = await fetch(activity.actor, {
+					headers: { 'Accept': 'application/activity+json' }
+				});
+
+				if (actorResponse.ok) {
+					const actorData = await actorResponse.json();
+					if (actorData.inbox) {
+						await deliverActivity(
+							acceptActivity, 
+							actorData.inbox, 
+							userWithKeys.userKeys.privateKey,
+							`${baseUrl}/activitypub/users/${user.username}#main-key`
+						);
+					}
+				}
+			}
+		} catch (error) {
+			console.error('Failed to send Accept activity:', error);
+		}
 
 	} catch (error) {
 		console.error("Error handling follow activity:", error);
