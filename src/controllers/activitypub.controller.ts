@@ -41,7 +41,7 @@ export const webfinger = async (req: Request, res: Response) => {
 			return res.status(400).json({ error: "Invalid resource format" });
 		}
 
-		const [, username, domain] = match;
+		const [ username, domain] = match;
 
 		if (!username || !domain) {
 			return res.status(400).json({ error: "Invalid resource format" });
@@ -54,7 +54,7 @@ export const webfinger = async (req: Request, res: Response) => {
 		const normalizedExpected = expectedDomain?.toLowerCase();
 
 		// Also check against known domain variants
-		const knownDomains = ["dopp.eu.org", "api.dopp.eu.org"];
+		const knownDomains = ["dopp.eu.org"];
 		const isDomainValid =
 			normalizedDomain === normalizedExpected ||
 			knownDomains.includes(normalizedDomain);

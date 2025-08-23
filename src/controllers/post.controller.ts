@@ -7,7 +7,7 @@ import type Comment from "../types/types.comments";
 import { deleteImage } from "./image.controller";
 import { createPostActivity, deliverActivityToFollowers } from './activitypub.controller';
 import { getBaseUrl } from '../config/activitypub';
-import type { User } from '../types/types.user'; // Import User type
+import type { User } from '../types/types.user';
 
 let prisma: any;
 
@@ -1070,10 +1070,12 @@ export const getCurrentUserPosts = async (req: Request, res: Response) => {
 			},
 		});
 
+		const { parseMentionsToNames } = await import('../utils/mentions');
+
 		const output = posts.map((p: any) => {
 			return {
 				id: p.id,
-				content: p.content,
+				content: parseMentionsToNames(p.content),
 				imageUrls: p.imageUrls,
 				createdAt: p.createdAt,
 				updatedAt: p.updatedAt,
