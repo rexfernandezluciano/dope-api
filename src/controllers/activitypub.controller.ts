@@ -90,14 +90,47 @@ export const getActor = async (req: Request, res: Response) => {
 				name: true,
 				bio: true,
 				profilePic: true,
-				publicKey: true,
 				followersCount: true,
 				followingCount: true,
 			},
+			include: {
+				userKeys: true
+			}
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
+		}
+
+		// Generate keys if they don't exist
+		let publicKeyPem = user.userKeys?.publicKey;
+		if (!publicKeyPem) {
+			const keyPair = crypto.generateKeyPairSync('rsa', {
+				modulusLength: 2048,
+				publicKeyEncoding: {
+					type: 'spki',
+					format: 'pem'
+				},
+				privateKeyEncoding: {
+					type: 'pkcs8',
+					format: 'pem'
+				}
+			});
+
+			await prisma.userKeys.upsert({
+				where: { userId: user.uid },
+				update: {
+					publicKey: keyPair.publicKey,
+					privateKey: keyPair.privateKey
+				},
+				create: {
+					userId: user.uid,
+					publicKey: keyPair.publicKey,
+					privateKey: keyPair.privateKey
+				}
+			});
+
+			publicKeyPem = keyPair.publicKey;
 		}
 
 		const actor = {
@@ -120,7 +153,7 @@ export const getActor = async (req: Request, res: Response) => {
 			publicKey: {
 				id: `${baseUrl}/activitypub/users/${username}#main-key`,
 				owner: `${baseUrl}/activitypub/users/${username}`,
-				publicKeyPem: user.publicKey,
+				publicKeyPem: publicKeyPem,
 			},
 		};
 
@@ -177,6 +210,30 @@ export const handleInbox = async (req: Request, res: Response) => {
 	}
 };
 
+// Create outbound activity for a post
+export const createPostActivity = async (post: any, author: any, baseUrl: string) => {
+	return {
+		id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
+		type: "Create",
+		actor: `${baseUrl}/activitypub/users/${author.username}`,
+		published: post.createdAt.toISOString(),
+		to: ["https://www.w3.org/ns/activitystreams#Public"],
+		cc: [`${baseUrl}/activitypub/users/${author.username}/followers`],
+		object: {
+			id: `${baseUrl}/activitypub/posts/${post.id}`,
+			type: "Note",
+			summary: null,
+			content: post.content,
+			attributedTo: `${baseUrl}/activitypub/users/${author.username}`,
+			published: post.createdAt.toISOString(),
+			to: ["https://www.w3.org/ns/activitystreams#Public"],
+			cc: [`${baseUrl}/activitypub/users/${author.username}/followers`],
+			sensitive: false,
+			tag: []
+		}
+	};
+};
+
 // Get user outbox
 export const getOutbox = async (req: Request, res: Response) => {
 	try {
@@ -192,7 +249,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		// Get recent public posts
+		// Get recent public posts with author info
 		const posts = await prisma.post.findMany({
 			where: {
 				authorUid: user.uid,
@@ -207,24 +264,19 @@ export const getOutbox = async (req: Request, res: Response) => {
 			},
 		});
 
+		const author = await prisma.user.findUnique({
+			where: { uid: user.uid },
+			select: { username: true }
+		});
+
 		const outbox = {
 			"@context": activityPubConfig.context,
 			id: `${baseUrl}/activitypub/users/${username}/outbox`,
 			type: "OrderedCollection",
 			totalItems: posts.length,
-			orderedItems: posts.map((post: any) => ({
-				id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
-				type: "Create",
-				actor: `${baseUrl}/activitypub/users/${username}`,
-				published: post.createdAt.toISOString(),
-				object: {
-					id: `${baseUrl}/activitypub/posts/${post.id}`,
-					type: "Note",
-					content: post.content,
-					attributedTo: `${baseUrl}/activitypub/users/${username}`,
-					published: post.createdAt.toISOString(),
-				},
-			})),
+			orderedItems: await Promise.all(posts.map(async (post: any) => 
+				await createPostActivity(post, author, baseUrl)
+			)),
 		};
 
 		res.setHeader("Content-Type", "application/activity+json");
@@ -319,24 +371,127 @@ export const getFollowing = async (req: Request, res: Response) => {
 
 // Activity handlers
 async function handleFollowActivity(activity: any, user: any) {
-	// Store the follow relationship
-	console.log(`${activity.actor} wants to follow ${user.username}`);
-	
-	// You can store federated follows in your database
-	// For now, just log the activity
+	try {
+		// Store the federated follow relationship
+		console.log(`${activity.actor} wants to follow ${user.username}`);
+		
+		await prisma.federatedFollow.upsert({
+			where: {
+				actorUrl_activityId: {
+					actorUrl: activity.actor,
+					activityId: activity.id
+				}
+			},
+			update: {},
+			create: {
+				actorUrl: activity.actor,
+				followingId: user.uid,
+				activityId: activity.id
+			}
+		});
+
+		// Send Accept activity back to the follower
+		const baseUrl = getBaseUrl({ protocol: 'https', get: () => activityPubConfig.domain });
+		const acceptActivity = {
+			"@context": activityPubConfig.context,
+			id: `${baseUrl}/activitypub/activities/${crypto.randomUUID()}`,
+			type: "Accept",
+			actor: `${baseUrl}/activitypub/users/${user.username}`,
+			object: activity
+		};
+
+		// TODO: Send accept activity to actor's inbox
+		console.log("Accept activity created:", acceptActivity);
+		
+	} catch (error) {
+		console.error("Error handling follow activity:", error);
+	}
 }
 
 async function handleUnfollowActivity(activity: any, user: any) {
-	console.log(`${activity.actor} unfollowed ${user.username}`);
-	// Handle unfollow logic
+	try {
+		console.log(`${activity.actor} unfollowed ${user.username}`);
+		
+		// Remove the federated follow relationship
+		await prisma.federatedFollow.deleteMany({
+			where: {
+				actorUrl: activity.actor,
+				followingId: user.uid
+			}
+		});
+		
+	} catch (error) {
+		console.error("Error handling unfollow activity:", error);
+	}
 }
 
 async function handleLikeActivity(activity: any, user: any) {
-	console.log(`${activity.actor} liked ${activity.object}`);
-	// Handle like logic
+	try {
+		console.log(`${activity.actor} liked ${activity.object}`);
+		
+		// Extract post ID from the object URL
+		const objectUrl = activity.object;
+		const postIdMatch = objectUrl.match(/\/activitypub\/posts\/([^\/]+)$/);
+		
+		if (postIdMatch) {
+			const postId = postIdMatch[1];
+			
+			// Check if the post exists and belongs to this user
+			const post = await prisma.post.findFirst({
+				where: {
+					id: postId,
+					authorUid: user.uid
+				}
+			});
+			
+			if (post) {
+				// Store the federated like
+				await prisma.federatedLike.upsert({
+					where: {
+						postId_actorUrl: {
+							postId: postId,
+							actorUrl: activity.actor
+						}
+					},
+					update: {},
+					create: {
+						postId: postId,
+						actorUrl: activity.actor,
+						activityId: activity.id
+					}
+				});
+			}
+		}
+		
+	} catch (error) {
+		console.error("Error handling like activity:", error);
+	}
 }
 
 async function handleCreateNoteActivity(activity: any, user: any) {
-	console.log(`${activity.actor} mentioned ${user.username} in a note`);
-	// Handle mention/reply logic
+	try {
+		console.log(`${activity.actor} mentioned ${user.username} in a note`);
+		
+		const note = activity.object;
+		
+		// Store the federated post/note
+		await prisma.federatedPost.upsert({
+			where: {
+				activityId: activity.id
+			},
+			update: {},
+			create: {
+				actorUrl: activity.actor,
+				content: note.content || '',
+				activityId: activity.id,
+				published: new Date(note.published || activity.published || new Date())
+			}
+		});
+		
+		// TODO: Parse mentions and create notifications for mentioned users
+		// TODO: Handle replies if this is a reply to a local post
+		
+	} catch (error) {
+		console.error("Error handling create note activity:", error);
+	}
 }
