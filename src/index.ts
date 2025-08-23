@@ -23,6 +23,9 @@ import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 import pollRoutes from "./routes/poll.routes";
 
+// Import Swagger configuration
+import { specs, swaggerUi } from "./config/swagger";
+
 // Import ActivityPub controller
 import { webfinger } from "./controllers/activitypub.controller";
 import activityPubRoutes from "./routes/activitypub.routes";
@@ -128,6 +131,18 @@ app.use("/.well-known", wellKnownRoutes);
 // Poll routes
 app.use("/api/polls", pollRoutes);
 
+// Swagger API documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'DOPE Network API Documentation',
+  customfavIcon: '/favicon.ico'
+}));
+
+// API docs JSON endpoint
+app.get('/api-docs.json', (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
+});
 
 // User profile endpoint with ActivityPub content negotiation
 app.get("/@:username", (req: Request, res: Response) => {
