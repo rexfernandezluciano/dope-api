@@ -22,7 +22,7 @@ declare module 'activitypub-express' {
       rejections: string;
       rejected: string;
       shares: string;
-      liked_: string;
+      likes: string;
     };
     endpoints: {
       proxyUrl: string;

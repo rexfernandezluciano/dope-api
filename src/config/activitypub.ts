@@ -1,3 +1,5 @@
+
+
 import ActivitypubExpress from "activitypub-express";
 import { connect } from "../database/database";
 
@@ -61,6 +63,7 @@ export const createActivityPubApp = async () => {
 			followers: "/activitypub/users/:username/followers",
 			following: "/activitypub/users/:username/following",
 			liked: "/activitypub/users/:username/liked",
+			likes: "/activitypub/users:username/likes",
 			collections: "/activitypub/users/:username/collections/:id",
 			blocked: "/activitypub/users/:username/blocked",
 			rejections: "/activitypub/users/:username/rejections",
