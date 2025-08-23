@@ -26,6 +26,11 @@ export const webfinger = async (req: Request, res: Response) => {
 		}
 
 		const [, username, domain] = match;
+		
+		if (!username || !domain) {
+			return res.status(400).json({ error: "Invalid resource format" });
+		}
+		
 		const expectedDomain = req.get('host');
 		
 		// Handle domain matching more flexibly
@@ -37,7 +42,7 @@ export const webfinger = async (req: Request, res: Response) => {
 		const isDomainValid = normalizedDomain === normalizedExpected || knownDomains.includes(normalizedDomain);
 
 		if (!isDomainValid) {
-			console.log(`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}`);
+			console.log(`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, host=${req.get('host')}`);
 			return res.status(404).json({ error: "User not found on this domain" });
 		}
 
