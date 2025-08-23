@@ -27,8 +27,6 @@ import pollRoutes from "./routes/poll.routes";
 // Import Swagger configuration
 import { specs, swaggerUi } from "./config/swagger";
 
-// Import ActivityPub controller
-import { webfinger } from "./controllers/activitypub.controller";
 import activityPubRoutes from "./routes/activitypub.routes";
 // Import error handlers
 import {
@@ -41,7 +39,7 @@ dotenv.config();
 const app: Application = express();
 
 // Trust proxy for proper IP detection behind reverse proxy
-app.set('trust proxy', true);
+app.set('trust proxy', false);
 
 // Global middleware setup
 app.use(cors({ origin: "*" }));
