@@ -17,7 +17,6 @@ import passport from "passport";
 
 // Create the functions directly using crypto module
 const makeCode = () => {
-	const crypto = require("crypto");
 	return () => {
 		let code = "";
 		for (let i = 0; i < 6; i++) {
