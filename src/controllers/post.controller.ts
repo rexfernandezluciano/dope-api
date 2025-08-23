@@ -213,7 +213,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				where: { blockerId: authUser.uid },
 				select: { blockedId: true },
 			});
-			blockingIds = blocking.map((b: any) => b.blockedId);
+			blockingIds = blocking.map((b: any) => b.blockerId);
 
 			// Filter out posts from blocked users
 			if (blockedByIds.length > 0 || blockingIds.length > 0) {
@@ -467,58 +467,52 @@ export const createPost = async (req: Request, res: Response) => {
 			},
 		});
 
-		// If post is public, federate it to ActivityPub followers
-		if ((privacy || 'public') === 'public') {
-			try {
-				const baseUrl = `${req.protocol}://${req.get('host')}`;
-				const activity = await createPostActivity(newPost, authUser, baseUrl);
+		// Return the created post with author information
+		const postWithAuthor = await prisma.post.findUnique({
+			where: { id: newPost.id },
+			include: {
+				author: {
+					select: {
+						uid: true,
+						username: true,
+						name: true,
+						photoURL: true,
+						verifiedStatus: true,
+					},
+				},
+				_count: {
+					select: {
+						likes: true,
+						comments: true,
+					},
+				},
+			},
+		});
 
-				// Deliver to federated followers asynchronously
-				deliverActivityToFollowers(activity, authUser.username).catch(error => {
-					console.error('Federation delivery failed:', error);
-				});
-			} catch (error) {
-				console.error('Error creating ActivityPub activity:', error);
+		// Federate public posts to ActivityPub followers
+		if (newPost.privacy === 'public') {
+			try {
+				const baseUrl = getBaseUrl(req);
+				const activity = await createPostActivity(newPost, postWithAuthor?.author, baseUrl);
+				await deliverActivityToFollowers(activity, postWithAuthor?.author?.username || '');
+			} catch (federationError) {
+				console.error('Failed to federate post:', federationError);
+				// Don't fail the post creation if federation fails
 			}
 		}
 
 		res.status(201).json({
 			success: true,
-			message: 'Post created successfully',
-			post: {
-				id: newPost.id,
-				content: newPost.content,
-				author: {
-					uid: authUser.uid,
-					username: authUser.username,
-					name: authUser.name,
-					photoURL: authUser.photoURL,
-				},
-				createdAt: newPost.createdAt,
-				likes: [],
-				comments: [],
-				isLiked: false,
-				commentCount: 0,
-				likeCount: 0,
-				shares: 0,
-				views: 0,
-				clicks: 0,
-				earnings: 0,
-				hashtags: [],
-				mentions: [],
-				images: imageUrls || [],
-				postType: postType || 'text',
-				liveVideoUrl: liveVideoUrl || null,
-				privacy: privacy || 'public'
-			},
+			message: "Post created successfully",
+			data: postWithAuthor,
 		});
-	} catch (err: any) {
-		if (err.name === "ZodError") {
-			return res
-				.status(400)
-				.json({ message: "Invalid payload", errors: err.errors });
-		}
-		res.status(500).json({ error: "Error creating post" });
+	} catch (error) {
+		console.error("Error creating post:", error);
+		res.status(500).json({
+			success: false,
+			error: "Internal Server Error",
+			message: "Failed to create post",
+		});
 	}
 };
 

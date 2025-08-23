@@ -155,7 +155,7 @@ export const getActor = async (req: Request, res: Response) => {
 				"https://w3id.org/security/v1",
 				{
 					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
-					"toot": baseUrl,
+					"toot":baseUrl,
 					"featured": {
 						"@id": "toot:featured",
 						"@type": "@id"
@@ -363,11 +363,11 @@ const deliverActivity = async (activity: any, inboxUrl: string, privateKey: stri
 		const activityJson = JSON.stringify(activity);
 		const url = new URL(inboxUrl);
 		const date = new Date().toUTCString();
-		
+
 		// Create digest
 		const bodyHash = crypto.createHash('sha256').update(activityJson).digest('base64');
 		const digest = `SHA-256=${bodyHash}`;
-		
+
 		// Create signature string - simplified headers for better compatibility
 		const stringToSign = [
 			`(request-target): post ${url.pathname}`,
@@ -401,7 +401,7 @@ const deliverActivity = async (activity: any, inboxUrl: string, privateKey: stri
 		});
 
 		const responseText = await response.text();
-		
+
 		if (!response.ok) {
 			console.error(`Failed to deliver to ${inboxUrl}: ${response.status} ${response.statusText}`);
 			console.error(`Response body: ${responseText}`);
