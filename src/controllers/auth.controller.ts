@@ -100,9 +100,9 @@ export const register = async (
 			},
 		});
 
-		// Create verification record
-		const code = await makeCode();
-		const verificationId = await makeVerificationId();
+		// Create new code
+		const code = (await makeCode())();
+		const verificationId = (await makeVerificationId())();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
 		await prisma.email.create({
