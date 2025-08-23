@@ -1,4 +1,3 @@
-
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "builds": [
@@ -8,18 +7,6 @@
       "config": {
         "maxDuration": 10,
         "runtime": "nodejs22.x",
-        "includeFiles": [
-          "src/**/*",
-          "prisma/**/*",
-          "node_modules/**/*",
-          "package.json",
-          "package-lock.json",
-          "tsconfig.json",
-          "vercel.json",
-          "prisma/schema.prisma",
-          "prisma/migrations/**/*",
-          "prisma/seeds/**/*"
-        ],
         "installCommand": "npm install --legacy-peer-deps",
         "buildCommand": "npm run build",
         "postInstallCommand": "npm run prisma:generate --no-engine"
