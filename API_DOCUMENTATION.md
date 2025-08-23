@@ -24,6 +24,7 @@
   - [Recommendations](#recommendation-endpoints)
   - [Analytics](#analytics-endpoints)
   - [Business/Advertising](#business-endpoints)
+  - [Credits](#credits-endpoints)
   - [Payments](#payment-endpoints)
   - [ActivityPub Federation](#activitypub-endpoints)
   - [Well-Known](#well-known-endpoints)
@@ -2023,6 +2024,10 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
+**Error Responses:**
+- `400`: Insufficient credits for campaign budget
+- `404`: Target post/user not found
+
 #### Get Ad Campaigns
 ```http
 GET /v1/business/campaigns
@@ -2136,6 +2141,125 @@ Authorization: Bearer <jwt_token>
   }
 }
 ```
+
+---
+
+### Credits Endpoints
+
+#### Get User Credits
+```http
+GET /v1/credits
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "credits": 2500,
+  "creditsDisplay": "₱25.00"
+}
+```
+
+#### Get Credit Packages
+```http
+GET /v1/credits/packages
+```
+
+**Response (200):**
+```json
+{
+  "packages": [
+    {
+      "amount": 500,
+      "credits": 500,
+      "bonus": 0,
+      "popular": false,
+      "description": "Starter pack for small campaigns",
+      "totalCredits": 500,
+      "priceInPHP": 5.00,
+      "priceDisplay": "₱5.00"
+    },
+    {
+      "amount": 1000,
+      "credits": 1000,
+      "bonus": 100,
+      "popular": false,
+      "description": "Good for medium campaigns",
+      "totalCredits": 1100,
+      "priceInPHP": 10.00,
+      "priceDisplay": "₱10.00"
+    },
+    {
+      "amount": 2500,
+      "credits": 2500,
+      "bonus": 375,
+      "popular": true,
+      "description": "Most popular package",
+      "totalCredits": 2875,
+      "priceInPHP": 25.00,
+      "priceDisplay": "₱25.00"
+    },
+    {
+      "amount": 5000,
+      "credits": 5000,
+      "bonus": 1000,
+      "popular": false,
+      "description": "Best value for large campaigns",
+      "totalCredits": 6000,
+      "priceInPHP": 50.00,
+      "priceDisplay": "₱50.00"
+    },
+    {
+      "amount": 10000,
+      "credits": 10000,
+      "bonus": 2500,
+      "popular": false,
+      "description": "Professional package",
+      "totalCredits": 12500,
+      "priceInPHP": 100.00,
+      "priceDisplay": "₱100.00"
+    }
+  ]
+}
+```
+
+#### Purchase Credits
+```http
+POST /v1/credits/purchase
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "amount": 2500,
+  "paymentMethodId": "pm_123456789"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Credit purchase initiated - complete payment to add credits",
+  "paymentIntentId": "pi_123456789",
+  "provider": "paypal",
+  "approveUrl": "https://paypal.com/approve/...",
+  "amount": 2500,
+  "currency": "PHP",
+  "description": "Ad Campaign Credits - ₱25.00"
+}
+```
+
+**Error Responses:**
+- `400`: Invalid amount or payment method
+- `404`: User or payment method not found
+
+#### Credits PayPal Webhook
+```http
+POST /v1/credits/webhook/paypal
+```
+
+Handles PayPal webhook events for credit purchases.
 
 ---
 
@@ -2575,6 +2699,7 @@ GET /.well-known/nodeinfo/2.0
   subscription: "free" | "premium" | "pro";
   nextBillingDate?: Date;
   hasBlueCheck: boolean;
+  credits: number; // Credits for ad campaigns in centavos
   privacy?: {
     profile: "public" | "private";
     comments: "public" | "followers" | "private";
