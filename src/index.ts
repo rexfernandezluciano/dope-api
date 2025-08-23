@@ -24,9 +24,9 @@ import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 
-// Import activitypub-express and controllers
-import { createActivityPubApp } from "./config/activitypub"; // Assuming this path is correct for your setup
-import { webfinger } from "./controllers/activitypub.controller"; // Assuming this path is correct
+// Import ActivityPub controller
+import { webfinger } from "./controllers/activitypub.controller";
+import activityPubRoutes from "./routes/activitypub.routes";
 // Import error handlers
 import {
 	errorHandler,
@@ -105,11 +105,8 @@ async function startServer() {
 	app.use(`${API_VERSION}/business`, businessRoutes);
 	app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
-	// Initialize ActivityPub
-	const apex = await createActivityPubApp();
-
-	// Apply ActivityPub middleware
-	app.use(apex);
+	// ActivityPub routes
+	app.use('/activitypub', activityPubRoutes);
 
 	// WebFinger endpoint (must be at root)
 	app.get("/.well-known/webfinger", asyncHandler(webfinger));
