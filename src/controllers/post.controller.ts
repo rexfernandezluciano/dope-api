@@ -628,7 +628,7 @@ export const updatePost = async (req: Request, res: Response) => {
 			content?: string | null;
 			imageUrls?: string[];
 			liveVideoUrl?: string | null;
-			postType?: "text" | "live_video";
+			postType?: "text" | "live_video" | "poll";
 			privacy?: "public" | "private" | "followers";
 		} = {};
 		if (data.content !== undefined) updateData.content = data.content;
