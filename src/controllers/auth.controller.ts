@@ -290,32 +290,32 @@ export const googleLogin = async (req: Request, res: Response) => {
 
 				try {
 					const { createUserSession } = await import('../middleware/session.middleware');
-					const session = await createUserSession(user.uid, req.sessionID, req);
+					const session = await createUserSession(user!.uid, req.sessionID, req);
 
 					const token = signToken({
-						uid: user.uid,
-						email: user.email,
-						username: user.username,
+						uid: user!.uid,
+						email: user!.email,
+						username: user!.username,
 					});
 
 					return res.json({
 						token,
 						sessionId: session.id,
 						user: {
-							uid: user.uid,
-							name: user.name,
-							email: user.email,
-							username: user.username,
-							photoURL: user.photoURL,
-							hasBlueCheck: user.hasBlueCheck,
+							uid: user!.uid,
+							name: user!.name,
+							email: user!.email,
+							username: user!.username,
+							photoURL: user!.photoURL,
+							hasBlueCheck: user!.hasBlueCheck,
 							membership: {
-								subscription: user.subscription,
-								nextBillingDate: user.nextBillingDate,
+								subscription: user!.subscription,
+								nextBillingDate: user!.nextBillingDate,
 							},
-							privacy: user.privacy,
-							hasVerifiedEmail: user.hasVerifiedEmail,
-							createdAt: user.createdAt,
-							updatedAt: user.updatedAt,
+							privacy: user!.privacy,
+							hasVerifiedEmail: user!.hasVerifiedEmail,
+							createdAt: user!.createdAt,
+							updatedAt: user!.updatedAt,
 						},
 					});
 				} catch (sessionError) {
@@ -365,6 +365,10 @@ export const googleLogin = async (req: Request, res: Response) => {
 				if (loginErr) {
 					console.error("Google new user session error:", loginErr);
 					return res.status(500).json({ message: "Session creation failed" });
+				}
+
+				if (!user) {
+					return res.status(500).json({ message: "User creation failed" });
 				}
 
 				try {
