@@ -3,6 +3,23 @@ import { connect } from "../database/database";
 import { activityPubConfig, getBaseUrl } from "../config/activitypub";
 import crypto from "crypto";
 
+// ActivityPub Actor interface
+interface ActorData {
+	id: string;
+	type: string;
+	inbox: string;
+	outbox?: string;
+	followers?: string;
+	following?: string;
+	publicKey?: {
+		id: string;
+		owner: string;
+		publicKeyPem: string;
+	};
+	preferredUsername?: string;
+	name?: string;
+}
+
 let prisma: any;
 
 (async () => {
@@ -322,7 +339,7 @@ export const deliverActivityToFollowers = async (activity: any, authorUsername: 
 
 				if (!response.ok) continue;
 
-				const actor = await response.json();
+				const actor = await response.json() as ActorData;
 				const inboxUrl = actor.inbox;
 
 				if (!inboxUrl) continue;
@@ -621,7 +638,7 @@ async function handleFollowActivity(activity: any, user: any, req: any) {
 				});
 
 				if (actorResponse.ok) {
-					const actorData = await actorResponse.json();
+					const actorData = await actorResponse.json() as ActorData;
 					if (actorData.inbox) {
 						console.log(`Sending Accept activity to ${actorData.inbox}`);
 						const success = await deliverActivity(
