@@ -1,5 +1,5 @@
 
-import { ActivitypubExpress } from 'activitypub-express';
+import ActivitypubExpress from 'activitypub-express';
 import { connect } from '../database/database';
 
 let prisma: any;

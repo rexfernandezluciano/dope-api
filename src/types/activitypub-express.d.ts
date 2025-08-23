@@ -38,5 +38,6 @@ declare module 'activitypub-express' {
     onActivity: (activity: any, recipient: any) => Promise<void>;
   }
 
+  export default function ActivitypubExpress(options: ActivityPubExpressOptions): ActivityPubExpress;
   export function ActivitypubExpress(options: ActivityPubExpressOptions): ActivityPubExpress;
 }
