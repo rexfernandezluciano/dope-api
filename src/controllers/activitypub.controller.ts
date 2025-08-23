@@ -137,7 +137,7 @@ export const getActor = async (req: Request, res: Response) => {
 				"https://w3id.org/security/v1",
 				{
 					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
-					"toot": "http://joinmastodon.org/ns#",
+					"toot": "http://dopp.eu.org",
 					"featured": {
 						"@id": "toot:featured",
 						"@type": "@id"
@@ -300,7 +300,8 @@ export const getOutbox = async (req: Request, res: Response) => {
 		// Get recent public posts with author info
 		const posts = await prisma.post.findMany({
 			where: {
-				authorUid: user.uid,
+				authorId
+					: user.uid,
 				privacy: "public",
 			},
 			orderBy: { createdAt: "desc" },
