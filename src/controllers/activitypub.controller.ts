@@ -90,8 +90,8 @@ export const getActor = async (req: Request, res: Response) => {
 				name: true,
 				bio: true,
 				profilePic: true,
-				followersCount: true,
-				followingCount: true,
+				followers: true,
+				following: true,
 				userKeys: true
 			}
 		});
