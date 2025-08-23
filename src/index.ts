@@ -23,17 +23,14 @@ import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 import pollRoutes from "./routes/poll.routes";
-import creditsRoutes from './routes/credits.routes';
+import creditsRoutes from "./routes/credits.routes";
 
 // Import Swagger configuration
 import { specs, swaggerUi } from "./config/swagger";
 
 import activityPubRoutes from "./routes/activitypub.routes";
 // Import error handlers
-import {
-	errorHandler,
-	notFoundHandler,
-} from "./middleware/error.middleware";
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
 dotenv.config();
 
@@ -59,7 +56,7 @@ const authLimiter = rateLimit({
 	max: 30, // Limit each IP to 30 auth requests per windowMs
 	message: {
 		error: "Too many authentication attempts, please try again later.",
-		retryAfter: "3 minutes"
+		retryAfter: "3 minutes",
 	},
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -151,7 +148,7 @@ app.use("/activitypub", activityPubRoutes);
 
 // OAuth routes
 const oauthRoutes = require("./routes/oauth.routes").default;
-app.use("/oauth", oauthRoutes);
+app.use(`${API_VERSION}/oauth`, oauthRoutes);
 
 // Well-known routes
 const wellKnownRoutes = require("./routes/well-known.routes").default;
@@ -161,16 +158,20 @@ app.use("/.well-known", wellKnownRoutes);
 app.use(`${API_VERSION}/polls`, pollRoutes);
 
 // Swagger API documentation
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'DOPE Network API Documentation',
-  customfavIcon: '/favicon.ico'
-}));
+app.use(
+	"/api/docs",
+	swaggerUi.serve,
+	swaggerUi.setup(specs, {
+		customCss: ".swagger-ui .topbar { display: none }",
+		customSiteTitle: "DOPE Network API Documentation",
+		customfavIcon: "/favicon.ico",
+	}),
+);
 
 // API docs JSON endpoint
-app.get('/api-docs.json', (req: Request, res: Response) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(specs);
+app.get("/api-docs.json", (req: Request, res: Response) => {
+	res.setHeader("Content-Type", "application/json");
+	res.send(specs);
 });
 
 // User profile endpoint with ActivityPub content negotiation
@@ -198,7 +199,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // For local development
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV !== "production") {
 	const PORT = process.env.PORT || 5000;
 	app.listen(PORT as number, "0.0.0.0", () => {
 		console.log(`Server running on port ${PORT}`);
