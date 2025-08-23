@@ -77,7 +77,8 @@ const PaymentMethodSchema = z
       return true;
     },
     {
-      message: "Required fields are missing for the selected payment method",
+      message: "For paypal_card: either paypalPaymentMethodId OR (last4, expiryMonth, expiryYear, holderName) required. For paypal_wallet: either paypalEmail OR paypalPaymentMethodId required.",
+      path: ["type"], // This will show the error on the type field
     },
   );
 
