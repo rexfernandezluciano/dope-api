@@ -42,6 +42,7 @@ model User {
   adCampaigns    AdCampaign[]
   userKeys       UserKeys?
   federatedFollows FederatedFollow[]
+  pollVotes      PollVote[]
 }
 
 model Post {
@@ -62,11 +63,13 @@ model Post {
   mentions  Mention[]
   hashtags  Hashtag[]
   federatedLikes FederatedLike[]
+  poll      Poll?
 }
 
 enum PostType {
   text
   live_video
+  poll
 }
 
 model Comment {
@@ -390,4 +393,48 @@ model FederatedPost {
   activityId String @unique
   published  DateTime
   createdAt  DateTime @default(now())
+}
+
+model Poll {
+  id          String   @id @default(cuid())
+  postId      String   @unique
+  question    String
+  expiresAt   DateTime?
+  allowMultiple Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  options PollOption[]
+  votes   PollVote[]
+}
+
+model PollOption {
+  id       String @id @default(cuid())
+  pollId   String
+  text     String
+  position Int
+  createdAt DateTime @default(now())
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@unique([pollId, position])
+}
+
+model PollVote {
+  id         String @id @default(cuid())
+  pollId     String
+  optionId   String
+  userId     String?
+  actorUrl   String? // For federated votes
+  activityId String? // For federated activities
+  createdAt  DateTime @default(now())
+
+  poll   Poll        @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  option PollOption  @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  user   User?       @relation(fields: [userId], references: [uid], onDelete: Cascade)
+
+  @@unique([pollId, userId])
+  @@unique([pollId, actorUrl])
 }

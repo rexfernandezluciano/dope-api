@@ -21,6 +21,7 @@ import contentRoutes from "./routes/content.routes";
 import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
+import pollRoutes from "./routes/poll.routes";
 
 // Import ActivityPub controller
 import { webfinger } from "./controllers/activitypub.controller";
@@ -123,6 +124,10 @@ app.use("/oauth", oauthRoutes);
 // Well-known routes
 const wellKnownRoutes = require("./routes/well-known.routes").default;
 app.use("/.well-known", wellKnownRoutes);
+
+// Poll routes
+app.use("/api/polls", pollRoutes);
+
 
 // User profile endpoint with ActivityPub content negotiation
 app.get("/@:username", (req: Request, res: Response) => {

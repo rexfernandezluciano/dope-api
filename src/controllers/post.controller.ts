@@ -15,6 +15,17 @@ let prisma: any;
 	prisma = await connect();
 })();
 
+const CreatePollOptionSchema = z.object({
+	text: z.string().min(1).max(100)
+});
+
+const CreatePollSchema = z.object({
+	question: z.string().min(1).max(500),
+	options: z.array(CreatePollOptionSchema).min(2).max(10),
+	expiresIn: z.number().min(5).max(10080).optional(), // 5 minutes to 7 days in minutes
+	allowMultiple: z.boolean().default(false)
+});
+
 const CreatePostSchema = z
 	.object({
 		content: z.string().min(1).max(1000).optional(),
@@ -23,19 +34,23 @@ const CreatePostSchema = z
 			.string()
 			.regex(new RegExp(/^https?:\/\/.*/))
 			.optional(),
-		postType: z.enum(["text", "live_video"]).default("text"),
+		postType: z.enum(["text", "live_video", "poll"]).default("text"),
 		privacy: z.enum(["public", "private", "followers"]).default("public"),
+		poll: CreatePollSchema.optional()
 	})
 	.refine(
 		(data) => {
 			if (data.postType === "live_video") {
 				return data.liveVideoUrl; // Live video posts must have a video URL
 			}
+			if (data.postType === "poll") {
+				return data.poll; // Poll posts must have poll data
+			}
 			return data.content || (data.imageUrls && data.imageUrls.length > 0);
 		},
 		{
 			message:
-				"Text posts must have either content or at least one image. Live video posts must have a video URL.",
+				"Text posts must have either content or at least one image. Live video posts must have a video URL. Poll posts must have poll data.",
 		},
 	);
 
@@ -43,7 +58,7 @@ const UpdatePostSchema = z.object({
 	content: z.string().min(1).max(1000).optional(),
 	imageUrls: z.array(z.string().url()).max(10).optional(),
 	liveVideoUrl: z.string().url().optional(),
-	postType: z.enum(["text", "live_video"]).optional(),
+	postType: z.enum(["text", "live_video", "poll"]).optional(),
 	privacy: z.enum(["public", "private", "followers"]),
 });
 
@@ -167,6 +182,21 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 					},
 				},
+				poll: {
+					include: {
+						options: {
+							include: {
+								_count: {
+									select: { votes: true }
+								}
+							},
+							orderBy: { position: 'asc' }
+						},
+						_count: {
+							select: { votes: true }
+						}
+					}
+				},
 				analytics: true,
 				_count: {
 					select: {
@@ -228,6 +258,35 @@ export const getPosts = async (req: Request, res: Response) => {
 		const { parseMentionsToNames } = await import('../utils/mentions');
 
 		const output = await Promise.all(postsToReturn.map(async (p: any) => {
+			// Get user's votes if authenticated and post has a poll
+			let userVotes = [];
+			if (authUser && p.poll) {
+				userVotes = await prisma.pollVote.findMany({
+					where: {
+						pollId: p.poll.id,
+						userId: authUser.uid
+					}
+				});
+			}
+
+			const pollData = p.poll ? {
+				id: p.poll.id,
+				question: p.poll.question,
+				expiresAt: p.poll.expiresAt,
+				allowMultiple: p.poll.allowMultiple,
+				isExpired: p.poll.expiresAt ? p.poll.expiresAt < new Date() : false,
+				totalVotes: p.poll._count.votes,
+				options: p.poll.options.map((option: any) => ({
+					id: option.id,
+					text: option.text,
+					position: option.position,
+					votes: option._count.votes,
+					percentage: p.poll._count.votes > 0 ? Math.round((option._count.votes / p.poll._count.votes) * 100) : 0,
+					isUserChoice: userVotes.some((vote: any) => vote.optionId === option.id)
+				})),
+				hasUserVoted: userVotes.length > 0
+			} : null;
+
 			return {
 				id: p.id,
 				content: p.content ? await parseMentionsToNames(p.content) : p.content,
@@ -268,6 +327,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				postType: p.postType,
 				liveVideoUrl: p.liveVideoUrl,
 				privacy: p.privacy,
+				poll: pollData,
 			};
 		}));
 
@@ -408,7 +468,7 @@ export const getPost = async (req: Request, res: Response) => {
 export const createPost = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as User;
-		const { content, imageUrls, liveVideoUrl, postType, privacy } =
+		const { content, imageUrls, liveVideoUrl, postType, privacy, poll } =
 			CreatePostSchema.parse(req.body);
 
 		// Import content moderation
@@ -466,6 +526,28 @@ export const createPost = async (req: Request, res: Response) => {
 				},
 			},
 		});
+
+		// Create poll if it's a poll post
+		if (postType === "poll" && poll) {
+			const expiresAt = poll.expiresIn 
+				? new Date(Date.now() + poll.expiresIn * 60 * 1000)
+				: null;
+
+			await prisma.poll.create({
+				data: {
+					postId: newPost.id,
+					question: poll.question,
+					expiresAt: expiresAt,
+					allowMultiple: poll.allowMultiple,
+					options: {
+						create: poll.options.map((option, index) => ({
+							text: option.text,
+							position: index
+						}))
+					}
+				}
+			});
+		}
 
 		// Return the created post with author information
 		const postWithAuthor = await prisma.post.findUnique({

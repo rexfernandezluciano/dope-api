@@ -289,6 +289,11 @@ export const handleInbox = async (req: Request, res: Response) => {
 					await handleCreateNoteActivity(activity, user);
 				}
 				break;
+			case "Accept":
+				if (activity.object?.type === "Question") {
+					await handlePollVoteActivity(activity, user);
+				}
+				break;
 			default:
 				console.log(`Unhandled activity type: ${activity.type}`);
 		}
@@ -303,6 +308,44 @@ export const handleInbox = async (req: Request, res: Response) => {
 // Create outbound activity for a post
 export const createPostActivity = async (post: any, author: any, baseUrl: string) => {
 	const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
+	
+	// Get poll data if this is a poll post
+	let pollData = null;
+	if (post.postType === 'poll') {
+		const poll = await prisma.poll.findUnique({
+			where: { postId: post.id },
+			include: {
+				options: {
+					orderBy: { position: 'asc' }
+				}
+			}
+		});
+		
+		if (poll) {
+			pollData = {
+				type: "Question",
+				name: poll.question,
+				endTime: poll.expiresAt ? poll.expiresAt.toISOString() : undefined,
+				oneOf: poll.allowMultiple ? undefined : poll.options.map((option: any, index: number) => ({
+					type: "Note",
+					name: option.text,
+					replies: {
+						type: "Collection",
+						totalItems: 0
+					}
+				})),
+				anyOf: poll.allowMultiple ? poll.options.map((option: any, index: number) => ({
+					type: "Note", 
+					name: option.text,
+					replies: {
+						type: "Collection",
+						totalItems: 0
+					}
+				})) : undefined
+			};
+		}
+	}
+
 	return {
 		id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
 		type: "Create",
@@ -310,7 +353,7 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 		published: post.createdAt.toISOString(),
 		to: ["https://www.w3.org/ns/activitystreams#Public"],
 		cc: [`${baseUrl}/activitypub/users/${author.username}/followers`],
-		object: {
+		object: pollData || {
 			id: `${baseUrl}/activitypub/posts/${post.id}`,
 			type: "Note",
 			summary: null,
@@ -773,6 +816,59 @@ async function handleCreateNoteActivity(activity: any, user: any) {
 
 	} catch (error) {
 		console.error("Error handling create note activity:", error);
+	}
+}
+
+async function handlePollVoteActivity(activity: any, user: any) {
+	try {
+		console.log(`${activity.actor} voted on a poll`);
+
+		const question = activity.object;
+		
+		// Extract poll ID from the question URL
+		const questionUrl = question.id || question;
+		const postIdMatch = questionUrl.match(/\/activitypub\/posts\/([^\/]+)$/);
+
+		if (postIdMatch) {
+			const postId = postIdMatch[1];
+
+			// Find the poll for this post
+			const poll = await prisma.poll.findFirst({
+				where: { postId: postId },
+				include: { options: true }
+			});
+
+			if (poll) {
+				// Extract chosen option from activity
+				const chosenOption = activity.object?.name || activity.name;
+				const pollOption = poll.options.find((option: any) => option.text === chosenOption);
+
+				if (pollOption) {
+					// Store the federated poll vote
+					await prisma.pollVote.upsert({
+						where: {
+							pollId_actorUrl: {
+								pollId: poll.id,
+								actorUrl: activity.actor
+							}
+						},
+						update: {
+							optionId: pollOption.id,
+							activityId: activity.id
+						},
+						create: {
+							pollId: poll.id,
+							optionId: pollOption.id,
+							actorUrl: activity.actor,
+							activityId: activity.id
+						}
+					});
+				}
+			}
+		}
+
+	} catch (error) {
+		console.error("Error handling poll vote activity:", error);
 	}
 }
 
