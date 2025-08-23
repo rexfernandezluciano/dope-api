@@ -566,6 +566,95 @@ export const getFollowers = async (req: Request, res: Response) => {
 	}
 };
 
+// Get individual post as ActivityPub Note
+export const getPost = async (req: Request, res: Response) => {
+	try {
+		const { postId } = req.params;
+		
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			include: {
+				author: {
+					select: {
+						uid: true,
+						username: true,
+						name: true,
+						photoURL: true
+					}
+				}
+			}
+		});
+
+		if (!post || post.privacy !== 'public') {
+			return res.status(404).json({ error: "Post not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const userUrl = `${baseUrl}/activitypub/users/${post.author.username}`;
+		const postUrl = `${baseUrl}/activitypub/posts/${post.id}`;
+
+		// Parse mentions (@uid) to display names
+		const processedContent = await parseMentionsToNames(post.content || "");
+
+		const note = {
+			"@context": [
+				"https://www.w3.org/ns/activitystreams",
+				"https://w3id.org/security/v1"
+			],
+			id: postUrl,
+			type: "Note",
+			summary: null,
+			content: processedContent,
+			attributedTo: userUrl,
+			to: ["https://www.w3.org/ns/activitystreams#Public"],
+			published: post.createdAt.toISOString(),
+			attachment: post.imageUrls?.map((url: string) => ({
+				type: "Image",
+				mediaType: "image/jpeg",
+				url: url
+			})) || []
+		};
+
+		res.setHeader('Content-Type', 'application/activity+json');
+		res.json(note);
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve post" });
+	}
+};
+
+// Get post activity (Create activity wrapping the Note)
+export const getPostActivity = async (req: Request, res: Response) => {
+	try {
+		const { postId } = req.params;
+		
+		const post = await prisma.post.findUnique({
+			where: { id: postId },
+			include: {
+				author: {
+					select: {
+						uid: true,
+						username: true,
+						name: true,
+						photoURL: true
+					}
+				}
+			}
+		});
+
+		if (!post || post.privacy !== 'public') {
+			return res.status(404).json({ error: "Post not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const activity = await convertPostToActivity(post, baseUrl);
+
+		res.setHeader('Content-Type', 'application/activity+json');
+		res.json(activity);
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve post activity" });
+	}
+};
+
 // Get user following collection
 export const getFollowing = async (req: Request, res: Response) => {
 	try {
