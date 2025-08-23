@@ -33,7 +33,7 @@ export const getUserSessions = async (req: Request, res: Response) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    const formattedSessions = sessions.map(session => {
+    const formattedSessions = sessions.map((session: any) => {
       const sessionData = session.data as any;
       return {
         id: session.id,
