@@ -132,7 +132,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 						select: { uid: true }
 					});
-					ageGroupAuthors.push(...usersInAgeRange.map(u => u.uid));
+					ageGroupAuthors.push(...usersInAgeRange.map((u: any) => u.uid));
 				}
 
 				if (currentUser.gender) {
@@ -146,7 +146,7 @@ export const getPosts = async (req: Request, res: Response) => {
 						},
 						select: { uid: true }
 					});
-					genderMatchAuthors.push(...usersWithSameGender.map(u => u.uid));
+					genderMatchAuthors.push(...usersWithSameGender.map((u: any) => u.uid));
 				}
 
 				// Combine filters - prioritize posts from users with matching demographics

@@ -352,6 +352,8 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 		}
 	}
 
+	const { parseMentionsToNames } = await import('../utils/mentions');
+
 	return {
 		id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
 		type: "Create",
@@ -363,7 +365,7 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 			id: `${baseUrl}/activitypub/posts/${post.id}`,
 			type: "Note",
 			summary: null,
-			content: post.content,
+			content: parseMentionsToNames(post.content),
 			attributedTo: `${baseUrl}/activitypub/users/${author.username}`,
 			published: post.createdAt.toISOString(),
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
@@ -499,6 +501,8 @@ export const getOutbox = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: 'User not found' });
 		}
 
+		const { parseMentionsToNames } = await import('../utils/mentions');
+
 		const activities = user.posts.map((post: any) => ({
 			'@context': 'https://www.w3.org/ns/activitystreams',
 			id: `${baseUrl}/activitypub/users/${username}/posts/${post.id}#activity`,
@@ -509,7 +513,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 				id: `${baseUrl}/activitypub/users/${username}/posts/${post.id}`,
 				type: 'Note',
 				summary: null,
-				content: post.content,
+				content: parseMentionsToNames(post.content),
 				attributedTo: `${baseUrl}/activitypub/users/${username}`,
 				published: post.createdAt.toISOString(),
 				to: ['https://www.w3.org/ns/activitystreams#Public'],
