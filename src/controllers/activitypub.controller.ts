@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { parseMentionsToNames } from "../utils/mentions";
@@ -14,8 +13,8 @@ let prisma: any;
 export const webfinger = async (req: Request, res: Response) => {
 	try {
 		const { resource } = req.query;
-		
-		if (!resource || typeof resource !== 'string') {
+
+		if (!resource || typeof resource !== "string") {
 			return res.status(400).json({ error: "Missing resource parameter" });
 		}
 
@@ -26,46 +25,50 @@ export const webfinger = async (req: Request, res: Response) => {
 		}
 
 		const [, username, domain] = match;
-		
+
 		if (!username || !domain) {
 			return res.status(400).json({ error: "Invalid resource format" });
 		}
-		
-		const expectedDomain = req.get('host');
-		
+
+		const expectedDomain = req.get("host");
+
 		// Handle domain matching more flexibly
 		const normalizedDomain = domain.toLowerCase();
 		const normalizedExpected = expectedDomain?.toLowerCase();
-		
+
 		// Also check against known domain variants
-		const knownDomains = ['dopp.eu.org', 'api.dopp.eu.org'];
-		const isDomainValid = normalizedDomain === normalizedExpected || knownDomains.includes(normalizedDomain);
+		const knownDomains = ["dopp.eu.org", "api.dopp.eu.org"];
+		const isDomainValid =
+			normalizedDomain === normalizedExpected ||
+			knownDomains.includes(normalizedDomain);
 
 		if (!isDomainValid) {
-			console.log(`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, host=${req.get('host')}`);
+			console.log(
+				`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, host=${req.get("host")}`,
+			);
 			return res.status(404).json({ error: "User not found on this domain" });
 		}
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true, name: true }
+			select: { uid: true, username: true, name: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}/activitypub`;
-		
+		const baseUrl = `${req.protocol}://${req.get("host")}/activitypub`;
+
 		res.json({
 			subject: resource,
 			links: [
 				{
 					rel: "self",
 					type: "application/activity+json",
-					href: `${baseUrl}/users/${username}`
-				}
-			]
+					href: `${baseUrl}/users/${username}`,
+				},
+			],
 		});
 	} catch (error) {
 		res.status(500).json({ error: "WebFinger lookup failed" });
@@ -76,7 +79,7 @@ export const webfinger = async (req: Request, res: Response) => {
 export const getActor = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
 			select: {
@@ -91,17 +94,17 @@ export const getActor = async (req: Request, res: Response) => {
 					select: {
 						posts: true,
 						followers: true,
-						following: true
-					}
-				}
-			}
+						following: true,
+					},
+				},
+			},
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const userUrl = `${baseUrl}/activitypub/users/${username}`;
 
 		const actor = {
@@ -109,58 +112,60 @@ export const getActor = async (req: Request, res: Response) => {
 				"https://www.w3.org/ns/activitystreams",
 				"https://w3id.org/security/v1",
 				{
-					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
-					"toot": "http://joinmastodon.org/ns#",
-					"featured": {
+					manuallyApprovesFollowers: "as:manuallyApprovesFollowers",
+					toot: "http://joinmastodon.org/ns#",
+					featured: {
 						"@id": "toot:featured",
-						"@type": "@id"
+						"@type": "@id",
 					},
-					"featuredTags": {
+					featuredTags: {
 						"@id": "toot:featuredTags",
-						"@type": "@id"
+						"@type": "@id",
 					},
-					"alsoKnownAs": {
+					alsoKnownAs: {
 						"@id": "as:alsoKnownAs",
-						"@type": "@id"
+						"@type": "@id",
 					},
-					"movedTo": {
+					movedTo: {
 						"@id": "as:movedTo",
-						"@type": "@id"
+						"@type": "@id",
 					},
-					"schema": "http://schema.org#",
-					"PropertyValue": "schema:PropertyValue",
-					"value": "schema:value",
-					"discoverable": "toot:discoverable",
-					"suspended": "toot:suspended",
-					"memorial": "toot:memorial",
-					"indexable": "toot:indexable",
-					"attributionDomains": {
+					schema: "http://schema.org#",
+					PropertyValue: "schema:PropertyValue",
+					value: "schema:value",
+					discoverable: "toot:discoverable",
+					suspended: "toot:suspended",
+					memorial: "toot:memorial",
+					indexable: "toot:indexable",
+					attributionDomains: {
 						"@id": "toot:attributionDomains",
-						"@type": "@id"
+						"@type": "@id",
 					},
-					"focalPoint": {
+					focalPoint: {
 						"@container": "@list",
-						"@id": "toot:focalPoint"
-					}
-				}
+						"@id": "toot:focalPoint",
+					},
+				},
 			],
 			id: userUrl,
 			type: "Person",
 			preferredUsername: user.username,
 			name: user.name || user.username,
 			summary: user.bio || "",
-			url: `${baseUrl}/@${user.username}`,
+			url: `${process.env.FRONTEND_URL ?? baseUrl}/@${user.username}`,
 			manuallyApprovesFollowers: false,
 			discoverable: true,
 			indexable: true,
 			published: user.createdAt.toISOString(),
 			memorial: false,
 			suspended: false,
-			icon: user.photoURL ? {
-				type: "Image",
-				mediaType: "image/jpeg",
-				url: user.photoURL
-			} : undefined,
+			icon: user.photoURL
+				? {
+						type: "Image",
+						mediaType: "image/jpeg",
+						url: user.photoURL,
+					}
+				: undefined,
 			inbox: `${userUrl}/inbox`,
 			outbox: `${userUrl}/outbox`,
 			followers: `${userUrl}/followers`,
@@ -170,16 +175,16 @@ export const getActor = async (req: Request, res: Response) => {
 			publicKey: {
 				id: `${userUrl}#main-key`,
 				owner: userUrl,
-				publicKeyPem: await getOrCreateUserPublicKey(user.uid)
+				publicKeyPem: await getOrCreateUserPublicKey(user.uid),
 			},
 			tag: [],
 			attachment: [],
 			endpoints: {
-				sharedInbox: `${baseUrl}/activitypub/inbox`
-			}
+				sharedInbox: `${baseUrl}/activitypub/inbox`,
+			},
 		};
 
-		res.setHeader('Content-Type', 'application/activity+json');
+		res.setHeader("Content-Type", "application/activity+json");
 		res.json(actor);
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve actor" });
@@ -191,17 +196,17 @@ export const getOutbox = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
 		const { page } = req.query;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const outboxUrl = `${baseUrl}/activitypub/users/${username}/outbox`;
 
 		if (!page) {
@@ -209,17 +214,17 @@ export const getOutbox = async (req: Request, res: Response) => {
 			const postCount = await prisma.post.count({
 				where: {
 					authorId: user.uid,
-					privacy: "public"
-				}
+					privacy: "public",
+				},
 			});
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: outboxUrl,
 				type: "OrderedCollection",
 				totalItems: postCount,
-				first: `${outboxUrl}?page=1`
+				first: `${outboxUrl}?page=1`,
 			});
 		} else {
 			// Return paginated posts
@@ -229,7 +234,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 			const posts = await prisma.post.findMany({
 				where: {
 					authorId: user.uid,
-					privacy: "public"
+					privacy: "public",
 				},
 				include: {
 					author: {
@@ -237,26 +242,26 @@ export const getOutbox = async (req: Request, res: Response) => {
 							uid: true,
 							username: true,
 							name: true,
-							photoURL: true
-						}
-					}
+							photoURL: true,
+						},
+					},
 				},
 				orderBy: { createdAt: "desc" },
 				take: limit,
-				skip: offset
+				skip: offset,
 			});
 
 			const activities = await Promise.all(
-				posts.map((post: any) => convertPostToActivity(post, baseUrl))
+				posts.map((post: any) => convertPostToActivity(post, baseUrl)),
 			);
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: `${outboxUrl}?page=${page}`,
 				type: "OrderedCollectionPage",
 				partOf: outboxUrl,
-				orderedItems: activities
+				orderedItems: activities,
 			});
 		}
 	} catch (error) {
@@ -268,9 +273,9 @@ export const getOutbox = async (req: Request, res: Response) => {
 export const postInbox = async (req: Request, res: Response) => {
 	try {
 		const activity = req.body;
-		
+
 		// Verify HTTP signature (simplified - you'd want proper verification)
-		if (!await verifySignature(req)) {
+		if (!(await verifySignature(req))) {
 			return res.status(401).json({ error: "Invalid signature" });
 		}
 
@@ -324,12 +329,13 @@ async function convertPostToActivity(post: any, baseUrl: string) {
 			attributedTo: userUrl,
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			published: post.createdAt.toISOString(),
-			attachment: post.imageUrls?.map((url: string) => ({
-				type: "Image",
-				mediaType: "image/jpeg",
-				url: url
-			})) || []
-		}
+			attachment:
+				post.imageUrls?.map((url: string) => ({
+					type: "Image",
+					mediaType: "image/jpeg",
+					url: url,
+				})) || [],
+		},
 	};
 }
 
@@ -337,21 +343,21 @@ async function convertPostToActivity(post: any, baseUrl: string) {
 async function getOrCreateUserPublicKey(userId: string): Promise<string> {
 	// Check if user already has keys stored
 	let userKeys = await prisma.userKeys?.findUnique({
-		where: { userId }
+		where: { userId },
 	});
 
 	if (!userKeys) {
 		// Generate new RSA key pair
-		const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+		const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
 			modulusLength: 2048,
 			publicKeyEncoding: {
-				type: 'spki',
-				format: 'pem'
+				type: "spki",
+				format: "pem",
 			},
 			privateKeyEncoding: {
-				type: 'pkcs8',
-				format: 'pem'
-			}
+				type: "pkcs8",
+				format: "pem",
+			},
 		});
 
 		// Store keys (you'll need to add UserKeys model to schema)
@@ -359,8 +365,8 @@ async function getOrCreateUserPublicKey(userId: string): Promise<string> {
 			data: {
 				userId,
 				publicKey,
-				privateKey
-			}
+				privateKey,
+			},
 		});
 	}
 
@@ -379,20 +385,22 @@ async function handleFollowActivity(activity: any) {
 	try {
 		const actorUrl = activity.actor;
 		const objectUrl = activity.object;
-		
+
 		console.log(`Processing follow activity: ${actorUrl} -> ${objectUrl}`);
-		
+
 		// Extract username from object URL - handle both /activitypub/users/ and /users/ patterns
-		const match = objectUrl.match(/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/);
+		const match = objectUrl.match(
+			/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/,
+		);
 		if (!match) {
 			console.log(`Could not extract username from object URL: ${objectUrl}`);
 			return;
 		}
-		
+
 		const username = match[1];
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
@@ -405,9 +413,9 @@ async function handleFollowActivity(activity: any) {
 			where: {
 				actorUrl_followingId: {
 					actorUrl,
-					followingId: user.uid
-				}
-			}
+					followingId: user.uid,
+				},
+			},
 		});
 
 		if (existingFollow) {
@@ -421,28 +429,31 @@ async function handleFollowActivity(activity: any) {
 				actorUrl,
 				followingId: user.uid,
 				activityId: activity.id,
-				createdAt: new Date()
-			}
+				createdAt: new Date(),
+			},
 		});
 
 		console.log(`Created federated follow: ${actorUrl} -> ${user.username}`);
-		
+
 		// Send Accept activity back to the follower's inbox (Mastodon expects this)
 		await sendAcceptActivity(activity, actorUrl, user);
-		
 	} catch (error) {
 		console.error("Error handling follow activity:", error);
 	}
 }
 
 // Send Accept activity for follow requests
-async function sendAcceptActivity(followActivity: any, actorUrl: string, user: any) {
+async function sendAcceptActivity(
+	followActivity: any,
+	actorUrl: string,
+	user: any,
+) {
 	try {
 		// Fetch the remote actor to get their inbox
 		const actorResponse = await fetch(actorUrl, {
 			headers: {
-				'Accept': 'application/activity+json'
-			}
+				Accept: "application/activity+json",
+			},
 		});
 
 		if (!actorResponse.ok) {
@@ -458,35 +469,38 @@ async function sendAcceptActivity(followActivity: any, actorUrl: string, user: a
 			return;
 		}
 
-		const baseUrl = process.env.NODE_ENV === 'production' 
-			? 'https://dopp.eu.org' 
-			: 'http://localhost:3000';
+		const baseUrl =
+			process.env.NODE_ENV === "production"
+				? "https://dopp.eu.org"
+				: "http://localhost:3000";
 
 		const acceptActivity = {
 			"@context": "https://www.w3.org/ns/activitystreams",
 			id: `${baseUrl}/activitypub/activities/${crypto.randomUUID()}`,
 			type: "Accept",
 			actor: `${baseUrl}/activitypub/users/${user.username}`,
-			object: followActivity
+			object: followActivity,
 		};
 
 		// Send the Accept activity to the follower's inbox
 		const response = await fetch(inboxUrl, {
-			method: 'POST',
+			method: "POST",
 			headers: {
-				'Content-Type': 'application/activity+json',
-				'Accept': 'application/activity+json'
+				"Content-Type": "application/activity+json",
+				Accept: "application/activity+json",
 			},
-			body: JSON.stringify(acceptActivity)
+			body: JSON.stringify(acceptActivity),
 		});
 
 		if (response.ok) {
 			console.log(`Successfully sent Accept activity to ${inboxUrl}`);
 		} else {
-			console.error(`Failed to send Accept activity to ${inboxUrl}: ${response.status}`);
+			console.error(
+				`Failed to send Accept activity to ${inboxUrl}: ${response.status}`,
+			);
 		}
 	} catch (error) {
-		console.error('Error sending Accept activity:', error);
+		console.error("Error sending Accept activity:", error);
 	}
 }
 
@@ -495,37 +509,41 @@ async function handleUnfollowActivity(activity: any) {
 	try {
 		const actorUrl = activity.actor;
 		const followActivity = activity.object;
-		
+
 		console.log(`Processing unfollow activity: ${actorUrl}`);
-		
+
 		// Try to delete by actorUrl and original follow activity ID
 		const deletedFollow = await prisma.federatedFollow?.deleteMany({
 			where: {
 				actorUrl: actorUrl,
-				activityId: followActivity.id
-			}
+				activityId: followActivity.id,
+			},
 		});
 
 		// If that doesn't work, try deleting by actorUrl and the current user
 		if (!deletedFollow || deletedFollow.count === 0) {
 			const objectUrl = followActivity.object;
-			const match = objectUrl?.match(/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/);
-			
+			const match = objectUrl?.match(
+				/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/,
+			);
+
 			if (match) {
 				const username = match[1];
 				const user = await prisma.user.findUnique({
 					where: { username },
-					select: { uid: true }
+					select: { uid: true },
 				});
 
 				if (user) {
 					await prisma.federatedFollow?.deleteMany({
 						where: {
 							actorUrl: actorUrl,
-							followingId: user.uid
-						}
+							followingId: user.uid,
+						},
 					});
-					console.log(`Deleted federated follow by user lookup: ${actorUrl} -> ${username}`);
+					console.log(
+						`Deleted federated follow by user lookup: ${actorUrl} -> ${username}`,
+					);
 				}
 			}
 		} else {
@@ -541,20 +559,20 @@ async function handleLikeActivity(activity: any) {
 	try {
 		const objectUrl = activity.object;
 		const actorUrl = activity.actor;
-		
+
 		// Extract post ID from object URL
 		const match = objectUrl.match(/\/(?:activitypub\/)?posts\/(.+)$/);
 		if (!match) return;
-		
+
 		const postId = match[1];
-		
+
 		// Store federated like
 		await prisma.federatedLike?.create({
 			data: {
 				postId,
 				actorUrl,
-				activityId: activity.id
-			}
+				activityId: activity.id,
+			},
 		});
 	} catch (error) {
 		console.error("Error handling like activity:", error);
@@ -566,15 +584,15 @@ async function handleCreateNoteActivity(activity: any) {
 	try {
 		const note = activity.object;
 		const actorUrl = activity.actor;
-		
+
 		// Store federated post
 		await prisma.federatedPost?.create({
 			data: {
 				actorUrl,
 				content: note.content,
 				activityId: activity.id,
-				published: new Date(note.published)
-			}
+				published: new Date(note.published),
+			},
 		});
 	} catch (error) {
 		console.error("Error handling create note activity:", error);
@@ -586,39 +604,40 @@ export const getFollowers = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
 		const { page } = req.query;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const followersUrl = `${baseUrl}/activitypub/users/${username}/followers`;
 
 		if (!page) {
 			// Return followers collection summary
 			const followerCount = await prisma.follow.count({
-				where: { followingId: user.uid }
+				where: { followingId: user.uid },
 			});
 
 			// Also count federated followers
-			const federatedFollowerCount = await prisma.federatedFollow?.count({
-				where: { followingId: user.uid }
-			}) || 0;
+			const federatedFollowerCount =
+				(await prisma.federatedFollow?.count({
+					where: { followingId: user.uid },
+				})) || 0;
 
 			const totalFollowers = followerCount + federatedFollowerCount;
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: followersUrl,
 				type: "OrderedCollection",
 				totalItems: totalFollowers,
-				first: `${followersUrl}?page=1`
+				first: `${followersUrl}?page=1`,
 			});
 		} else {
 			// Return paginated followers
@@ -630,35 +649,42 @@ export const getFollowers = async (req: Request, res: Response) => {
 				where: { followingId: user.uid },
 				include: {
 					follower: {
-						select: { username: true }
-					}
+						select: { username: true },
+					},
 				},
 				take: limit,
-				skip: offset
+				skip: offset,
 			});
 
 			// Get federated followers
 			const remainingSlots = Math.max(0, limit - localFollowers.length);
-			const federatedFollowers = remainingSlots > 0 ? await prisma.federatedFollow?.findMany({
-				where: { followingId: user.uid },
-				take: remainingSlots,
-				skip: Math.max(0, offset - localFollowers.length)
-			}) || [] : [];
+			const federatedFollowers =
+				remainingSlots > 0
+					? (await prisma.federatedFollow?.findMany({
+							where: { followingId: user.uid },
+							take: remainingSlots,
+							skip: Math.max(0, offset - localFollowers.length),
+						})) || []
+					: [];
 
 			const followers = [
-				...localFollowers.map((f: any) => `${baseUrl}/activitypub/users/${f.follower.username}`),
-				...federatedFollowers.map((f: any) => f.actorUrl)
+				...localFollowers.map(
+					(f: any) => `${baseUrl}/activitypub/users/${f.follower.username}`,
+				),
+				...federatedFollowers.map((f: any) => f.actorUrl),
 			];
 
-			console.log(`Followers page ${page}: ${localFollowers.length} local + ${federatedFollowers.length} federated = ${followers.length} total`);
+			console.log(
+				`Followers page ${page}: ${localFollowers.length} local + ${federatedFollowers.length} federated = ${followers.length} total`,
+			);
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: `${followersUrl}?page=${page}`,
 				type: "OrderedCollectionPage",
 				partOf: followersUrl,
-				orderedItems: followers
+				orderedItems: followers,
 			});
 		}
 	} catch (error) {
@@ -670,7 +696,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 export const getPost = async (req: Request, res: Response) => {
 	try {
 		const { postId } = req.params;
-		
+
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
 			include: {
@@ -679,17 +705,17 @@ export const getPost = async (req: Request, res: Response) => {
 						uid: true,
 						username: true,
 						name: true,
-						photoURL: true
-					}
-				}
-			}
+						photoURL: true,
+					},
+				},
+			},
 		});
 
-		if (!post || post.privacy !== 'public') {
+		if (!post || post.privacy !== "public") {
 			return res.status(404).json({ error: "Post not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const userUrl = `${baseUrl}/activitypub/users/${post.author.username}`;
 		const postUrl = `${baseUrl}/activitypub/posts/${post.id}`;
 
@@ -699,7 +725,7 @@ export const getPost = async (req: Request, res: Response) => {
 		const note = {
 			"@context": [
 				"https://www.w3.org/ns/activitystreams",
-				"https://w3id.org/security/v1"
+				"https://w3id.org/security/v1",
 			],
 			id: postUrl,
 			type: "Note",
@@ -708,14 +734,15 @@ export const getPost = async (req: Request, res: Response) => {
 			attributedTo: userUrl,
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			published: post.createdAt.toISOString(),
-			attachment: post.imageUrls?.map((url: string) => ({
-				type: "Image",
-				mediaType: "image/jpeg",
-				url: url
-			})) || []
+			attachment:
+				post.imageUrls?.map((url: string) => ({
+					type: "Image",
+					mediaType: "image/jpeg",
+					url: url,
+				})) || [],
 		};
 
-		res.setHeader('Content-Type', 'application/activity+json');
+		res.setHeader("Content-Type", "application/activity+json");
 		res.json(note);
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve post" });
@@ -726,7 +753,7 @@ export const getPost = async (req: Request, res: Response) => {
 export const getPostActivity = async (req: Request, res: Response) => {
 	try {
 		const { postId } = req.params;
-		
+
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
 			include: {
@@ -735,20 +762,20 @@ export const getPostActivity = async (req: Request, res: Response) => {
 						uid: true,
 						username: true,
 						name: true,
-						photoURL: true
-					}
-				}
-			}
+						photoURL: true,
+					},
+				},
+			},
 		});
 
-		if (!post || post.privacy !== 'public') {
+		if (!post || post.privacy !== "public") {
 			return res.status(404).json({ error: "Post not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const activity = await convertPostToActivity(post, baseUrl);
 
-		res.setHeader('Content-Type', 'application/activity+json');
+		res.setHeader("Content-Type", "application/activity+json");
 		res.json(activity);
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve post activity" });
@@ -759,23 +786,23 @@ export const getPostActivity = async (req: Request, res: Response) => {
 export const getFeatured = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
-		
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
+
 		// Get pinned/featured posts (you can implement pinning logic later)
 		const featuredPosts = await prisma.post.findMany({
 			where: {
 				authorId: user.uid,
-				privacy: "public"
+				privacy: "public",
 				// Add pinned: true when you implement post pinning
 			},
 			include: {
@@ -784,25 +811,25 @@ export const getFeatured = async (req: Request, res: Response) => {
 						uid: true,
 						username: true,
 						name: true,
-						photoURL: true
-					}
-				}
+						photoURL: true,
+					},
+				},
 			},
 			orderBy: { createdAt: "desc" },
-			take: 10
+			take: 10,
 		});
 
 		const activities = await Promise.all(
-			featuredPosts.map((post: any) => convertPostToActivity(post, baseUrl))
+			featuredPosts.map((post: any) => convertPostToActivity(post, baseUrl)),
 		);
 
-		res.setHeader('Content-Type', 'application/activity+json');
+		res.setHeader("Content-Type", "application/activity+json");
 		res.json({
 			"@context": "https://www.w3.org/ns/activitystreams",
 			id: `${baseUrl}/activitypub/users/${username}/collections/featured`,
 			type: "OrderedCollection",
 			totalItems: activities.length,
-			orderedItems: activities
+			orderedItems: activities,
 		});
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve featured posts" });
@@ -813,26 +840,26 @@ export const getFeatured = async (req: Request, res: Response) => {
 export const getFeaturedTags = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 
 		// Return empty collection for now (implement hashtag featuring later)
-		res.setHeader('Content-Type', 'application/activity+json');
+		res.setHeader("Content-Type", "application/activity+json");
 		res.json({
 			"@context": "https://www.w3.org/ns/activitystreams",
 			id: `${baseUrl}/activitypub/users/${username}/collections/tags`,
 			type: "OrderedCollection",
 			totalItems: 0,
-			orderedItems: []
+			orderedItems: [],
 		});
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve featured tags" });
@@ -844,32 +871,32 @@ export const getFollowing = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
 		const { page } = req.query;
-		
+
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true }
+			select: { uid: true, username: true },
 		});
 
 		if (!user) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get("host")}`;
 		const followingUrl = `${baseUrl}/activitypub/users/${username}/following`;
 
 		if (!page) {
 			// Return following collection summary
 			const followingCount = await prisma.follow.count({
-				where: { followerId: user.uid }
+				where: { followerId: user.uid },
 			});
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: followingUrl,
 				type: "OrderedCollection",
 				totalItems: followingCount,
-				first: `${followingUrl}?page=1`
+				first: `${followingUrl}?page=1`,
 			});
 		} else {
 			// Return paginated following
@@ -880,22 +907,24 @@ export const getFollowing = async (req: Request, res: Response) => {
 				where: { followerId: user.uid },
 				include: {
 					following: {
-						select: { username: true }
-					}
+						select: { username: true },
+					},
 				},
 				take: limit,
-				skip: offset
+				skip: offset,
 			});
 
-			const followingUrls = following.map((f: any) => `${baseUrl}/activitypub/users/${f.following.username}`);
+			const followingUrls = following.map(
+				(f: any) => `${baseUrl}/activitypub/users/${f.following.username}`,
+			);
 
-			res.setHeader('Content-Type', 'application/activity+json');
+			res.setHeader("Content-Type", "application/activity+json");
 			res.json({
 				"@context": "https://www.w3.org/ns/activitystreams",
 				id: `${followingUrl}?page=${page}`,
 				type: "OrderedCollectionPage",
 				partOf: followingUrl,
-				orderedItems: followingUrls
+				orderedItems: followingUrls,
 			});
 		}
 	} catch (error) {
