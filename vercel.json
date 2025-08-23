@@ -41,7 +41,7 @@
     "GOOGLE_CALLBACK_URL": "https://api.dopp.eu.org/v1/auth/google/callback",
     "PAYPAL_CLIENT_ID": "AYv5Ao5cq7A49Hd19TSrw59YEiPboazIE7WXrmLkpklVCmsgQmartssMsFap9XI7lM6LOnjMHgux2nJR",
     "PAYPAL_SECRET_KEY": "EBSkGiGJTe6N_csM8NV653BKehnG_n-hgTSDvGcZDNgYhxanKOfpdyib6e1vIFAzYmifnpjaIilftAGQ",
-    "GEMINI_API_KEY": "AIzaSyC3jCV47n5agKpivHqAWmcrakuX8Fiznas"
+    "GEMINI_API_KEY": "AIzaSyC3jCV47n5agKpivHqAWmcrakuX8Fiznas",
     "FRONTEND_URL": "https://www.dopp.eu.org"
   }
 }
