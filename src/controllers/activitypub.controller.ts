@@ -720,7 +720,7 @@ async function handleLikeActivity(activity: any, user: any) {
 			const post = await prisma.post.findFirst({
 				where: {
 					id: postId,
-					authorUid: user.uid
+					authorId: user.uid
 				}
 			});
 
