@@ -55,95 +55,82 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-async function startServer() {
-	// Initialize Prisma client first
-	console.log("Initializing database connection...");
-	const prisma = await connect();
-	console.log("Database connection established");
+// Session configuration with database storage
+app.use(
+	session({
+		secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
+		resave: false,
+		saveUninitialized: false,
+		store: new CustomPrismaSessionStore(prisma),
+		cookie: {
+			secure: process.env.NODE_ENV === "production",
+			maxAge: 24 * 60 * 60 * 1000, // 24 hours
+			httpOnly: true,
+		},
+	}),
+);
 
-	// Session configuration with database storage
-	app.use(
-		session({
-			secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
-			resave: false,
-			saveUninitialized: false,
-			store: new CustomPrismaSessionStore(prisma),
-			cookie: {
-				secure: process.env.NODE_ENV === "production",
-				maxAge: 24 * 60 * 60 * 1000, // 24 hours
-				httpOnly: true,
-			},
-		}),
-	);
+// Add IP tracking middleware
+app.use(enhanceSession);
 
-	// Add IP tracking middleware
-	app.use(enhanceSession);
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
-	// Initialize Passport
-	app.use(passport.initialize());
-	app.use(passport.session());
+const API_VERSION = "/v1";
 
-	const API_VERSION = "/v1";
-
-	app.get("/", (req: Request, res: Response) => {
-		const origin = req.headers.origin;
-		res.json({ status: "ok", message: "API is accessed on " + origin });
-	});
-
-	app.use(`${API_VERSION}/auth`, authRoutes);
-	app.use(`${API_VERSION}/users`, userRoutes);
-	app.use(`${API_VERSION}/posts`, postRoutes);
-	app.use(`${API_VERSION}/comments`, commentRoutes);
-	app.use(`${API_VERSION}/replies`, replyRoutes);
-	app.use(`${API_VERSION}/reports`, reportRoutes);
-	app.use(`${API_VERSION}/blocks`, blockRoutes);
-	app.use(`${API_VERSION}/payments`, paymentRoutes);
-	app.use(`${API_VERSION}/sessions`, sessionRoutes);
-	app.use(`${API_VERSION}/content`, contentRoutes);
-	app.use(`${API_VERSION}/images`, imageRoutes);
-	app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
-	app.use(`${API_VERSION}/business`, businessRoutes);
-	app.use(`${API_VERSION}/analytics`, analyticsRoutes);
-
-	// ActivityPub routes
-	app.use('/activitypub', activityPubRoutes);
-
-	// WebFinger endpoint (must be at root)
-	app.get("/.well-known/webfinger", asyncHandler(webfinger));
-
-	// User profile endpoint with ActivityPub content negotiation
-	app.get("/@:username", (req: Request, res: Response) => {
-		const { username } = req.params;
-
-		// Check if client accepts ActivityPub
-		const accept = req.headers.accept || "";
-		if (
-			accept.includes("application/activity+json") ||
-			accept.includes("application/ld+json")
-		) {
-			// Redirect to ActivityPub actor endpoint
-			return res.redirect(301, `/activitypub/users/${username}`);
-		}
-
-		// For web browsers, you could serve a user profile page here
-		res.status(404).json({ error: "Profile page not implemented" });
-	});
-
-	// 404 handler - must be after all routes
-	app.use(notFoundHandler);
-
-	// Global error handler - must be last
-	app.use(errorHandler);
-
-	app.listen(PORT as number, () => {
-		console.log(`Server running on port ${PORT}`);
-	});
-
-	return app;
-}
-
-startServer().catch((err) => {
-	console.error("Failed to start server:", err);
+app.get("/", (req: Request, res: Response) => {
+	const origin = req.headers.origin;
+	res.json({ status: "ok", message: "API is accessed on " + origin });
 });
 
-export default startServer;
+app.use(`${API_VERSION}/auth`, authRoutes);
+app.use(`${API_VERSION}/users`, userRoutes);
+app.use(`${API_VERSION}/posts`, postRoutes);
+app.use(`${API_VERSION}/comments`, commentRoutes);
+app.use(`${API_VERSION}/replies`, replyRoutes);
+app.use(`${API_VERSION}/reports`, reportRoutes);
+app.use(`${API_VERSION}/blocks`, blockRoutes);
+app.use(`${API_VERSION}/payments`, paymentRoutes);
+app.use(`${API_VERSION}/sessions`, sessionRoutes);
+app.use(`${API_VERSION}/content`, contentRoutes);
+app.use(`${API_VERSION}/images`, imageRoutes);
+app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
+app.use(`${API_VERSION}/business`, businessRoutes);
+app.use(`${API_VERSION}/analytics`, analyticsRoutes);
+
+// ActivityPub routes
+app.use("/activitypub", activityPubRoutes);
+
+// WebFinger endpoint (must be at root)
+app.get("/.well-known/webfinger", asyncHandler(webfinger));
+
+// User profile endpoint with ActivityPub content negotiation
+app.get("/@:username", (req: Request, res: Response) => {
+	const { username } = req.params;
+
+	// Check if client accepts ActivityPub
+	const accept = req.headers.accept || "";
+	if (
+		accept.includes("application/activity+json") ||
+		accept.includes("application/ld+json")
+	) {
+		// Redirect to ActivityPub actor endpoint
+		return res.redirect(301, `/activitypub/users/${username}`);
+	}
+
+	// For web browsers, you could serve a user profile page here
+	res.status(404).json({ error: "Profile page not implemented" });
+});
+
+// 404 handler - must be after all routes
+app.use(notFoundHandler);
+
+// Global error handler - must be last
+app.use(errorHandler);
+
+app.listen(PORT as number, () => {
+	console.log(`Server running on port ${PORT}`);
+});
+
+export default app;
