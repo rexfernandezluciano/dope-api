@@ -22,6 +22,7 @@ import contentRoutes from "./routes/content.routes";
 import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
+import activitypubRoutes from "./routes/activitypub.routes"; // Assuming this route file exists
 
 dotenv.config();
 const app: Application = express();
@@ -84,6 +85,9 @@ app.use(`${API_VERSION}/images`, imageRoutes);
 app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
 app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
+
+// Register ActivityPub routes
+app.use("/", activitypubRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";

@@ -40,6 +40,8 @@ model User {
   blocking       Block[]         @relation("Blocking")
   paymentMethods PaymentMethod[]
   adCampaigns    AdCampaign[]
+  userKeys       UserKeys?
+  federatedFollows FederatedFollow[]
 }
 
 model Post {
@@ -59,6 +61,7 @@ model Post {
   analytics PostAnalytics?
   mentions  Mention[]
   hashtags  Hashtag[]
+  federatedLikes FederatedLike[]
 }
 
 enum PostType {
@@ -343,4 +346,48 @@ enum AdStatus {
   paused
   completed
   rejected
+}
+
+model UserKeys {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  publicKey  String
+  privateKey String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [uid])
+}
+
+model FederatedFollow {
+  id          String   @id @default(cuid())
+  actorUrl    String
+  followingId String
+  activityId  String
+  createdAt   DateTime @default(now())
+
+  following User @relation(fields: [followingId], references: [uid])
+
+  @@unique([actorUrl, activityId])
+}
+
+model FederatedLike {
+  id         String   @id @default(cuid())
+  postId     String
+  actorUrl   String
+  activityId String
+  createdAt  DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([postId, actorUrl])
+}
+
+model FederatedPost {
+  id         String   @id @default(cuid())
+  actorUrl   String
+  content    String
+  activityId String   @unique
+  published  DateTime
+  createdAt  DateTime @default(now())
 }
