@@ -695,3 +695,267 @@ export const handleSharedInbox = async (req: Request, res: Response) => {
 		res.status(500).json({ error: "Failed to process activity" });
 	}
 };
+
+// Get individual post as ActivityPub object
+export const getPost = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const post = await prisma.post.findUnique({
+			where: { id },
+			include: {
+				author: {
+					select: { username: true, name: true }
+				}
+			}
+		});
+
+		if (!post || post.privacy !== 'public') {
+			return res.status(404).json({ error: "Post not found" });
+		}
+
+		const note = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/posts/${id}`,
+			type: "Note",
+			summary: null,
+			content: post.content,
+			attributedTo: `${baseUrl}/activitypub/users/${post.author.username}`,
+			published: post.createdAt.toISOString(),
+			to: ["https://www.w3.org/ns/activitystreams#Public"],
+			cc: [`${baseUrl}/activitypub/users/${post.author.username}/followers`],
+			sensitive: false,
+			tag: []
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(note);
+	} catch (error) {
+		console.error("Error fetching post:", error);
+		res.status(500).json({ error: "Failed to fetch post" });
+	}
+};
+
+// Get post activity
+export const getPostActivity = async (req: Request, res: Response) => {
+	try {
+		const { id } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const post = await prisma.post.findUnique({
+			where: { id },
+			include: {
+				author: {
+					select: { username: true, name: true }
+				}
+			}
+		});
+
+		if (!post || post.privacy !== 'public') {
+			return res.status(404).json({ error: "Post not found" });
+		}
+
+		const activity = await createPostActivity(post, post.author, baseUrl);
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(activity);
+	} catch (error) {
+		console.error("Error fetching post activity:", error);
+		res.status(500).json({ error: "Failed to fetch post activity" });
+	}
+};
+
+// Get user's liked posts
+export const getLiked = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		// Get liked posts
+		const likedPosts = await prisma.like.findMany({
+			where: { userUid: user.uid },
+			include: {
+				post: {
+					include: {
+						author: {
+							select: { username: true }
+						}
+					}
+				}
+			},
+			orderBy: { createdAt: 'desc' },
+			take: 20
+		});
+
+		const liked = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/liked`,
+			type: "OrderedCollection",
+			totalItems: likedPosts.length,
+			orderedItems: await Promise.all(likedPosts.map(async (like: any) => 
+				await createPostActivity(like.post, like.post.author, baseUrl)
+			))
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(liked);
+	} catch (error) {
+		console.error("Error fetching liked posts:", error);
+		res.status(500).json({ error: "Failed to fetch liked posts" });
+	}
+};
+
+// Get user collections
+export const getCollection = async (req: Request, res: Response) => {
+	try {
+		const { username, id } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		// Handle different collection types
+		if (id === 'featured') {
+			return getFeatured(req, res);
+		} else if (id === 'tags') {
+			return getFeaturedTags(req, res);
+		}
+
+		// Default empty collection for unknown types
+		const collection = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/collections/${id}`,
+			type: "Collection",
+			totalItems: 0,
+			items: []
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(collection);
+	} catch (error) {
+		console.error("Error fetching collection:", error);
+		res.status(500).json({ error: "Failed to fetch collection" });
+	}
+};
+
+// Get blocked users
+export const getBlocked = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const baseUrl = getBaseUrl(req);
+
+		const user = await prisma.user.findUnique({
+			where: { username },
+			include: {
+				blockedUsers: {
+					select: {
+						blocked: {
+							select: { username: true }
+						}
+					}
+				}
+			}
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const blocked = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/blocked`,
+			type: "Collection",
+			totalItems: user.blockedUsers.length,
+			items: user.blockedUsers.map((block: any) => 
+				`${baseUrl}/activitypub/users/${block.blocked.username}`
+			)
+		};
+
+		res.setHeader("Content-Type", "application/activity+json");
+		res.json(blocked);
+	} catch (error) {
+		console.error("Error fetching blocked users:", error);
+		res.status(500).json({ error: "Failed to fetch blocked users" });
+	}
+};
+
+// Placeholder endpoints for ActivityPub compliance
+export const getRejections = async (req: Request, res: Response) => {
+	const { username } = req.params;
+	const baseUrl = getBaseUrl(req);
+
+	const rejections = {
+		"@context": "https://www.w3.org/ns/activitystreams",
+		id: `${baseUrl}/activitypub/users/${username}/rejections`,
+		type: "Collection",
+		totalItems: 0,
+		items: []
+	};
+
+	res.setHeader("Content-Type", "application/activity+json");
+	res.json(rejections);
+};
+
+export const getRejected = async (req: Request, res: Response) => {
+	const { username } = req.params;
+	const baseUrl = getBaseUrl(req);
+
+	const rejected = {
+		"@context": "https://www.w3.org/ns/activitystreams",
+		id: `${baseUrl}/activitypub/users/${username}/rejected`,
+		type: "Collection",
+		totalItems: 0,
+		items: []
+	};
+
+	res.setHeader("Content-Type", "application/activity+json");
+	res.json(rejected);
+};
+
+export const getShares = async (req: Request, res: Response) => {
+	const { username } = req.params;
+	const baseUrl = getBaseUrl(req);
+
+	const shares = {
+		"@context": "https://www.w3.org/ns/activitystreams",
+		id: `${baseUrl}/activitypub/users/${username}/shares`,
+		type: "Collection",
+		totalItems: 0,
+		items: []
+	};
+
+	res.setHeader("Content-Type", "application/activity+json");
+	res.json(shares);
+};
+
+export const getLikes = async (req: Request, res: Response) => {
+	const { username } = req.params;
+	const baseUrl = getBaseUrl(req);
+
+	const likes = {
+		"@context": "https://www.w3.org/ns/activitystreams",
+		id: `${baseUrl}/activitypub/users/${username}/likes`,
+		type: "Collection",
+		totalItems: 0,
+		items: []
+	};
+
+	res.setHeader("Content-Type", "application/activity+json");
+	res.json(likes);
+};

@@ -41,4 +41,15 @@ router.get('/users/:username/following', asyncHandler(getFollowing));
 router.get('/users/:username/collections/featured', asyncHandler(getFeatured));
 router.get('/users/:username/collections/tags', asyncHandler(getFeaturedTags));
 
+// Additional routes for complete ActivityPub support
+router.get('/posts/:id', asyncHandler(getPost));
+router.get('/posts/:id/activity', asyncHandler(getPostActivity));
+router.get('/users/:username/liked', asyncHandler(getLiked));
+router.get('/users/:username/collections/:id', asyncHandler(getCollection));
+router.get('/users/:username/blocked', asyncHandler(getBlocked));
+router.get('/users/:username/rejections', asyncHandler(getRejections));
+router.get('/users/:username/rejected', asyncHandler(getRejected));
+router.get('/users/:username/shares', asyncHandler(getShares));
+router.get('/users/:username/likes', asyncHandler(getLikes));
+
 export default router;
