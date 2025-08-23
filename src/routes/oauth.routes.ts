@@ -170,7 +170,7 @@ router.get('/userinfo', authenticateOAuth, asyncHandler(userInfo));
  *       200:
  *         description: List of user's OAuth applications
  */
-router.get('/my-apps', requireAuth, asyncHandler(getUserApps));
+router.get('/apps', requireAuth, asyncHandler(getUserApps));
 
 /**
  * @swagger
@@ -184,7 +184,7 @@ router.get('/my-apps', requireAuth, asyncHandler(getUserApps));
  *       200:
  *         description: List of user's granted authorizations
  */
-router.get('/my-authorizations', requireAuth, asyncHandler(getUserAuthorizations));
+router.get('/authorizations', requireAuth, asyncHandler(getUserAuthorizations));
 
 /**
  * @swagger
