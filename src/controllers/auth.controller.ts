@@ -480,37 +480,47 @@ export const googleCallback = async (
 			return res.redirect("/login?error=google_auth_failed");
 		}
 
-		req.logIn(user, (err) => {
+		req.logIn(user, async (err) => {
 			if (err) {
 				return next(err);
 			}
 
-			const token = signToken({
-				uid: user.uid,
-				email: user.email,
-				username: user.username,
-			});
+			try {
+				// Create session with device tracking
+				const { createUserSession } = await import('../middleware/session.middleware');
+				const session = await createUserSession(user.uid, req.sessionID, req);
 
-			// Redirect to frontend with token or return JSON
-			return res.json({
-				token,
-				user: {
+				const token = signToken({
 					uid: user.uid,
-					name: user.name,
 					email: user.email,
 					username: user.username,
-					photoURL: user.photoURL,
-					hasBlueCheck: user.hasBlueCheck,
-					membership: {
-						subscription: user.subscription,
-						nextBillingDate: user.nextBillingDate,
+				});
+
+				// Return JSON response with token and session
+				return res.json({
+					token,
+					sessionId: session.id,
+					user: {
+						uid: user.uid,
+						name: user.name,
+						email: user.email,
+						username: user.username,
+						photoURL: user.photoURL,
+						hasBlueCheck: user.hasBlueCheck,
+						membership: {
+							subscription: user.subscription,
+							nextBillingDate: user.nextBillingDate,
+						},
+						privacy: user.privacy,
+						hasVerifiedEmail: user.hasVerifiedEmail,
+						createdAt: user.createdAt,
+						updatedAt: user.updatedAt,
 					},
-					privacy: user.privacy,
-					hasVerifiedEmail: user.hasVerifiedEmail,
-					createdAt: user.createdAt,
-					updatedAt: user.updatedAt,
-				},
-			});
+				});
+			} catch (sessionError) {
+				console.error("Session creation error:", sessionError);
+				return res.status(500).json({ message: "Session creation failed" });
+			}
 		});
 	})(req, res, next);
 };
