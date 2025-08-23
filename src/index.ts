@@ -28,18 +28,16 @@ import analyticsRoutes from "./routes/analytics.routes";
 import { createActivityPubApp } from "./config/activitypub"; // Assuming this path is correct for your setup
 import { webfinger } from "./controllers/activitypub.controller"; // Assuming this path is correct
 // Import error handlers
-import { errorHandler, notFoundHandler, asyncHandler } from "./middleware/error.middleware";
+import {
+	errorHandler,
+	notFoundHandler,
+	asyncHandler,
+} from "./middleware/error.middleware";
 
 dotenv.config();
 
-async function startServer() {
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
-
-// Initialize Prisma client first
-console.log("Initializing database connection...");
-const prisma = await connect();
-console.log("Database connection established");
 
 // Use CORS globally for all routes
 app.use(cors({ origin: "*" }));
@@ -57,90 +55,98 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-// Session configuration with database storage
-app.use(
-	session({
-		secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
-		resave: false,
-		saveUninitialized: false,
-		store: new CustomPrismaSessionStore(prisma),
-		cookie: {
-			secure: process.env.NODE_ENV === "production",
-			maxAge: 24 * 60 * 60 * 1000, // 24 hours
-			httpOnly: true,
-		},
-	}),
-);
+async function startServer() {
+	// Initialize Prisma client first
+	console.log("Initializing database connection...");
+	const prisma = await connect();
+	console.log("Database connection established");
 
-// Add IP tracking middleware
-app.use(enhanceSession);
+	// Session configuration with database storage
+	app.use(
+		session({
+			secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
+			resave: false,
+			saveUninitialized: false,
+			store: new CustomPrismaSessionStore(prisma),
+			cookie: {
+				secure: process.env.NODE_ENV === "production",
+				maxAge: 24 * 60 * 60 * 1000, // 24 hours
+				httpOnly: true,
+			},
+		}),
+	);
 
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
+	// Add IP tracking middleware
+	app.use(enhanceSession);
 
-const API_VERSION = "/v1";
+	// Initialize Passport
+	app.use(passport.initialize());
+	app.use(passport.session());
 
-app.get("/", (req: Request, res: Response) => {
-	const origin = req.headers.origin;
-	res.json({ status: "ok", message: "API is accessed on " + origin });
-});
+	const API_VERSION = "/v1";
 
-app.use(`${API_VERSION}/auth`, authRoutes);
-app.use(`${API_VERSION}/users`, userRoutes);
-app.use(`${API_VERSION}/posts`, postRoutes);
-app.use(`${API_VERSION}/comments`, commentRoutes);
-app.use(`${API_VERSION}/replies`, replyRoutes);
-app.use(`${API_VERSION}/reports`, reportRoutes);
-app.use(`${API_VERSION}/blocks`, blockRoutes);
-app.use(`${API_VERSION}/payments`, paymentRoutes);
-app.use(`${API_VERSION}/sessions`, sessionRoutes);
-app.use(`${API_VERSION}/content`, contentRoutes);
-app.use(`${API_VERSION}/images`, imageRoutes);
-app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
-app.use(`${API_VERSION}/business`, businessRoutes);
-app.use(`${API_VERSION}/analytics`, analyticsRoutes);
+	app.get("/", (req: Request, res: Response) => {
+		const origin = req.headers.origin;
+		res.json({ status: "ok", message: "API is accessed on " + origin });
+	});
 
-// Initialize ActivityPub
-const apex = await createActivityPubApp();
+	app.use(`${API_VERSION}/auth`, authRoutes);
+	app.use(`${API_VERSION}/users`, userRoutes);
+	app.use(`${API_VERSION}/posts`, postRoutes);
+	app.use(`${API_VERSION}/comments`, commentRoutes);
+	app.use(`${API_VERSION}/replies`, replyRoutes);
+	app.use(`${API_VERSION}/reports`, reportRoutes);
+	app.use(`${API_VERSION}/blocks`, blockRoutes);
+	app.use(`${API_VERSION}/payments`, paymentRoutes);
+	app.use(`${API_VERSION}/sessions`, sessionRoutes);
+	app.use(`${API_VERSION}/content`, contentRoutes);
+	app.use(`${API_VERSION}/images`, imageRoutes);
+	app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
+	app.use(`${API_VERSION}/business`, businessRoutes);
+	app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
-// Apply ActivityPub middleware
-app.use(apex);
+	// Initialize ActivityPub
+	const apex = await createActivityPubApp();
 
-// WebFinger endpoint (must be at root)
-app.get("/.well-known/webfinger", asyncHandler(webfinger));
+	// Apply ActivityPub middleware
+	app.use(apex);
 
-// User profile endpoint with ActivityPub content negotiation
-app.get("/@:username", (req: Request, res: Response) => {
-	const { username } = req.params;
+	// WebFinger endpoint (must be at root)
+	app.get("/.well-known/webfinger", asyncHandler(webfinger));
 
-	// Check if client accepts ActivityPub
-	const accept = req.headers.accept || "";
-	if (
-		accept.includes("application/activity+json") ||
-		accept.includes("application/ld+json")
-	) {
-		// Redirect to ActivityPub actor endpoint
-		return res.redirect(301, `/activitypub/users/${username}`);
-	}
+	// User profile endpoint with ActivityPub content negotiation
+	app.get("/@:username", (req: Request, res: Response) => {
+		const { username } = req.params;
 
-	// For web browsers, you could serve a user profile page here
-	res.status(404).json({ error: "Profile page not implemented" });
-});
+		// Check if client accepts ActivityPub
+		const accept = req.headers.accept || "";
+		if (
+			accept.includes("application/activity+json") ||
+			accept.includes("application/ld+json")
+		) {
+			// Redirect to ActivityPub actor endpoint
+			return res.redirect(301, `/activitypub/users/${username}`);
+		}
 
-// 404 handler - must be after all routes
-app.use(notFoundHandler);
+		// For web browsers, you could serve a user profile page here
+		res.status(404).json({ error: "Profile page not implemented" });
+	});
 
-// Global error handler - must be last
-app.use(errorHandler);
+	// 404 handler - must be after all routes
+	app.use(notFoundHandler);
 
-app.listen(PORT as number, () => {
-	console.log(`Server running on port ${PORT}`);
-});
+	// Global error handler - must be last
+	app.use(errorHandler);
 
-return app;
+	app.listen(PORT as number, () => {
+		console.log(`Server running on port ${PORT}`);
+	});
+
+	return app;
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+	console.error("Failed to start server:", err);
+});
 
 export default startServer;
