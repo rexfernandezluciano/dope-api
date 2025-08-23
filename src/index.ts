@@ -30,6 +30,8 @@ import { webfinger } from "./controllers/activitypub.controller"; // Assuming th
 import { errorHandler, notFoundHandler, asyncHandler } from "./middleware/error.middleware";
 
 dotenv.config();
+
+async function startServer() {
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
@@ -94,7 +96,7 @@ app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
 // Initialize ActivityPub
-const apex = createActivityPubApp();
+const apex = await createActivityPubApp();
 
 // Apply ActivityPub middleware
 app.use(apex);
@@ -130,4 +132,9 @@ app.listen(PORT as number, () => {
 	console.log(`Server running on port ${PORT}`);
 });
 
-export default app;
+return app;
+}
+
+startServer().catch(console.error);
+
+export default startServer;

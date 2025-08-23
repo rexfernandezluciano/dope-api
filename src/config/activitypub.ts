@@ -4,11 +4,10 @@ import { connect } from '../database/database';
 
 let prisma: any;
 
-(async () => {
-	prisma = await connect();
-})();
-
-export const createActivityPubApp = () => {
+export const createActivityPubApp = async () => {
+	if (!prisma) {
+		prisma = await connect();
+	}
 	const apex = ActivitypubExpress({
 		domain: process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : 'localhost:3000',
 		context: [
