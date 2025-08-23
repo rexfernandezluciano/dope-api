@@ -5,9 +5,12 @@ import axios from "axios";
 
 let prisma: any;
 
-(async () => {
-  prisma = await connect();
-})();
+const initializePrisma = async () => {
+  if (!prisma) {
+    prisma = await connect();
+  }
+  return prisma;
+};
 
 // PayPal API helper
 const paypalAPI = axios.create({
@@ -80,6 +83,7 @@ const PaymentMethodSchema = z
 
 export const addPaymentMethod = async (req: Request, res: Response) => {
   try {
+    await initializePrisma();
     const authUser = (req as any).user as { uid: string };
     const paymentData = PaymentMethodSchema.parse(req.body);
 
@@ -124,10 +128,11 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
       data: {
         type: paymentData.type,
         provider: "paypal",
-        paypalPaymentMethodId: paymentData.paypalPaymentMethodId,
+        paypalPaymentMethodId: paymentData.paypalPaymentMethodId || null,
         last4:
           paymentData.last4 ||
-          providerPaymentMethod?.payment_source?.card?.last_digits,
+          providerPaymentMethod?.payment_source?.card?.last_digits ||
+          null,
         expiryMonth:
           paymentData.expiryMonth ||
           (providerPaymentMethod?.payment_source?.card?.expiry?.split("/")[0]
@@ -147,8 +152,9 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
             : null),
         holderName:
           paymentData.holderName ||
-          providerPaymentMethod?.payment_source?.card?.name,
-        paypalEmail: paymentData.paypalEmail,
+          providerPaymentMethod?.payment_source?.card?.name ||
+          null,
+        paypalEmail: paymentData.paypalEmail || null,
         isDefault: paymentData.isDefault,
         userId: authUser.uid,
       },
@@ -175,12 +181,21 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
         .json({ message: "Invalid payload", errors: err.errors });
     }
     console.error("Payment method error:", err);
-    res.status(500).json({ error: "Error adding payment method" });
+    console.error("Error details:", {
+      message: err.message,
+      stack: err.stack,
+      code: err.code
+    });
+    res.status(500).json({ 
+      error: "Error adding payment method",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
 export const getPaymentMethods = async (req: Request, res: Response) => {
   try {
+    await initializePrisma();
     const authUser = (req as any).user as { uid: string };
 
     const paymentMethods = await prisma.paymentMethod.findMany({
@@ -210,6 +225,7 @@ export const getPaymentMethods = async (req: Request, res: Response) => {
 
 export const deletePaymentMethod = async (req: Request, res: Response) => {
   try {
+    await initializePrisma();
     const authUser = (req as any).user as { uid: string };
     const { paymentMethodId } = req.params;
 
@@ -238,6 +254,7 @@ export const deletePaymentMethod = async (req: Request, res: Response) => {
 
 export const purchaseMembership = async (req: Request, res: Response) => {
   try {
+    await initializePrisma();
     const authUser = (req as any).user as { uid: string };
     const { subscription, paymentMethodId } = req.body;
 
