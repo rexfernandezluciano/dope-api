@@ -1,8 +1,12 @@
 
 import { Router } from 'express';
 import { getBaseUrl } from '../config/activitypub';
+import { webfinger } from '../controllers/activitypub.controller';
 
 const router = Router();
+
+// WebFinger endpoint for user discovery
+router.get('/webfinger', webfinger);
 
 // OAuth Authorization Server Metadata (RFC 8414)
 router.get('/oauth-authorization-server', (req, res) => {

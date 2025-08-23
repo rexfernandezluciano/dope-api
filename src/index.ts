@@ -1,4 +1,3 @@
-
 import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
@@ -67,7 +66,7 @@ async function initializeDatabase() {
 app.use(async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		const { sessionStore } = await initializeDatabase();
-		
+
 		session({
 			secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
 			resave: false,
