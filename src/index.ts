@@ -2,6 +2,7 @@ import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import session from "express-session";
+import rateLimit from "express-rate-limit";
 import passport from "./config/passport";
 import { CustomPrismaSessionStore } from "./config/session";
 import { enhanceSession } from "./middleware/session.middleware";
@@ -42,6 +43,34 @@ const app: Application = express();
 
 // Global middleware setup
 app.use(cors({ origin: "*" }));
+
+// Rate limiting middleware
+const limiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 1000, // Limit each IP to 1000 requests per windowMs
+	message: {
+		error: "Too many requests from this IP, please try again later.",
+		retryAfter: "15 minutes"
+	},
+	standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Stricter rate limiting for auth endpoints
+const authLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 10, // Limit each IP to 10 auth requests per windowMs
+	message: {
+		error: "Too many authentication attempts, please try again later.",
+		retryAfter: "15 minutes"
+	},
+	standardHeaders: true,
+	legacyHeaders: false,
+});
+
+// Apply general rate limiting to all requests
+app.use(limiter);
+
 app.use(express.json());
 app.set("json spaces", 2);
 
@@ -104,7 +133,7 @@ app.get("/", (req: Request, res: Response) => {
 	res.json({ status: "ok", message: "API is accessed on " + origin });
 });
 
-app.use(`${API_VERSION}/auth`, authRoutes);
+app.use(`${API_VERSION}/auth`, authLimiter, authRoutes);
 app.use(`${API_VERSION}/users`, userRoutes);
 app.use(`${API_VERSION}/posts`, postRoutes);
 app.use(`${API_VERSION}/comments`, commentRoutes);
