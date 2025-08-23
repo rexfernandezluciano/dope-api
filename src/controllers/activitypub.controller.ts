@@ -286,6 +286,7 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 export const getOutbox = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
+		const { page } = req.query;
 		const baseUrl = getBaseUrl(req);
 
 		const user = await prisma.user.findUnique({
@@ -297,15 +298,43 @@ export const getOutbox = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		// Get recent public posts with author info
+		// Get total count of public posts
+		const totalItems = await prisma.post.count({
+			where: {
+				authorId: user.uid,
+				privacy: "public",
+			},
+		});
+
+		// If no page parameter, return collection summary
+		if (!page) {
+			const outbox = {
+				"@context": activityPubConfig.context,
+				id: `${baseUrl}/activitypub/users/${username}/outbox`,
+				type: "OrderedCollection",
+				totalItems,
+				first: totalItems > 0 ? `${baseUrl}/activitypub/users/${username}/outbox?page=1` : undefined,
+				last: totalItems > 0 ? `${baseUrl}/activitypub/users/${username}/outbox?page=${Math.ceil(totalItems / 20)}` : undefined,
+			};
+
+			res.setHeader("Content-Type", "application/activity+json");
+			return res.json(outbox);
+		}
+
+		// Handle paginated requests
+		const pageNum = parseInt(page as string) || 1;
+		const limit = 20;
+		const offset = (pageNum - 1) * limit;
+
+		// Get posts for this page
 		const posts = await prisma.post.findMany({
 			where: {
-				authorId
-					: user.uid,
+				authorId: user.uid,
 				privacy: "public",
 			},
 			orderBy: { createdAt: "desc" },
-			take: 20,
+			skip: offset,
+			take: limit,
 			select: {
 				id: true,
 				content: true,
@@ -318,18 +347,28 @@ export const getOutbox = async (req: Request, res: Response) => {
 			select: { username: true }
 		});
 
-		const outbox = {
+		const totalPages = Math.ceil(totalItems / limit);
+		const outboxPage = {
 			"@context": activityPubConfig.context,
-			id: `${baseUrl}/activitypub/users/${username}/outbox`,
-			type: "OrderedCollection",
-			totalItems: posts.length,
+			id: `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum}`,
+			type: "OrderedCollectionPage",
+			partOf: `${baseUrl}/activitypub/users/${username}/outbox`,
+			totalItems,
 			orderedItems: await Promise.all(posts.map(async (post: any) => 
 				await createPostActivity(post, author, baseUrl)
 			)),
 		};
 
+		// Add navigation links
+		if (pageNum > 1) {
+			(outboxPage as any).prev = `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum - 1}`;
+		}
+		if (pageNum < totalPages) {
+			(outboxPage as any).next = `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum + 1}`;
+		}
+
 		res.setHeader("Content-Type", "application/activity+json");
-		res.json(outbox);
+		res.json(outboxPage);
 	} catch (error) {
 		console.error("Error fetching outbox:", error);
 		res.status(500).json({ error: "Failed to fetch outbox" });
