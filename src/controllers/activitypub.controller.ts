@@ -41,7 +41,7 @@ export const webfinger = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: "User not found" });
 		}
 
-		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const baseUrl = `${req.protocol}://${req.get('host')}/activitypub`;
 		
 		res.json({
 			subject: resource,
