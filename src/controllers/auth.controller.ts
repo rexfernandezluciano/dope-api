@@ -62,9 +62,20 @@ export const register = async (
 		if (exists)
 			return res.status(409).json({ message: "Email already registered" });
 
-		const unameExists = await prisma.user.findUnique({ where: { username } });
-		if (unameExists)
-			return res.status(409).json({ message: "Username already taken" });
+		// Check if username already exists and auto-suffix if needed
+		let finalUsername = username;
+		let counter = 1;
+		let existingUsername = await prisma.user.findUnique({
+			where: { username: finalUsername },
+		});
+
+		while (existingUsername) {
+			finalUsername = `${username}${counter}`;
+			existingUsername = await prisma.user.findUnique({
+				where: { username: finalUsername },
+			});
+			counter++;
+		}
 
 		const passwordHash = await bcrypt.hash(password, 12);
 
@@ -72,7 +83,7 @@ export const register = async (
 			data: {
 				name,
 				email,
-				username,
+				username: finalUsername,
 				photoURL: photoURL ?? "https://i.pravatar.cc/500",
 				password: passwordHash,
 				subscription,
