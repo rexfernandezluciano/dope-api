@@ -1,7 +1,7 @@
 /** @format */
 
 import { Request, Response, NextFunction } from "express";
-import { Subscription, Credential } from "@prisma/client";
+import { Subscription } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import {
@@ -15,12 +15,16 @@ import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
 import passport from "passport";
 
-// Import nanoid at the top level
-import { customAlphabet } from "nanoid";
-
 // Create the functions directly
-const makeCode = customAlphabet("0123456789", 6);
-const makeVerificationId = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
+const makeCode = async () => {
+	const { customAlphabet } = await import("nanoid");
+	return customAlphabet("0123456789", 6);
+};
+
+const makeVerificationId = async () => {
+	const { customAlphabet } = await import("nanoid");
+	return customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
+};
 
 // Helper: decide BlueCheck from subscription
 function computeBlueCheck(sub: Subscription) {
@@ -97,8 +101,8 @@ export const register = async (
 		});
 
 		// Create verification record
-		const code = makeCode();
-		const verificationId = makeVerificationId();
+		const code = await makeCode();
+		const verificationId = await makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
 		await prisma.email.create({
