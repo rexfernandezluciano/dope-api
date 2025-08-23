@@ -36,7 +36,6 @@ router.get(
 	"/validate-verification-id/:verificationId",
 	asyncHandler(validateVerificationId),
 );
-router.get("/validate/:verificationId", asyncHandler(validateVerificationId));
 router.get("/me", requireAuth, asyncHandler(me));
 
 export default router;
