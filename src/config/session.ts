@@ -57,10 +57,19 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
         }
       }
 
+      // Prepare session data with device info
+      const sessionData = {
+        ...session,
+        device: session.device || 'Unknown',
+        browser: session.browser || 'Unknown',
+        lastActivity: new Date().toISOString(),
+        isActive: true
+      };
+
       await prisma.session.upsert({
         where: { sid: sessionId },
         update: {
-          data: session,
+          data: sessionData,
           userId: session.passport.user,
           ipAddress,
           location,
@@ -69,7 +78,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
         },
         create: {
           sid: sessionId,
-          data: session,
+          data: sessionData,
           userId: session.passport.user,
           ipAddress,
           location,
@@ -86,6 +95,10 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
 
   get = async (sessionId: string, callback?: (err?: any, session?: any) => void): Promise<void> => {
     try {
+      if (!prisma) {
+        return callback?.(null, null);
+      }
+
       const session = await prisma.session.findUnique({
         where: { sid: sessionId },
       });
@@ -102,6 +115,10 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
 
   destroy = async (sessionId: string | string[], callback?: (err?: any) => void): Promise<void> => {
     try {
+      if (!prisma) {
+        return callback?.();
+      }
+
       if (Array.isArray(sessionId)) {
         await prisma.session.deleteMany({
           where: { sid: { in: sessionId } },
@@ -109,7 +126,7 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
       } else {
         const session = await prisma.session.findUnique({
           where: { sid: sessionId }
-        })
+        });
         
         if (!session) {
           return callback?.();
@@ -135,4 +152,26 @@ export const getClientIP = (req: any): string => {
     req.ip ||
     '127.0.0.1'
   );
+};
+
+export const getDeviceInfo = (userAgent: string) => {
+  const ua = userAgent.toLowerCase();
+  let device = 'Desktop';
+  let browser = 'Unknown';
+
+  // Detect device
+  if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+    device = 'Mobile';
+  } else if (ua.includes('tablet') || ua.includes('ipad')) {
+    device = 'Tablet';
+  }
+
+  // Detect browser
+  if (ua.includes('chrome')) browser = 'Chrome';
+  else if (ua.includes('firefox')) browser = 'Firefox';
+  else if (ua.includes('safari')) browser = 'Safari';
+  else if (ua.includes('edge')) browser = 'Edge';
+  else if (ua.includes('opera')) browser = 'Opera';
+
+  return { device, browser };
 };
