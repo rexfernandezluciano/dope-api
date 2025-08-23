@@ -54,24 +54,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-// Initialize database connection and session store lazily
+// Initialize database connection and session store once
 let prisma: any = null;
 let sessionStore: any = null;
+let sessionMiddleware: any = null;
 
-async function initializeDatabase() {
-	if (!prisma) {
+async function initializeSession() {
+	if (!sessionMiddleware) {
 		prisma = await connect();
 		sessionStore = new CustomPrismaSessionStore(prisma);
-	}
-	return { prisma, sessionStore };
-}
-
-// Session middleware with lazy initialization
-app.use(async (req: Request, res: Response, next: NextFunction) => {
-	try {
-		const { sessionStore } = await initializeDatabase();
-
-		session({
+		
+		sessionMiddleware = session({
 			secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
 			resave: false,
 			saveUninitialized: false,
@@ -81,7 +74,16 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 				maxAge: 24 * 60 * 60 * 1000, // 24 hours
 				httpOnly: true,
 			},
-		})(req, res, next);
+		});
+	}
+	return sessionMiddleware;
+}
+
+// Session middleware with proper initialization
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+	try {
+		const middleware = await initializeSession();
+		middleware(req, res, next);
 	} catch (error) {
 		console.error("Session initialization error:", error);
 		next(error);

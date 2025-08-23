@@ -12,6 +12,9 @@ export class CustomPrismaSessionStore extends PrismaSessionStore {
       dbRecordIdIsSessionId: false,
     });
     
+    // Increase max listeners to prevent memory leak warnings
+    this.setMaxListeners(20);
+    
     prisma = prismaClient;
   }
 

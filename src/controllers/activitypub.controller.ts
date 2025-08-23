@@ -308,7 +308,7 @@ export const handleInbox = async (req: Request, res: Response) => {
 // Create outbound activity for a post
 export const createPostActivity = async (post: any, author: any, baseUrl: string) => {
 	const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
-	
+
 	// Get poll data if this is a poll post
 	let pollData = null;
 	if (post.postType === 'poll') {
@@ -320,7 +320,7 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 				}
 			}
 		});
-		
+
 		if (poll) {
 			pollData = {
 				type: "Question",
@@ -477,92 +477,53 @@ const deliverActivity = async (activity: any, inboxUrl: string, privateKey: stri
 export const getOutbox = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
-		const { page } = req.query;
 		const baseUrl = getBaseUrl(req);
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true },
+			include: {
+				posts: {
+					orderBy: { createdAt: 'desc' },
+					take: 20
+				}
+			}
 		});
 
 		if (!user) {
-			return res.status(404).json({ error: "User not found" });
+			return res.status(404).json({ error: 'User not found' });
 		}
 
-		// Get total count of public posts
-		const totalItems = await prisma.post.count({
-			where: {
-				authorId: user.uid,
-				privacy: "public",
-			},
-		});
+		const activities = user.posts.map(post => ({
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: `${baseUrl}/activitypub/users/${username}/posts/${post.id}#activity`,
+			type: 'Create',
+			actor: `${baseUrl}/activitypub/users/${username}`,
+			published: post.createdAt.toISOString(),
+			object: {
+				id: `${baseUrl}/activitypub/users/${username}/posts/${post.id}`,
+				type: 'Note',
+				summary: null,
+				content: post.content,
+				attributedTo: `${baseUrl}/activitypub/users/${username}`,
+				published: post.createdAt.toISOString(),
+				to: ['https://www.w3.org/ns/activitystreams#Public'],
+				cc: [`${baseUrl}/activitypub/users/${username}/followers`]
+			}
+		}));
 
-		// If no page parameter, return collection summary
-		if (!page) {
-			const outbox = {
-				"@context": activityPubConfig.context,
-				id: `${baseUrl}/activitypub/users/${username}/outbox`,
-				type: "OrderedCollection",
-				totalItems,
-				first: totalItems > 0 ? `${baseUrl}/activitypub/users/${username}/outbox?page=1` : undefined,
-				last: totalItems > 0 ? `${baseUrl}/activitypub/users/${username}/outbox?page=${Math.ceil(totalItems / 20)}` : undefined,
-			};
-
-			res.setHeader("Content-Type", "application/activity+json");
-			return res.json(outbox);
-		}
-
-		// Handle paginated requests
-		const pageNum = parseInt(page as string) || 1;
-		const limit = 20;
-		const offset = (pageNum - 1) * limit;
-
-		// Get posts for this page
-		const posts = await prisma.post.findMany({
-			where: {
-				authorId: user.uid,
-				privacy: "public",
-			},
-			orderBy: { createdAt: "desc" },
-			skip: offset,
-			take: limit,
-			select: {
-				id: true,
-				content: true,
-				createdAt: true,
-			},
-		});
-
-		const author = await prisma.user.findUnique({
-			where: { uid: user.uid },
-			select: { username: true }
-		});
-
-		const totalPages = Math.ceil(totalItems / limit);
-		const outboxPage = {
-			"@context": activityPubConfig.context,
-			id: `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum}`,
-			type: "OrderedCollectionPage",
-			partOf: `${baseUrl}/activitypub/users/${username}/outbox`,
-			totalItems,
-			orderedItems: await Promise.all(posts.map(async (post: any) => 
-				await createPostActivity(post, author, baseUrl)
-			)),
+		const outbox = {
+			'@context': 'https://www.w3.org/ns/activitystreams',
+			id: `${baseUrl}/activitypub/users/${username}/outbox`,
+			type: 'OrderedCollection',
+			totalItems: user.posts.length,
+			orderedItems: activities
 		};
 
-		// Add navigation links
-		if (pageNum > 1) {
-			(outboxPage as any).prev = `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum - 1}`;
-		}
-		if (pageNum < totalPages) {
-			(outboxPage as any).next = `${baseUrl}/activitypub/users/${username}/outbox?page=${pageNum + 1}`;
-		}
-
-		res.setHeader("Content-Type", "application/activity+json");
-		res.json(outboxPage);
+		res.setHeader('Content-Type', 'application/activity+json');
+		res.json(outbox);
 	} catch (error) {
-		console.error("Error fetching outbox:", error);
-		res.status(500).json({ error: "Failed to fetch outbox" });
+		console.error('Error fetching outbox:', error);
+		res.status(500).json({ error: 'Internal server error' });
 	}
 };
 
@@ -617,34 +578,30 @@ export const getFollowing = async (req: Request, res: Response) => {
 			where: { username },
 			include: {
 				following: {
-					select: {
-						following: {
-							select: { username: true },
-						},
-					},
-				},
-			},
+					include: {
+						following: true
+					}
+				}
+			}
 		});
 
 		if (!user) {
-			return res.status(404).json({ error: "User not found" });
+			return res.status(404).json({ error: 'User not found' });
 		}
 
 		const following = {
-			"@context": activityPubConfig.context,
+			'@context': 'https://www.w3.org/ns/activitystreams',
 			id: `${baseUrl}/activitypub/users/${username}/following`,
-			type: "OrderedCollection",
+			type: 'OrderedCollection',
 			totalItems: user.following.length,
-			orderedItems: user.following.map((f: any) => 
-				`${baseUrl}/activitypub/users/${f.following.username}`
-			),
+			orderedItems: user.following.map(follow => `${baseUrl}/activitypub/users/${follow.following.username}`)
 		};
 
-		res.setHeader("Content-Type", "application/activity+json");
+		res.setHeader('Content-Type', 'application/activity+json');
 		res.json(following);
 	} catch (error) {
-		console.error("Error fetching following:", error);
-		res.status(500).json({ error: "Failed to fetch following" });
+		console.error('Error fetching following:', error);
+		res.status(500).json({ error: 'Internal server error' });
 	}
 };
 
@@ -824,7 +781,7 @@ async function handlePollVoteActivity(activity: any, user: any) {
 		console.log(`${activity.actor} voted on a poll`);
 
 		const question = activity.object;
-		
+
 		// Extract poll ID from the question URL
 		const questionUrl = question.id || question;
 		const postIdMatch = questionUrl.match(/\/activitypub\/posts\/([^\/]+)$/);
