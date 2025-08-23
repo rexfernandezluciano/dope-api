@@ -44,22 +44,37 @@ const activityPubContentNegotiation = (req: any, res: any, next: any) => {
 const validateSignature = (req: any, res: any, next: any) => {
 	const signature = req.headers.signature;
 	const contentType = req.headers['content-type'];
+	const userAgent = req.headers['user-agent'];
 	
 	// Log incoming activity for debugging
-	console.log(`Incoming ${req.method} ${req.url}`);
+	console.log(`=== Incoming ActivityPub Request ===`);
+	console.log(`${req.method} ${req.url}`);
 	console.log(`Content-Type: ${contentType}`);
+	console.log(`User-Agent: ${userAgent}`);
 	console.log(`Signature: ${signature ? 'present' : 'missing'}`);
+	console.log(`Headers:`, JSON.stringify(req.headers, null, 2));
 	
 	if (req.body && typeof req.body === 'object') {
 		console.log(`Activity Type: ${req.body.type}`);
 		console.log(`Actor: ${req.body.actor}`);
+		console.log(`Activity ID: ${req.body.id}`);
+		console.log(`Full Body:`, JSON.stringify(req.body, null, 2));
+	}
+	
+	// Validate content type for POST requests
+	if (req.method === 'POST') {
+		if (!contentType || !contentType.includes('application/activity+json')) {
+			console.error(`Invalid content type: ${contentType}`);
+			return res.status(400).json({ error: "Content-Type must be application/activity+json" });
+		}
 	}
 	
 	// For now, we'll be permissive but log signature validation
-	if (!signature) {
-		console.warn('No signature present in ActivityPub request');
+	if (!signature && req.method === 'POST') {
+		console.warn('No signature present in ActivityPub POST request');
 	}
 	
+	console.log(`=== End Request Log ===`);
 	next();
 };
 

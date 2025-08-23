@@ -240,6 +240,8 @@ export const handleInbox = async (req: Request, res: Response) => {
 		const { username } = req.params;
 		const activity = req.body;
 
+		console.log(`Inbox activity received for ${username}:`, JSON.stringify(activity, null, 2));
+
 		// Verify the user exists
 		const user = await prisma.user.findUnique({
 			where: { username },
@@ -247,11 +249,23 @@ export const handleInbox = async (req: Request, res: Response) => {
 		});
 
 		if (!user) {
+			console.error(`User not found: ${username}`);
 			return res.status(404).json({ error: "User not found" });
 		}
 
 		// Validate activity structure
+		if (!activity || typeof activity !== 'object') {
+			console.error('Invalid activity: not an object');
+			return res.status(400).json({ error: "Invalid activity: not an object" });
+		}
+
+		if (!activity.type) {
+			console.error('Invalid activity: missing type');
+			return res.status(400).json({ error: "Invalid activity: missing type" });
+		}
+
 		if (!activity.id || !activity.actor) {
+			console.error('Invalid activity: missing id or actor');
 			return res.status(400).json({ error: "Invalid activity: missing id or actor" });
 		}
 
@@ -435,7 +449,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 		// Get total count of public posts
 		const totalItems = await prisma.post.count({
 			where: {
-				authorId: user.uid,
+				authorUid: user.uid,
 				privacy: "public",
 			},
 		});
@@ -463,7 +477,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 		// Get posts for this page
 		const posts = await prisma.post.findMany({
 			where: {
-				authorId: user.uid,
+				authorUid: user.uid,
 				privacy: "public",
 			},
 			orderBy: { createdAt: "desc" },
@@ -594,6 +608,12 @@ export const getFollowing = async (req: Request, res: Response) => {
 // Activity handlers
 async function handleFollowActivity(activity: any, user: any, req: any) {
 	try {
+		// Validate required fields
+		if (!activity.actor || !activity.id) {
+			console.error('Invalid follow activity: missing actor or id');
+			return;
+		}
+
 		// Store the federated follow relationship
 		console.log(`${activity.actor} wants to follow ${user.username}`);
 
@@ -604,7 +624,9 @@ async function handleFollowActivity(activity: any, user: any, req: any) {
 					activityId: activity.id
 				}
 			},
-			update: {},
+			update: {
+				updatedAt: new Date()
+			},
 			create: {
 				actorUrl: activity.actor,
 				followingId: user.uid,
