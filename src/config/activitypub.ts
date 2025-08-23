@@ -1,6 +1,5 @@
-
-import ActivitypubExpress from 'activitypub-express';
-import { connect } from '../database/database';
+import ActivitypubExpress from "activitypub-express";
+import { connect } from "../database/database";
 
 let prisma: any;
 
@@ -8,72 +7,71 @@ export const createActivityPubApp = async () => {
 	if (!prisma) {
 		prisma = await connect();
 	}
-	const domain = process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : 'localhost:5000';
-	
+
 	const apex = ActivitypubExpress({
-		domain,
+		domain: "dopp.eu.org",
 		context: [
-			'https://www.w3.org/ns/activitystreams',
-			'https://w3id.org/security/v1',
+			"https://www.w3.org/ns/activitystreams",
+			"https://w3id.org/security/v1",
 			{
-				manuallyApprovesFollowers: 'as:manuallyApprovesFollowers',
-				toot: 'http://joinmastodon.org/ns#',
+				manuallyApprovesFollowers: "as:manuallyApprovesFollowers",
+				toot: "http://joinmastodon.org/ns#",
 				featured: {
-					'@id': 'toot:featured',
-					'@type': '@id'
+					"@id": "toot:featured",
+					"@type": "@id",
 				},
 				featuredTags: {
-					'@id': 'toot:featuredTags',
-					'@type': '@id'
+					"@id": "toot:featuredTags",
+					"@type": "@id",
 				},
 				alsoKnownAs: {
-					'@id': 'as:alsoKnownAs',
-					'@type': '@id'
+					"@id": "as:alsoKnownAs",
+					"@type": "@id",
 				},
 				movedTo: {
-					'@id': 'as:movedTo',
-					'@type': '@id'
+					"@id": "as:movedTo",
+					"@type": "@id",
 				},
-				schema: 'http://schema.org#',
-				PropertyValue: 'schema:PropertyValue',
-				value: 'schema:value',
-				discoverable: 'toot:discoverable',
-				suspended: 'toot:suspended',
-				memorial: 'toot:memorial',
-				indexable: 'toot:indexable',
+				schema: "http://schema.org#",
+				PropertyValue: "schema:PropertyValue",
+				value: "schema:value",
+				discoverable: "toot:discoverable",
+				suspended: "toot:suspended",
+				memorial: "toot:memorial",
+				indexable: "toot:indexable",
 				attributionDomains: {
-					'@id': 'toot:attributionDomains',
-					'@type': '@id'
+					"@id": "toot:attributionDomains",
+					"@type": "@id",
 				},
 				focalPoint: {
-					'@container': '@list',
-					'@id': 'toot:focalPoint'
-				}
-			}
+					"@container": "@list",
+					"@id": "toot:focalPoint",
+				},
+			},
 		],
-		actorParam: 'username',
-		objectParam: 'id',
-		activityParam: 'id',
+		actorParam: "username",
+		objectParam: "id",
+		activityParam: "id",
 		routes: {
-			actor: '/activitypub/users/:username',
-			object: '/activitypub/posts/:id',
-			activity: '/activitypub/posts/:id/activity',
-			inbox: '/activitypub/users/:username/inbox',
-			outbox: '/activitypub/users/:username/outbox',
-			followers: '/activitypub/users/:username/followers',
-			following: '/activitypub/users/:username/following',
-			liked: '/activitypub/users/:username/liked',
-			collections: '/activitypub/users/:username/collections/:id',
-			blocked: '/activitypub/users/:username/blocked',
-			rejections: '/activitypub/users/:username/rejections',
-			rejected: '/activitypub/users/:username/rejected',
-			shares: '/activitypub/users/:username/shares',
-			liked_: '/activitypub/users/:username/liked'
+			actor: "/activitypub/users/:username",
+			object: "/activitypub/posts/:id",
+			activity: "/activitypub/posts/:id/activity",
+			inbox: "/activitypub/users/:username/inbox",
+			outbox: "/activitypub/users/:username/outbox",
+			followers: "/activitypub/users/:username/followers",
+			following: "/activitypub/users/:username/following",
+			liked: "/activitypub/users/:username/liked",
+			collections: "/activitypub/users/:username/collections/:id",
+			blocked: "/activitypub/users/:username/blocked",
+			rejections: "/activitypub/users/:username/rejections",
+			rejected: "/activitypub/users/:username/rejected",
+			shares: "/activitypub/users/:username/shares",
+			liked_: "/activitypub/users/:username/liked",
 		},
 		endpoints: {
-			proxyUrl: '/activitypub/proxy',
-			uploadMedia: '/activitypub/upload'
-		}
+			proxyUrl: "/activitypub/proxy",
+			uploadMedia: "/activitypub/upload",
+		},
 	});
 
 	// Override actor resolution
@@ -100,16 +98,16 @@ export const createActivityPubApp = async () => {
 
 		if (!user) return null;
 
-		const baseUrl = `${apex.domain.startsWith('localhost') ? 'http' : 'https'}://${apex.domain}`;
+		const baseUrl = `${apex.domain.startsWith("localhost") ? "http" : "https"}://${apex.domain}`;
 		const userUrl = `${baseUrl}/activitypub/users/${username}`;
 
 		return {
-			'@context': apex.context,
+			"@context": apex.context,
 			id: userUrl,
-			type: 'Person',
+			type: "Person",
 			preferredUsername: user.username,
 			name: user.name || user.username,
-			summary: user.bio || '',
+			summary: user.bio || "",
 			url: `${process.env.FRONTEND_URL ?? baseUrl}/@${user.username}`,
 			manuallyApprovesFollowers: false,
 			discoverable: true,
@@ -117,11 +115,13 @@ export const createActivityPubApp = async () => {
 			published: user.createdAt.toISOString(),
 			memorial: false,
 			suspended: false,
-			icon: user.photoURL ? {
-				type: 'Image',
-				mediaType: 'image/jpeg',
-				url: user.photoURL,
-			} : undefined,
+			icon: user.photoURL
+				? {
+						type: "Image",
+						mediaType: "image/jpeg",
+						url: user.photoURL,
+					}
+				: undefined,
 			inbox: `${userUrl}/inbox`,
 			outbox: `${userUrl}/outbox`,
 			followers: `${userUrl}/followers`,
@@ -157,47 +157,53 @@ export const createActivityPubApp = async () => {
 			},
 		});
 
-		if (!post || post.privacy !== 'public') return null;
+		if (!post || post.privacy !== "public") return null;
 
-		const baseUrl = `${apex.domain.startsWith('localhost') ? 'http' : 'https'}://${apex.domain}`;
+		const baseUrl = `${apex.domain.startsWith("localhost") ? "http" : "https"}://${apex.domain}`;
 		const userUrl = `${baseUrl}/activitypub/users/${post.author.username}`;
 		const postUrl = `${baseUrl}/activitypub/posts/${post.id}`;
 
 		return {
-			'@context': apex.context,
+			"@context": apex.context,
 			id: postUrl,
-			type: 'Note',
+			type: "Note",
 			summary: null,
 			content: post.content,
 			attributedTo: userUrl,
-			to: ['https://www.w3.org/ns/activitystreams#Public'],
+			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			published: post.createdAt.toISOString(),
-			attachment: post.imageUrls?.map((url: string) => ({
-				type: 'Image',
-				mediaType: 'image/jpeg',
-				url: url,
-			})) || [],
+			attachment:
+				post.imageUrls?.map((url: string) => ({
+					type: "Image",
+					mediaType: "image/jpeg",
+					url: url,
+				})) || [],
 		};
 	};
 
 	// Handle inbox activities
 	apex.onActivity = async (activity: any, recipient: any) => {
-		console.log('Received activity:', activity.type, 'for', recipient?.preferredUsername);
+		console.log(
+			"Received activity:",
+			activity.type,
+			"for",
+			recipient?.preferredUsername,
+		);
 
 		switch (activity.type) {
-			case 'Follow':
+			case "Follow":
 				await handleFollowActivity(activity);
 				break;
-			case 'Undo':
-				if (activity.object?.type === 'Follow') {
+			case "Undo":
+				if (activity.object?.type === "Follow") {
 					await handleUnfollowActivity(activity);
 				}
 				break;
-			case 'Like':
+			case "Like":
 				await handleLikeActivity(activity);
 				break;
-			case 'Create':
-				if (activity.object?.type === 'Note') {
+			case "Create":
+				if (activity.object?.type === "Note") {
 					await handleCreateNoteActivity(activity);
 				}
 				break;
@@ -214,16 +220,16 @@ async function getOrCreateUserPublicKey(userId: string): Promise<string> {
 	});
 
 	if (!userKeys) {
-		const crypto = await import('crypto');
-		const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
+		const crypto = await import("crypto");
+		const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
 			modulusLength: 2048,
 			publicKeyEncoding: {
-				type: 'spki',
-				format: 'pem',
+				type: "spki",
+				format: "pem",
 			},
 			privateKeyEncoding: {
-				type: 'pkcs8',
-				format: 'pem',
+				type: "pkcs8",
+				format: "pem",
 			},
 		});
 
@@ -244,7 +250,9 @@ async function handleFollowActivity(activity: any) {
 		const actorUrl = activity.actor;
 		const objectUrl = activity.object;
 
-		const match = objectUrl.match(/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/);
+		const match = objectUrl.match(
+			/\/(?:activitypub\/)?users\/(.+?)(?:[/?#]|$)/,
+		);
 		if (!match) return;
 
 		const username = match[1];
@@ -277,7 +285,7 @@ async function handleFollowActivity(activity: any) {
 
 		console.log(`Created federated follow: ${actorUrl} -> ${user.username}`);
 	} catch (error) {
-		console.error('Error handling follow activity:', error);
+		console.error("Error handling follow activity:", error);
 	}
 }
 
@@ -295,7 +303,7 @@ async function handleUnfollowActivity(activity: any) {
 
 		console.log(`Deleted federated follow: ${actorUrl}`);
 	} catch (error) {
-		console.error('Error handling unfollow activity:', error);
+		console.error("Error handling unfollow activity:", error);
 	}
 }
 
@@ -317,7 +325,7 @@ async function handleLikeActivity(activity: any) {
 			},
 		});
 	} catch (error) {
-		console.error('Error handling like activity:', error);
+		console.error("Error handling like activity:", error);
 	}
 }
 
@@ -335,6 +343,6 @@ async function handleCreateNoteActivity(activity: any) {
 			},
 		});
 	} catch (error) {
-		console.error('Error handling create note activity:', error);
+		console.error("Error handling create note activity:", error);
 	}
 }
