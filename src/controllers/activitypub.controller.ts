@@ -41,7 +41,7 @@ export const webfinger = async (req: Request, res: Response) => {
 			return res.status(400).json({ error: "Invalid resource format" });
 		}
 
-		const [username, domain] = match;
+		const [, username, domain] = match;
 
 		if (!username || !domain) {
 			return res.status(400).json({ error: "Invalid resource format" });
@@ -62,37 +62,65 @@ export const webfinger = async (req: Request, res: Response) => {
 			process.env.DOMAIN?.toLowerCase()
 		].filter(Boolean);
 
-		const isDomainValid = knownDomains.includes(normalizedDomain);
+		const isDomainLocal = knownDomains.includes(normalizedDomain);
 
-		if (!isDomainValid) {
-			console.log(
-				`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, known=${knownDomains.join(', ')}, host=${req.get("host")}`,
-			);
-			return res.status(404).json({ error: "User not found on this domain" });
+		// If it's a local domain, handle it locally
+		if (isDomainLocal) {
+			const user = await prisma.user.findUnique({
+				where: { username },
+				select: { uid: true, username: true, name: true, federatedDiscoverable: true },
+			});
+
+			if (!user || !user.federatedDiscoverable) {
+				return res.status(404).json({ error: "User not found" });
+			}
+
+			const baseUrl = getBaseUrl(req);
+
+			return res.json({
+				subject: resource,
+				links: [
+					{
+						rel: "self",
+						type: "application/activity+json",
+						href: `${baseUrl}/activitypub/users/${username}`,
+					},
+				],
+			});
 		}
 
-		const user = await prisma.user.findUnique({
-			where: { username },
-			select: { uid: true, username: true, name: true, federatedDiscoverable: true },
-		});
-
-		if (!user || !user.federatedDiscoverable) {
-			return res.status(404).json({ error: "User not found" });
-		}
-
-		const baseUrl = getBaseUrl(req);
-
-		res.json({
-			subject: resource,
-			links: [
-				{
-					rel: "self",
-					type: "application/activity+json",
-					href: `${baseUrl}/activitypub/users/${username}`,
+		// If it's a remote domain, proxy the webfinger request
+		console.log(`Proxying webfinger request for ${resource} to ${domain}`);
+		
+		try {
+			const remoteWebfingerUrl = `https://${domain}/.well-known/webfinger?resource=${encodeURIComponent(resource)}`;
+			
+			const response = await fetch(remoteWebfingerUrl, {
+				headers: {
+					'Accept': 'application/jrd+json, application/json',
+					'User-Agent': 'Dopp/1.0 (ActivityPub)'
 				},
-			],
-		});
+				timeout: 5000
+			});
+
+			if (!response.ok) {
+				console.log(`Remote webfinger lookup failed: ${response.status} ${response.statusText}`);
+				return res.status(404).json({ error: "User not found" });
+			}
+
+			const remoteData = await response.json();
+			
+			// Forward the remote response with appropriate headers
+			res.setHeader('Content-Type', 'application/jrd+json');
+			res.json(remoteData);
+
+		} catch (error) {
+			console.error(`Error proxying webfinger request to ${domain}:`, error);
+			return res.status(404).json({ error: "User not found on remote domain" });
+		}
+
 	} catch (error) {
+		console.error("WebFinger lookup failed:", error);
 		res.status(500).json({ error: "WebFinger lookup failed" });
 	}
 };
