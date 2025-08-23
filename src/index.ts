@@ -22,7 +22,7 @@ import contentRoutes from "./routes/content.routes";
 import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
-import activitypubRoutes from "./routes/activitypub.routes"; // Assuming this route file exists
+// Removed: import activitypubRoutes from "./routes/activitypub.routes";
 
 dotenv.config();
 const app: Application = express();
@@ -88,17 +88,25 @@ app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
 app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
-// Register ActivityPub routes
-app.use("/activitypub", activitypubRoutes);
+// Removed: Register ActivityPub routes
+// Removed: app.use("/activitypub", activitypubRoutes);
 
-// WebFinger discovery route (must be at root level)
-app.get('/.well-known/webfinger', async (req, res) => {
-  const { webfinger } = await import('./controllers/activitypub.controller');
-  return webfinger(req, res);
-});
+// Import activitypub-express and controllers
+import { createActivityPubApp } from "./config/activitypub"; // Assuming this path is correct for your setup
+import { webfinger } from "./controllers/activitypub.controller"; // Assuming this path is correct
+import asyncHandler from "express-async-handler"; // Import asyncHandler
 
-// Add user profile route for Mastodon compatibility (@username format)
-app.get('/@:username', async (req, res) => {
+// Initialize ActivityPub
+const apex = createActivityPubApp();
+
+// Apply ActivityPub middleware
+app.use(apex);
+
+// WebFinger endpoint (must be at root)
+app.get("/.well-known/webfinger", asyncHandler(webfinger));
+
+// User profile endpoint with ActivityPub content negotiation
+app.get("/@:username", (req: Request, res: Response) => {
 	const { username } = req.params;
 
 	// Check if client accepts ActivityPub

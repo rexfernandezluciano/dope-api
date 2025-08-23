@@ -1,26 +1,8 @@
-
 import { Router } from 'express';
-import { webfinger, getActor, getOutbox, postInbox, getFollowers, getFollowing, getPost, getPostActivity, getFeatured, getFeaturedTags } from '../controllers/activitypub.controller';
-import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
 
-// WebFinger is now handled at root level in index.ts
-
-// Actor endpoints
-router.get('/users/:username', asyncHandler(getActor));
-router.get('/users/:username/outbox', asyncHandler(getOutbox));
-router.post('/users/:username/inbox', asyncHandler(postInbox));
-router.get('/users/:username/followers', asyncHandler(getFollowers));
-router.get('/users/:username/following', asyncHandler(getFollowing));
-router.get('/users/:username/collections/featured', asyncHandler(getFeatured));
-router.get('/users/:username/collections/tags', asyncHandler(getFeaturedTags));
-
-// Post endpoints
-router.get('/posts/:postId', asyncHandler(getPost));
-router.get('/posts/:postId/activity', asyncHandler(getPostActivity));
-
-// Shared inbox for the instance
-router.post('/inbox', asyncHandler(postInbox));
+// ActivityPub routes are now handled by activitypub-express middleware
+// This file is kept for potential custom endpoints in the future
 
 export default router;
