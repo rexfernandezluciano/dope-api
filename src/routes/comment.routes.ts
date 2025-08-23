@@ -8,10 +8,10 @@ import {
 	getComments,
 	searchComments,
 } from "../controllers/comment.controller";
-import { createCommentReply, getCommentReplies } from "../controllers/reply.controller";
 import { toggleCommentLike, getCommentLikes } from "../controllers/like.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { optionalAuth } from "../middleware/auth.middleware";
+import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
 
@@ -22,10 +22,8 @@ router.get("/", getComments);
 router.get("/post/:postId", getComments);
 router.get("/search", searchComments);
 
-// Comment replies are handled in reply.routes.ts
-
 // Comment likes
-router.post("/:id/like", requireAuth, toggleCommentLike);
-router.get("/:commentId/likes", optionalAuth, getCommentLikes);
+router.post("/:id/like", requireAuth, asyncHandler(toggleCommentLike));
+router.get("/:commentId/likes", optionalAuth, asyncHandler(getCommentLikes));
 
 export default router;

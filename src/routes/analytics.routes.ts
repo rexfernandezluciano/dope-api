@@ -6,11 +6,12 @@ import {
 	getPostAnalytics,
 	getPlatformAnalytics,
 } from "../controllers/analytics.controller";
+import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
 
 router.get("/user", requireAuth, getUserAnalytics);
-router.get("/post/:postId", requireAuth, getPostAnalytics);
-router.get("/platform", requireAuth, getPlatformAnalytics);
+router.get("/post/:postId", requireAuth, asyncHandler(getPostAnalytics));
+router.get("/platform", requireAuth, asyncHandler(getPlatformAnalytics));
 
 export default router;

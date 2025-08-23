@@ -31,7 +31,6 @@
     "APP_NAME": "DOPE Network",
     "BREVO_EMAIL_PASSWORD": "2hMnctfK07xa1dsq",
     "BREVO_EMAIL_ADDRESS": "rexluciano@yahoo.com",
-    "FIREBASE_SERVICE_ACCOUNT_KEY": "{   \"type\": \"service_account\",   \"project_id\": \"dope-international\",   \"private_key_id\": \"828a6f6555502ff13aa1fb0d7015f21bf4b4560f\",   \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCnK4+CrtAone68\\nVPT8o0jMn9mC6JrLDIBygtpkXAjsmSW/NkoDXu8bI64zCDJl9m6uUKGV1FedQbD9\\nY0Fljl17wZn61Q+pyK+MpWAFx9JFB4FRNQJStdmmJVMcaxtCVBVSfN33JLfNCt9v\\nqVrMI0uQ0pXO+uhgwnWPE5/hLfaCb0xzwt5sGg91DFn3mYEYF6UwuU3dcWBEoaB7\\neAN9FCnDR+Hwig3Xn3iurvZPNTBeQ836UN6iYabLZ9f+luNtZ26XHGh8d+zeYLQW\\nodzSIFetZR62KHTP2B/SMFK7Elbt5+QjS+XMLqDpai7jd6mn5l04TEJElD24PINE\\nuzdIj/XJAgMBAAECggEADqWl1lwKYXStC61TjD5v5q+FN4+5eFvPdh96LFu806L7\\niExxobTHG66kDCHTIKHxKRU0tm1utWWhfbu20CojWlbCCHtAlK5aMbP2I0UfarlX\\n0ecXtzcdxQ2O9NxH/PP9eXoqJjkxk/Ke7yhJWPEpJTaxgsgmZWWRNu8P2oM6qEtQ\\nTCBhLmG5cAubM3N0RSvgVzOxN0VltoPPoZ9qR18cSfAre+5vhXpCpYSLAkRO9d5d\\nNqagHcZt2KKDGlyBIkHZgFPhAgkzWhkDIWag7UF8Y1wvkEjoXcoHvGcEeQdX7p+3\\nUmjgKl8Z+bPUPARTw2inp4s+NNLx1yxE/K75s1ocLQKBgQDYfsI52B4ZF4h4SoAZ\\noSmiTZX3rlhRKC5o/K2lgd1Mo/CcnYZIC1NK9zDGzT6Qu142M0rYuFRnmU4t0fkE\\nCP1itpHmmbqHHiiw/yugPb/ld/lXNqL9VnHukmILEPnLMAw917mYQSvio0zIENRN\\niL+VFfJxiiQaU6nBhvkc1nXEWwKBgQDFrKj0Kv9QZ6a1BSNCpb5SNp8InxjD956f\\n2hDo1CkoEB4vzewtaTW/iYm8UxosFtKo3FUD7QX6oBqxYmjFXeo2lDeYoqXnNpYP\\nvA1kM1RhVjLzBCHnRe8CdpThpjv9j71xbtPEvq2zWd+dDzog/Z2uAlGR4deMXGRZ\\nN0OmqPb3qwKBgF7jD9Wyd16gBdxTKtoQ3OKaBsTL0UGgztaNCL6lsIzKvcam9BfX\\nfuY4eVRo2KcuuBghWwipobTWaIGEqhOurP/67O+ZKTvXaBZLgJ928QhuEQa8l6tZ\\nnA3ocrhO9Gyt3m+sgVfOGKH42MpHNgXVjcKWH/DLjw9K4/hCZCTTikJJAoGBAIIn\\nOCtkcCzxwlsoIdpNJS4elsHndzf4v3HC9CVJJDwjuKyDKoGP53rQxWbBVNc4w8W5\\nJSTrmGc3qbun7xIczwzWtHCEjzXYxB9iE3MpNOLODcfirawIaOG3UDnu6Ur/rJ2W\\nekrtvZL8lvZjw0Nbmcmr7yddiz34y33OnHWMhOf3AoGAKoQPLd2doLazlLJPJL4V\\nK5JFw5J+y1OZlBzEbPtA0RG2o08e4e1tJigmOsq8PlaybYwUyxOPGLuKEgL2bE8d\\nihNgmGou6jXNPiX9sN/hRiEBL4RS154F2dSExFwxcJrAszUyzoQQSGrsJTpjsePl\\nXXgzKBXvy8HZviZy45kipAM=\\n-----END PRIVATE KEY-----\\n\",   \"client_email\": \"firebase-adminsdk-fbsvc@dope-international.iam.gserviceaccount.com\",   \"client_id\": \"117310721450328045963\",   \"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",   \"token_uri\": \"https://oauth2.googleapis.com/token\",   \"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",   \"client_x509_cert_url\": \"https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40dope-international.iam.gserviceaccount.com\",   \"universe_domain\": \"googleapis.com\" }",
     "GOOGLE_CLIENT_SECRET": "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",
     "GOOGLE_CLIENT_ID": "171033182022-q5s7u27t4s7idqq7mepqkcp3jjsev8pb.apps.googleusercontent.com",
     "CRON_SECRET": "fZphlKLGe8JlWfoNz9",
@@ -39,9 +38,10 @@
     "CLOUDINARY_CLOUD_NAME": "zxpic",
     "GEMINI_API_KEY": "AIzaSyC3jCV47n5agKpivHqAWmcrakuX8Fiznas",
     "SESSION_SECRET": "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
-    "GOOGLE_CALLBACK_URL": "https://www.dopp.eu.org/auth/google/callback",
-    "PAYMONGO_SECRET_KEY": "sk_test_qKH4w9vS469Ti5BmfUH6TYK4",
-    "PAYMONGO_PUBLIC_KEY": "pk_test_9j53cXte939n7v6mwkRkRKyv",
+    "GOOGLE_CALLBACK_URL": "https://api.dopp.eu.org/v1/auth/google/callback",
+    "PAYPAL_CLIENT_ID": "AYv5Ao5cq7A49Hd19TSrw59YEiPboazIE7WXrmLkpklVCmsgQmartssMsFap9XI7lM6LOnjMHgux2nJR",
+    "PAYPAL_SECRET_KEY": "EBSkGiGJTe6N_csM8NV653BKehnG_n-hgTSDvGcZDNgYhxanKOfpdyib6e1vIFAzYmifnpjaIilftAGQ",
+    "GEMINI_API_KEY": "AIzaSyC3jCV47n5agKpivHqAWmcrakuX8Fiznas"
     "FRONTEND_URL": "https://www.dopp.eu.org"
   }
 }

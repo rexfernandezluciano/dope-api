@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { z } from "zod";
 import { connect } from "../database/database";
@@ -15,7 +14,7 @@ const paypalAPI = axios.create({
   baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com", // Use sandbox for testing
   headers: {
     "Content-Type": "application/json",
-    "Accept": "application/json",
+    Accept: "application/json",
     "Accept-Language": "en_US",
   },
 });
@@ -30,16 +29,19 @@ const getPayPalAccessToken = async () => {
   }
 
   try {
-    const response = await paypalAPI.post("/v1/oauth2/token", 
-      "grant_type=client_credentials", {
-      headers: {
-        "Authorization": `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+    const response = await paypalAPI.post(
+      "/v1/oauth2/token",
+      "grant_type=client_credentials",
+      {
+        headers: {
+          Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
       },
-    });
+    );
 
     paypalAccessToken = response.data.access_token;
-    tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000; // Subtract 1 minute for safety
+    tokenExpiry = Date.now() + response.data.expires_in * 1000 - 60000; // Subtract 1 minute for safety
     return paypalAccessToken;
   } catch (error) {
     console.error("PayPal token error:", error);
@@ -49,10 +51,7 @@ const getPayPalAccessToken = async () => {
 
 const PaymentMethodSchema = z
   .object({
-    type: z.enum([
-      "paypal_card",
-      "paypal_wallet",
-    ]),
+    type: z.enum(["paypal_card", "paypal_wallet"]),
     paypalPaymentMethodId: z.string().optional(),
     last4: z.string().optional(),
     expiryMonth: z.number().min(1).max(12).optional(),
@@ -64,7 +63,10 @@ const PaymentMethodSchema = z
   .refine(
     (data) => {
       if (data.type === "paypal_card") {
-        return data.paypalPaymentMethodId || (data.last4 && data.expiryMonth && data.expiryYear && data.holderName);
+        return (
+          data.paypalPaymentMethodId ||
+          (data.last4 && data.expiryMonth && data.expiryYear && data.holderName)
+        );
       }
       if (data.type === "paypal_wallet") {
         return data.paypalEmail || data.paypalPaymentMethodId;
@@ -102,7 +104,7 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
             headers: {
               Authorization: `Bearer ${accessToken}`,
             },
-          }
+          },
         );
         providerPaymentMethod = response.data;
       } catch (error) {
@@ -121,12 +123,31 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
         type: paymentData.type,
-        provider: 'paypal',
+        provider: "paypal",
         paypalPaymentMethodId: paymentData.paypalPaymentMethodId,
-        last4: paymentData.last4 || providerPaymentMethod?.payment_source?.card?.last_digits,
-        expiryMonth: paymentData.expiryMonth || (providerPaymentMethod?.payment_source?.card?.expiry?.split('/')[0] ? parseInt(providerPaymentMethod.payment_source.card.expiry.split('/')[0]) : null),
-        expiryYear: paymentData.expiryYear || (providerPaymentMethod?.payment_source?.card?.expiry?.split('/')[1] ? parseInt('20' + providerPaymentMethod.payment_source.card.expiry.split('/')[1]) : null),
-        holderName: paymentData.holderName || providerPaymentMethod?.payment_source?.card?.name,
+        last4:
+          paymentData.last4 ||
+          providerPaymentMethod?.payment_source?.card?.last_digits,
+        expiryMonth:
+          paymentData.expiryMonth ||
+          (providerPaymentMethod?.payment_source?.card?.expiry?.split("/")[0]
+            ? parseInt(
+                providerPaymentMethod.payment_source.card.expiry.split("/")[0],
+              )
+            : null),
+        expiryYear:
+          paymentData.expiryYear ||
+          (providerPaymentMethod?.payment_source?.card?.expiry?.split("/")[1]
+            ? parseInt(
+                "20" +
+                  providerPaymentMethod.payment_source.card.expiry.split(
+                    "/",
+                  )[1],
+              )
+            : null),
+        holderName:
+          paymentData.holderName ||
+          providerPaymentMethod?.payment_source?.card?.name,
         paypalEmail: paymentData.paypalEmail,
         isDefault: paymentData.isDefault,
         userId: authUser.uid,
@@ -138,10 +159,13 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
       paymentMethod: {
         id: paymentMethod.id,
         type: paymentMethod.type,
-        provider: 'paypal',
+        provider: "paypal",
         last4: paymentMethod.last4,
         isDefault: paymentMethod.isDefault,
-        paypalEmail: paymentData.type === "paypal_wallet" ? paymentData.paypalEmail : undefined,
+        paypalEmail:
+          paymentData.type === "paypal_wallet"
+            ? paymentData.paypalEmail
+            : undefined,
       },
     });
   } catch (err: any) {
@@ -261,47 +285,59 @@ export const purchaseMembership = async (req: Request, res: Response) => {
     try {
       // Create PayPal order
       const accessToken = await getPayPalAccessToken();
-      
-      const paypalOrder = await paypalAPI.post("/v2/checkout/orders", {
-        intent: "CAPTURE",
-        purchase_units: [{
-          amount: {
-            currency_code: "PHP",
-            value: (selectedPlan.php_amount / 100).toFixed(2), // Convert centavos to peso
+
+      const paypalOrder = await paypalAPI.post(
+        "/v2/checkout/orders",
+        {
+          intent: "CAPTURE",
+          purchase_units: [
+            {
+              amount: {
+                currency_code: "PHP",
+                value: (selectedPlan.php_amount / 100).toFixed(2), // Convert centavos to peso
+              },
+              description: selectedPlan.description,
+              custom_id: `${authUser.uid}_${subscription}_${paymentMethodId}`,
+            },
+          ],
+          payment_source:
+            paymentMethod.type === "paypal_wallet"
+              ? {
+                  paypal: {
+                    email_address: paymentMethod.paypalEmail,
+                    experience_context: {
+                      return_url: `${process.env.FRONTEND_URL}/payment/success`,
+                      cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+                    },
+                  },
+                }
+              : {
+                  card: {
+                    vault_id: paymentMethod.paypalPaymentMethodId,
+                  },
+                },
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
           },
-          description: selectedPlan.description,
-          custom_id: `${authUser.uid}_${subscription}_${paymentMethodId}`,
-        }],
-        payment_source: paymentMethod.type === 'paypal_wallet' ? {
-          paypal: {
-            email_address: paymentMethod.paypalEmail,
-            experience_context: {
-              return_url: `${process.env.FRONTEND_URL}/payment/success`,
-              cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
-            }
-          }
-        } : {
-          card: {
-            vault_id: paymentMethod.paypalPaymentMethodId,
-          }
         },
-      }, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
+      );
 
       const subscriptionResult = {
         id: paypalOrder.data.id,
-        provider: 'paypal',
+        provider: "paypal",
         status: paypalOrder.data.status,
-        approveUrl: paypalOrder.data.links?.find((link: any) => link.rel === 'approve')?.href,
+        approveUrl: paypalOrder.data.links?.find(
+          (link: any) => link.rel === "approve",
+        )?.href,
       };
 
       res.json({
-        message: "Payment initiated - complete payment to activate subscription",
+        message:
+          "Payment initiated - complete payment to activate subscription",
         paymentIntentId: subscriptionResult.id,
-        provider: 'paypal',
+        provider: "paypal",
         approveUrl: subscriptionResult.approveUrl,
         amount: selectedPlan.php_amount,
         currency: "PHP",
@@ -312,9 +348,7 @@ export const purchaseMembership = async (req: Request, res: Response) => {
 
       return res.status(400).json({
         message: "Payment failed",
-        error:
-          providerError.response?.data?.message ||
-          providerError.message,
+        error: providerError.response?.data?.message || providerError.message,
       });
     }
   } catch (error: any) {
@@ -334,8 +368,8 @@ export const handlePayPalWebhook = async (req: Request, res: Response) => {
       const customId = resource.purchase_units?.[0]?.custom_id;
 
       if (customId) {
-        const [userId, subscription, paymentMethodId] = customId.split('_');
-        
+        const [userId, subscription, paymentMethodId] = customId.split("_");
+
         if (userId && subscription) {
           const nextBillingDate = new Date();
           nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
@@ -349,7 +383,26 @@ export const handlePayPalWebhook = async (req: Request, res: Response) => {
             },
           });
 
-          console.log(`PayPal subscription activated for user ${userId}: ${subscription}`);
+          const paymentMethod = await prisma.paymentMethod.findUnique({
+            where: { userId },
+          });
+
+          if (!paymentMethod) {
+            res.status(404).json({
+              error: `Payment method not found for user ${userId}`,
+            });
+          }
+
+          await prisma.paymentMethod.update({
+            where: { userId, provider: "paypal" },
+            data: {
+              paypalPaymentMethodId: paymentMethodId,
+            },
+          });
+
+          console.log(
+            `PayPal subscription activated for user ${userId}: ${subscription}`,
+          );
         }
       }
     }
@@ -386,6 +439,19 @@ export const getAvailablePaymentProviders = async (
 
     const membershipPlans = [
       {
+        type: "free",
+        name: "Free",
+        price: 0,
+        currency: "PHP",
+        interval: "month",
+        features: [
+          "3 images per post",
+          "Basic analytics",
+          "Basic support",
+          "Security protection",
+        ],
+      },
+      {
         type: "premium",
         name: "Premium",
         price: 560,
@@ -396,7 +462,8 @@ export const getAvailablePaymentProviders = async (
           "Verification badge",
           "Basic support",
           "Advanced analytics",
-          "Security protection"
+          "Security protection",
+          "Access to Monetization"
         ],
       },
       {
@@ -412,6 +479,7 @@ export const getAvailablePaymentProviders = async (
           "Priority support",
           "Security protection",
           "Priority moderation",
+          "Access to Monetization"
         ],
       },
     ];

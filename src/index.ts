@@ -1,6 +1,6 @@
 /** @format */
 
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import * as dotenv from "dotenv";
 import session from "express-session";
@@ -30,11 +30,12 @@ const PORT = process.env.PORT || 5000;
 // Use CORS globally for all routes
 app.use(cors({ origin: "*" }));
 
+// Middleware to parse JSON bodies into JS objects
 app.use(express.json());
 app.set("json spaces", 2);
 
-// Add server name to response headers
-app.use((req, res, next) => {
+// Server Name and Powered By Headers
+app.use((req: Request, res: Response, next: NextFunction) => {
 	res.setHeader("Server", "DOPE/1.0");
 	res.setHeader("X-Powered-By", "DOPE/1.0");
 	next();
@@ -62,27 +63,27 @@ app.use(enhanceSession);
 app.use(passport.initialize());
 app.use(passport.session());
 
-const BASE_PATH = "/v1";
+const API_VERSION = "/v1";
 
 app.get("/", (req: Request, res: Response) => {
 	const origin = req.headers.origin;
 	res.json({ status: "ok", message: "API is accessed on " + origin });
 });
 
-app.use("/v1/auth", authRoutes);
-app.use("/v1/users", userRoutes);
-app.use("/v1/posts", postRoutes);
-app.use("/v1/comments", commentRoutes);
-app.use("/v1/replies", replyRoutes);
-app.use("/v1/reports", reportRoutes);
-app.use("/v1/blocks", blockRoutes);
-app.use("/v1/payments", paymentRoutes);
-app.use("/v1/sessions", sessionRoutes);
-app.use("/v1/content", contentRoutes);
-app.use("/v1/images", imageRoutes);
-app.use("/v1/recommendations", recommendationRoutes);
-app.use("/v1/business", businessRoutes);
-app.use("/v1/analytics", analyticsRoutes);
+app.use(`${API_VERSION}/auth`, authRoutes);
+app.use(`${API_VERSION}/users`, userRoutes);
+app.use(`${API_VERSION}/posts`, postRoutes);
+app.use(`${API_VERSION}/comments`, commentRoutes);
+app.use(`${API_VERSION}/replies`, replyRoutes);
+app.use(`${API_VERSION}/reports`, reportRoutes);
+app.use(`${API_VERSION}/blocks`, blockRoutes);
+app.use(`${API_VERSION}/payments`, paymentRoutes);
+app.use(`${API_VERSION}/sessions`, sessionRoutes);
+app.use(`${API_VERSION}/content`, contentRoutes);
+app.use(`${API_VERSION}/images`, imageRoutes);
+app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
+app.use(`${API_VERSION}/business`, businessRoutes);
+app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
