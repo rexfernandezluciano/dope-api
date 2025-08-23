@@ -102,7 +102,7 @@ export const getActor = async (req: Request, res: Response) => {
 		}
 
 		const baseUrl = `${req.protocol}://${req.get('host')}`;
-		const userUrl = `${baseUrl}/users/${username}`;
+		const userUrl = `${baseUrl}/activitypub/users/${username}`;
 
 		const actor = {
 			"@context": [
@@ -129,7 +129,7 @@ export const getActor = async (req: Request, res: Response) => {
 				publicKeyPem: await getOrCreateUserPublicKey(user.uid)
 			},
 			endpoints: {
-				sharedInbox: `${baseUrl}/inbox`
+				sharedInbox: `${baseUrl}/activitypub/inbox`
 			},
 			published: user.createdAt.toISOString()
 		};
@@ -260,8 +260,8 @@ export const postInbox = async (req: Request, res: Response) => {
 
 // Convert internal post to ActivityPub Note
 async function convertPostToActivity(post: any, baseUrl: string) {
-	const userUrl = `${baseUrl}/users/${post.author.username}`;
-	const postUrl = `${baseUrl}/posts/${post.id}`;
+	const userUrl = `${baseUrl}/activitypub/users/${post.author.username}`;
+	const postUrl = `${baseUrl}/activitypub/posts/${post.id}`;
 
 	// Parse mentions (@uid) to display names
 	const processedContent = await parseMentionsToNames(post.content || "");
@@ -487,7 +487,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 			}) || [];
 
 			const followers = [
-				...localFollowers.map((f: any) => `${baseUrl}/users/${f.follower.username}`),
+				...localFollowers.map((f: any) => `${baseUrl}/activitypub/users/${f.follower.username}`),
 				...federatedFollowers.map((f: any) => f.actorUrl)
 			];
 
@@ -553,7 +553,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 				skip: offset
 			});
 
-			const followingUrls = following.map((f: any) => `${baseUrl}/users/${f.following.username}`);
+			const followingUrls = following.map((f: any) => `${baseUrl}/activitypub/users/${f.following.username}`);
 
 			res.setHeader('Content-Type', 'application/activity+json');
 			res.json({
