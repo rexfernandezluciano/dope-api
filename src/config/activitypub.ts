@@ -1,6 +1,6 @@
 
 export const activityPubConfig = {
-	domain: "dopp.eu.org",
+	domain: process.env.ACTIVITYPUB_DOMAIN || "api.dopp.eu.org",
 	context: [
 		"https://www.w3.org/ns/activitystreams",
 		"https://w3id.org/security/v1",

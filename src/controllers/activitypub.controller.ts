@@ -155,7 +155,7 @@ export const getActor = async (req: Request, res: Response) => {
 				"https://w3id.org/security/v1",
 				{
 					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
-					"toot": "http://dopp.eu.org",
+					"toot": baseUrl,
 					"featured": {
 						"@id": "toot:featured",
 						"@type": "@id"
@@ -288,6 +288,7 @@ export const handleInbox = async (req: Request, res: Response) => {
 
 // Create outbound activity for a post
 export const createPostActivity = async (post: any, author: any, baseUrl: string) => {
+	const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
 	return {
 		id: `${baseUrl}/activitypub/posts/${post.id}/activity`,
 		type: "Create",
@@ -305,7 +306,8 @@ export const createPostActivity = async (post: any, author: any, baseUrl: string
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			cc: [`${baseUrl}/activitypub/users/${author.username}/followers`],
 			sensitive: false,
-			tag: []
+			tag: [],
+			url: `${frontendUrl}/post/${post.id}`
 		}
 	};
 };
