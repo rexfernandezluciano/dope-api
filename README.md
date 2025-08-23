@@ -134,18 +134,59 @@ POST /v1/auth/resend-code
 }
 ```
 
-#### Email Login
+#### Login
 ```http
 POST /v1/auth/login
+Content-Type: application/json
 ```
 
 **Request Body:**
 ```json
 {
   "email": "john@example.com",
-  "password": "password123",
-  "device": "iPhone 15 Pro",
-  "location": "New York, US"
+  "password": "password123"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "token": "jwt_token",
+  "sessionId": "session_id",
+  "user": {
+    "uid": "user_id",
+    "name": "John Doe",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "bio": "User bio",
+    "photoURL": "https://example.com/photo.jpg",
+    "hasBlueCheck": false,
+    "membership": {
+      "subscription": "free"
+    },
+    "privacy": {
+      "profile": "public",
+      "comments": "public",
+      "sharing": true,
+      "chat": "public"
+    },
+    "hasVerifiedEmail": true,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "updatedAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Google OAuth Login
+```http
+POST /v1/auth/google
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "idToken": "google_id_token"
 }
 ```
 
@@ -162,8 +203,7 @@ POST /v1/auth/login
     "photoURL": "https://example.com/photo.jpg",
     "hasBlueCheck": false,
     "membership": {
-      "subscription": "premium",
-      "nextBillingDate": "2025-12-12T06:09:00.000Z"
+      "subscription": "free"
     },
     "privacy": {
       "profile": "public",
@@ -178,44 +218,20 @@ POST /v1/auth/login
 }
 ```
 
-#### Google Login/Signup
+#### Google OAuth Callback
 ```http
-POST /v1/auth/google
+GET /v1/auth/google/callback
 ```
 
-**Request Body:**
-```json
-{
-  "token": "google_id_token"
-}
-```
+**Response:**
+Redirects to frontend at `/auth/google/callback` with query parameters:
+- `token`: JWT authentication token
+- `sessionId`: Session identifier
+- `uid`: User ID
 
-**Success Response (200/201):**
-```json
-{
-  "token": "jwt_token",
-  "user": {
-    "uid": "user_id",
-    "name": "John Doe",
-    "username": "johndoe_abc123",
-    "email": "john@gmail.com",
-    "photoURL": "https://lh3.googleusercontent.com/...",
-    "hasBlueCheck": false,
-    "membership": {
-      "subscription": "free",
-      "nextBillingDate": null
-    },
-    "privacy": {
-      "profile": "public",
-      "comments": "public",
-      "sharing": true,
-      "chat": "private"
-    },
-    "hasVerifiedEmail": true,
-    "createdAt": "2024-01-15T10:30:00Z",
-    "updatedAt": "2024-01-15T10:30:00Z"
-  }
-}
+**Example redirect:**
+```
+https://www.dopp.eu.org/auth/google/callback?token=jwt_token&sessionId=session_id&uid=user_id
 ```
 
 #### Logout
