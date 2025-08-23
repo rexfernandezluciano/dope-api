@@ -117,8 +117,16 @@ app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 // ActivityPub routes
 app.use("/activitypub", activityPubRoutes);
 
+// OAuth routes
+const oauthRoutes = require("./routes/oauth.routes").default;
+app.use("/oauth", oauthRoutes);
+
 // WebFinger endpoint (must be at root)
 app.get("/.well-known/webfinger", asyncHandler(webfinger));
+
+// Well-known routes
+const wellKnownRoutes = require("./routes/well-known.routes").default;
+app.use("/.well-known", wellKnownRoutes);
 
 // User profile endpoint with ActivityPub content negotiation
 app.get("/@:username", (req: Request, res: Response) => {

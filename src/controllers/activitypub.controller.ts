@@ -196,7 +196,10 @@ export const getActor = async (req: Request, res: Response) => {
 			tag: [],
 			attachment: [],
 			endpoints: {
-				sharedInbox: `${baseUrl}/activitypub/inbox`
+				sharedInbox: `${baseUrl}/activitypub/inbox`,
+				oauthAuthorizationEndpoint: `${baseUrl}/oauth/authorize`,
+				oauthTokenEndpoint: `${baseUrl}/oauth/token`,
+				oauthRegistrationEndpoint: `${baseUrl}/oauth/apps`
 			},
 			icon: user.photoURL ? {
 				type: "Image",
