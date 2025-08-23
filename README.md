@@ -2149,7 +2149,7 @@ Discover ActivityPub actors for federation with Mastodon and other ActivityPub s
     {
       "rel": "self",
       "type": "application/activity+json",
-      "href": "https://example.com/users/john"
+      "href": "https://example.com/activitypub/users/john"
     }
   ]
 }
@@ -2157,7 +2157,7 @@ Discover ActivityPub actors for federation with Mastodon and other ActivityPub s
 
 ### User Actor Profile
 ```
-GET /users/:username
+GET /activitypub/users/:username
 ```
 Returns the ActivityPub actor profile for federation.
 
@@ -2171,7 +2171,7 @@ Returns the ActivityPub actor profile for federation.
     "https://www.w3.org/ns/activitystreams",
     "https://w3id.org/security/v1"
   ],
-  "id": "https://example.com/users/john",
+  "id": "https://example.com/activitypub/users/john",
   "type": "Person",
   "preferredUsername": "john",
   "name": "John Doe",
@@ -2181,13 +2181,13 @@ Returns the ActivityPub actor profile for federation.
     "mediaType": "image/jpeg",
     "url": "https://example.com/avatar.jpg"
   },
-  "inbox": "https://example.com/users/john/inbox",
-  "outbox": "https://example.com/users/john/outbox",
-  "followers": "https://example.com/users/john/followers",
-  "following": "https://example.com/users/john/following",
+  "inbox": "https://example.com/activitypub/users/john/inbox",
+  "outbox": "https://example.com/activitypub/users/john/outbox",
+  "followers": "https://example.com/activitypub/users/john/followers",
+  "following": "https://example.com/activitypub/users/john/following",
   "publicKey": {
-    "id": "https://example.com/users/john#main-key",
-    "owner": "https://example.com/users/john",
+    "id": "https://example.com/activitypub/users/john#main-key",
+    "owner": "https://example.com/activitypub/users/john",
     "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n..."
   }
 }
@@ -2195,8 +2195,8 @@ Returns the ActivityPub actor profile for federation.
 
 ### User Outbox
 ```
-GET /users/:username/outbox
-GET /users/:username/outbox?page=1
+GET /activitypub/users/:username/outbox
+GET /activitypub/users/:username/outbox?page=1
 ```
 Returns user's public posts in ActivityPub format.
 
@@ -2207,10 +2207,10 @@ Returns user's public posts in ActivityPub format.
 ```json
 {
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example.com/users/john/outbox",
+  "id": "https://example.com/activitypub/users/john/outbox",
   "type": "OrderedCollection",
   "totalItems": 42,
-  "first": "https://example.com/users/john/outbox?page=1"
+  "first": "https://example.com/activitypub/users/john/outbox?page=1"
 }
 ```
 
@@ -2218,20 +2218,20 @@ Returns user's public posts in ActivityPub format.
 ```json
 {
   "@context": "https://www.w3.org/ns/activitystreams",
-  "id": "https://example.com/users/john/outbox?page=1",
+  "id": "https://example.com/activitypub/users/john/outbox?page=1",
   "type": "OrderedCollectionPage",
-  "partOf": "https://example.com/users/john/outbox",
+  "partOf": "https://example.com/activitypub/users/john/outbox",
   "orderedItems": [
     {
       "id": "https://example.com/posts/123/activity",
       "type": "Create",
-      "actor": "https://example.com/users/john",
+      "actor": "https://example.com/activitypub/users/john",
       "published": "2024-01-15T10:30:00Z",
       "object": {
         "id": "https://example.com/posts/123",
         "type": "Note",
         "content": "Hello, fediverse!",
-        "attributedTo": "https://example.com/users/john",
+        "attributedTo": "https://example.com/activitypub/users/john",
         "to": ["https://www.w3.org/ns/activitystreams#Public"],
         "published": "2024-01-15T10:30:00Z"
       }
@@ -2242,8 +2242,7 @@ Returns user's public posts in ActivityPub format.
 
 ### User Inbox
 ```
-POST /users/:username/inbox
-POST /inbox
+POST /activitypub/inbox
 ```
 Receives ActivityPub activities from other federated instances.
 
@@ -2260,7 +2259,7 @@ Receives ActivityPub activities from other federated instances.
   "id": "https://mastodon.social/activities/123",
   "type": "Follow",
   "actor": "https://mastodon.social/users/alice",
-  "object": "https://example.com/users/john"
+  "object": "https://example.com/activitypub/users/john"
 }
 ```
 
@@ -2275,7 +2274,7 @@ Receives ActivityPub activities from other federated instances.
     "id": "https://mastodon.social/activities/123",
     "type": "Follow",
     "actor": "https://mastodon.social/users/alice",
-    "object": "https://example.com/users/john"
+    "object": "https://example.com/activitypub/users/john"
   }
 }
 ```
@@ -2302,7 +2301,7 @@ Receives ActivityPub activities from other federated instances.
     "id": "https://mastodon.social/posts/456",
     "type": "Note",
     "content": "@john Hello from Mastodon!",
-    "attributedTo": "https://mastodon.social/users/alice",
+    "attributedTo": "https://example.com/activitypub/users/alice",
     "to": ["https://www.w3.org/ns/activitystreams#Public"],
     "published": "2024-01-15T11:00:00Z"
   }
