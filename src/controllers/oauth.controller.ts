@@ -1,4 +1,3 @@
-
 import { Request, Response } from 'express';
 import { connect } from '../database/database';
 import crypto from 'crypto';
@@ -249,15 +248,16 @@ export const userInfo = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: 'user_not_found' });
 		}
 
+		const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
 		res.json({
 			id: userInfo.uid,
 			username: userInfo.username,
 			display_name: userInfo.name,
-			note: userInfo.bio || '',
-			avatar: userInfo.photoURL || '',
-			created_at: userInfo.createdAt.toISOString(),
+			note: userInfo.bio || "",
+			avatar: userInfo.photoURL || "",
+			created_at: userInfo.createdAt,
 			verified: userInfo.hasVerifiedEmail,
-			url: `${req.protocol}://${req.get('host')}/@${userInfo.username}`
+			url: `${frontendUrl}/@${userInfo.username}`,
 		});
 	} catch (error) {
 		console.error('OAuth userinfo error:', error);

@@ -131,6 +131,7 @@ export const getActor = async (req: Request, res: Response) => {
 			publicKeyPem = keyPair.publicKey;
 		}
 
+		const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
 		const actor = {
 			"@context": [
 				"https://www.w3.org/ns/activitystreams",
@@ -182,7 +183,7 @@ export const getActor = async (req: Request, res: Response) => {
 			preferredUsername: username,
 			name: user.name || username,
 			summary: user.bio ? `<p>${user.bio}</p>` : "",
-			url: `${baseUrl}/@${username}`,
+			url: `${frontendUrl}/@${username}`,
 			manuallyApprovesFollowers: false,
 			discoverable: true,
 			indexable: true,
