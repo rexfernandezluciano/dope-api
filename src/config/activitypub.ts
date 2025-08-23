@@ -27,6 +27,6 @@ export const activityPubConfig = {
 };
 
 export const getBaseUrl = (req: any) => {
-	const protocol = req.http?.protocol;
-	return `${protocol ?? "https"}:// ${activityPubConfig.domain}`;
+	const protocol = req.protocol || (req.secure ? 'https' : 'http');
+	return `${protocol}://${activityPubConfig.domain}`;
 };
