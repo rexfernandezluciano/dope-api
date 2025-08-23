@@ -41,7 +41,7 @@ export const webfinger = async (req: Request, res: Response) => {
 			return res.status(400).json({ error: "Invalid resource format" });
 		}
 
-		const [ username, domain] = match;
+		const [username, domain] = match;
 
 		if (!username || !domain) {
 			return res.status(400).json({ error: "Invalid resource format" });
@@ -49,19 +49,24 @@ export const webfinger = async (req: Request, res: Response) => {
 
 		const expectedDomain = req.get("host");
 
-		// Handle domain matching more flexibly
+		// Handle domain matching more flexibly for fediverse compatibility
 		const normalizedDomain = domain.toLowerCase();
 		const normalizedExpected = expectedDomain?.toLowerCase();
 
-		// Also check against known domain variants
-		const knownDomains = ["dopp.eu.org"];
-		const isDomainValid =
-			normalizedDomain === normalizedExpected ||
-			knownDomains.includes(normalizedDomain);
+		// Support multiple domain variants for federation
+		const knownDomains = [
+			"dopp.eu.org",
+			"api.dopp.eu.org", 
+			normalizedExpected,
+			process.env.ACTIVITYPUB_DOMAIN?.toLowerCase(),
+			process.env.DOMAIN?.toLowerCase()
+		].filter(Boolean);
+
+		const isDomainValid = knownDomains.includes(normalizedDomain);
 
 		if (!isDomainValid) {
 			console.log(
-				`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, host=${req.get("host")}`,
+				`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}, known=${knownDomains.join(', ')}, host=${req.get("host")}`,
 			);
 			return res.status(404).json({ error: "User not found on this domain" });
 		}

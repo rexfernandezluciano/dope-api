@@ -28,5 +28,14 @@ export const activityPubConfig = {
 
 export const getBaseUrl = (req: any) => {
 	const protocol = req.protocol || (req.secure ? 'https' : 'http');
-	return `${protocol}://${activityPubConfig.domain}`;
+	
+	// Use the host header if available for proper domain detection
+	const host = req.get('host') || activityPubConfig.domain;
+	
+	// Prefer environment variables for production deployment
+	if (process.env.ACTIVITYPUB_DOMAIN) {
+		return `${protocol}://${process.env.ACTIVITYPUB_DOMAIN}`;
+	}
+	
+	return `${protocol}://${host}`;
 };

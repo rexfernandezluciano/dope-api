@@ -40,7 +40,12 @@ const app: Application = express();
 app.set("trust proxy", 1); // Trust first proxy only
 
 // Global middleware setup
-app.use(cors({ origin: "*" }));
+app.use(cors({ 
+	origin: "*",
+	methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+	allowedHeaders: ["Content-Type", "Accept", "Signature", "Date", "Digest", "Host", "Authorization"],
+	credentials: false
+}));
 
 // Rate limiting middleware
 const limiter = rateLimit({

@@ -26,6 +26,16 @@ const router = Router();
 const activityPubContentNegotiation = (req: any, res: any, next: any) => {
 	const accept = req.headers.accept || '';
 
+	// Set CORS headers for fediverse compatibility
+	res.setHeader('Access-Control-Allow-Origin', '*');
+	res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+	res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Signature, Date, Digest, Host');
+	res.setHeader('Access-Control-Max-Age', '86400');
+
+	if (req.method === 'OPTIONS') {
+		return res.status(200).end();
+	}
+
 	if (
 		accept.includes('application/activity+json') ||
 		accept.includes('application/ld+json') ||
