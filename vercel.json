@@ -1,6 +1,30 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  
+  "builds": [
+    {
+      "src:": "src/index.ts",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 10,
+        "runtime": "nodejs22.x",
+        "includeFiles": [
+          "src/**/*",
+          "prisma/**/*",
+          "node_modules/**/*",
+          "package.json",
+          "package-lock.json",
+          "tsconfig.json",
+          "vercel.json",
+          "prisma/schema.prisma",
+          "prisma/migrations/**/*",
+          "prisma/seeds/**/*","
+        ],
+        "installCommand": "npm install --legacy-peer-deps",
+        "buildCommand": "npm run build",
+        "postInstallCommand": "npm run prisma:generate --no-engine"
+      }
+    }
+  ],
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
   "routes": [
@@ -13,7 +37,11 @@
         "Access-Control-Allow-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Firebase-AppCheck, Authorization",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
         "Access-Control-Expose-Headers": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version",
-        "Access-Control-Max-Age": "86400"
+        "Access-Control-Max-Age": "86400",
+        "Server": "DOPE/1.0",
+        "X-Powered-By": "DOPE/1.0",
+        "X-Origin": "DOPE/1.0",
+        "X-Content-Type-Options": "nosniff"
       }
     }
   ],

@@ -39,6 +39,8 @@ app.set("json spaces", 2);
 app.use((req: Request, res: Response, next: NextFunction) => {
 	res.setHeader("Server", "DOPE/1.0");
 	res.setHeader("X-Powered-By", "DOPE/1.0");
+	res.setHeader("X-Origin", "DOPE/1.0");
+	res.setHeader("X-Content-Type-Options", "nosniff");
 	next();
 });
 
