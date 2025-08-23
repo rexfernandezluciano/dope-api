@@ -15,12 +15,6 @@ import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
 import passport from "passport";
 
-let prisma: any;
-
-(async () => {
-	prisma = await connect();
-})();
-
 // Dynamic import functions for nanoid
 const getMakeCode = async () => {
 	const { customAlphabet } = await import("nanoid");
@@ -51,8 +45,10 @@ const googleClient = new OAuth2Client(
 	process.env.GOOGLE_CLIENT_SECRET,
 );
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response, next: NextFunction) => {
 	try {
+		const prisma = await connect();
+		
 		const parsed = RegisterSchema.parse(req.body);
 		const { name, email, username, photoURL, password } = parsed;
 		const subscription = (parsed.subscription ?? "free") as Subscription;
@@ -108,11 +104,8 @@ export const register = async (req: Request, res: Response) => {
 			uid: user.uid,
 		});
 	} catch (err: any) {
-		if (err.name === "ZodError")
-			return res
-				.status(400)
-				.json({ message: "Invalid payload", errors: err.errors });
-		return res.status(500).json({ message: "Registration failed" });
+		console.error("Registration error:", err);
+		next(err);
 	}
 };
 
@@ -122,6 +115,7 @@ export const verifyEmail = async (
 	next: NextFunction,
 ) => {
 	try {
+		const prisma = await connect();
 		const { email, code, verificationId } = VerifyEmailSchema.parse(req.body);
 
 		const record = await prisma.email.findUnique({ where: { verificationId } });
@@ -159,6 +153,7 @@ export const resendCode = async (
 	next: NextFunction,
 ) => {
 	try {
+		const prisma = await connect();
 		const { email } = ResendCodeSchema.parse(req.body);
 
 		const user = await prisma.user.findUnique({ where: { email } });
@@ -259,6 +254,7 @@ export const login = async (
 // Google Sign-in Controller
 export const googleLogin = async (req: Request, res: Response) => {
 	try {
+		const prisma = await connect();
 		const { token: idToken } = req.body; // Get the ID token from the request body
 
 		if (!process.env.GOOGLE_CLIENT_ID) {
@@ -418,6 +414,7 @@ export const googleLogin = async (req: Request, res: Response) => {
 };
 
 export const me = async (req: Request, res: Response) => {
+	const prisma = await connect();
 	const authUser = (req as any).user as { uid: string };
 
 	const user = await prisma.user.findUnique({
@@ -511,6 +508,7 @@ export const googleCallback = async (
 
 export const logout = async (req: Request, res: Response) => {
 	try {
+		const prisma = await connect();
 		const userId = (req.user as any)?.uid;
 
 		req.logout(async (err) => {
@@ -539,6 +537,7 @@ export const logout = async (req: Request, res: Response) => {
 };
 
 export const validateVerificationId = async (req: Request, res: Response) => {
+	const prisma = await connect();
 	const { verificationId } = req.params;
 
 	if (!verificationId) {
