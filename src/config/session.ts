@@ -11,18 +11,13 @@ let prisma: any;
 
 export class CustomPrismaSessionStore extends PrismaSessionStore {
   constructor() {
-    try {
-      super(prisma, {
-        checkPeriod: 2 * 60 * 1000, // Clean up expired sessions every 2 minutes
-        dbRecordIdIsSessionId: false,
-      });
-    } catch (error) {
-      console.error("Failed to initialize session store:", error);
-      // Create a fallback that doesn't crash the app
-      super({} as any, {
-        checkPeriod: 2 * 60 * 1000,
-        dbRecordIdIsSessionId: false,
-      });
+    super(prisma || {} as any, {
+      checkPeriod: 2 * 60 * 1000, // Clean up expired sessions every 2 minutes
+      dbRecordIdIsSessionId: false,
+    });
+    
+    if (!prisma) {
+      console.warn("Prisma client not initialized when creating session store");
     }
   }
 
