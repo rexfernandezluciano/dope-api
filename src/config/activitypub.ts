@@ -1,4 +1,3 @@
-
 export const activityPubConfig = {
 	domain: process.env.ACTIVITYPUB_DOMAIN || "api.dopp.eu.org",
 	context: [
@@ -19,7 +18,7 @@ export const activityPubConfig = {
 		rejections: "/activitypub/users/:username/rejections",
 		rejected: "/activitypub/users/:username/rejected",
 		shares: "/activitypub/users/:username/shares",
-		likes: "/activitypub/users/:username/likes"
+		likes: "/activitypub/users/:username/likes",
 	},
 	endpoints: {
 		proxyUrl: "/activitypub/proxy",
@@ -28,5 +27,6 @@ export const activityPubConfig = {
 };
 
 export const getBaseUrl = (req: any) => {
-	return `${req.protocol}://${req.get('host')}`;
+	const protocol = req.http?.protocol;
+	return `${protocol ?? "https"}:// ${activityPubConfig.domain}`;
 };
