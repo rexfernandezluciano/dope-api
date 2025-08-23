@@ -35,6 +35,11 @@ import {
 } from "./middleware/error.middleware";
 
 dotenv.config();
+let prisma: any;
+
+(async () => {
+	prisma = await connect();
+})();
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
