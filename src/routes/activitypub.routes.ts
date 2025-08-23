@@ -1,6 +1,6 @@
 
 import { Router } from 'express';
-import { webfinger, getActor, getOutbox, postInbox, getFollowers, getFollowing, getPost, getPostActivity } from '../controllers/activitypub.controller';
+import { webfinger, getActor, getOutbox, postInbox, getFollowers, getFollowing, getPost, getPostActivity, getFeatured, getFeaturedTags } from '../controllers/activitypub.controller';
 import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
@@ -13,6 +13,8 @@ router.get('/users/:username/outbox', asyncHandler(getOutbox));
 router.post('/users/:username/inbox', asyncHandler(postInbox));
 router.get('/users/:username/followers', asyncHandler(getFollowers));
 router.get('/users/:username/following', asyncHandler(getFollowing));
+router.get('/users/:username/collections/featured', asyncHandler(getFeatured));
+router.get('/users/:username/collections/tags', asyncHandler(getFeaturedTags));
 
 // Post endpoints
 router.get('/posts/:postId', asyncHandler(getPost));

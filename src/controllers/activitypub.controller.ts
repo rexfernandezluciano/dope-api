@@ -107,13 +107,55 @@ export const getActor = async (req: Request, res: Response) => {
 		const actor = {
 			"@context": [
 				"https://www.w3.org/ns/activitystreams",
-				"https://w3id.org/security/v1"
+				"https://w3id.org/security/v1",
+				{
+					"manuallyApprovesFollowers": "as:manuallyApprovesFollowers",
+					"toot": "http://joinmastodon.org/ns#",
+					"featured": {
+						"@id": "toot:featured",
+						"@type": "@id"
+					},
+					"featuredTags": {
+						"@id": "toot:featuredTags",
+						"@type": "@id"
+					},
+					"alsoKnownAs": {
+						"@id": "as:alsoKnownAs",
+						"@type": "@id"
+					},
+					"movedTo": {
+						"@id": "as:movedTo",
+						"@type": "@id"
+					},
+					"schema": "http://schema.org#",
+					"PropertyValue": "schema:PropertyValue",
+					"value": "schema:value",
+					"discoverable": "toot:discoverable",
+					"suspended": "toot:suspended",
+					"memorial": "toot:memorial",
+					"indexable": "toot:indexable",
+					"attributionDomains": {
+						"@id": "toot:attributionDomains",
+						"@type": "@id"
+					},
+					"focalPoint": {
+						"@container": "@list",
+						"@id": "toot:focalPoint"
+					}
+				}
 			],
 			id: userUrl,
 			type: "Person",
 			preferredUsername: user.username,
 			name: user.name || user.username,
 			summary: user.bio || "",
+			url: `${baseUrl}/@${user.username}`,
+			manuallyApprovesFollowers: false,
+			discoverable: true,
+			indexable: true,
+			published: user.createdAt.toISOString(),
+			memorial: false,
+			suspended: false,
 			icon: user.photoURL ? {
 				type: "Image",
 				mediaType: "image/jpeg",
@@ -123,15 +165,18 @@ export const getActor = async (req: Request, res: Response) => {
 			outbox: `${userUrl}/outbox`,
 			followers: `${userUrl}/followers`,
 			following: `${userUrl}/following`,
+			featured: `${userUrl}/collections/featured`,
+			featuredTags: `${userUrl}/collections/tags`,
 			publicKey: {
 				id: `${userUrl}#main-key`,
 				owner: userUrl,
 				publicKeyPem: await getOrCreateUserPublicKey(user.uid)
 			},
+			tag: [],
+			attachment: [],
 			endpoints: {
 				sharedInbox: `${baseUrl}/activitypub/inbox`
-			},
-			published: user.createdAt.toISOString()
+			}
 		};
 
 		res.setHeader('Content-Type', 'application/activity+json');
@@ -382,11 +427,66 @@ async function handleFollowActivity(activity: any) {
 
 		console.log(`Created federated follow: ${actorUrl} -> ${user.username}`);
 		
-		// TODO: Send Accept activity back to the follower's inbox
-		// await sendAcceptActivity(activity, actorUrl);
+		// Send Accept activity back to the follower's inbox (Mastodon expects this)
+		await sendAcceptActivity(activity, actorUrl, user);
 		
 	} catch (error) {
 		console.error("Error handling follow activity:", error);
+	}
+}
+
+// Send Accept activity for follow requests
+async function sendAcceptActivity(followActivity: any, actorUrl: string, user: any) {
+	try {
+		// Fetch the remote actor to get their inbox
+		const actorResponse = await fetch(actorUrl, {
+			headers: {
+				'Accept': 'application/activity+json'
+			}
+		});
+
+		if (!actorResponse.ok) {
+			console.error(`Failed to fetch actor: ${actorUrl}`);
+			return;
+		}
+
+		const actor = await actorResponse.json();
+		const inboxUrl = actor.inbox;
+
+		if (!inboxUrl) {
+			console.error(`No inbox found for actor: ${actorUrl}`);
+			return;
+		}
+
+		const baseUrl = process.env.NODE_ENV === 'production' 
+			? 'https://dopp.eu.org' 
+			: 'http://localhost:3000';
+
+		const acceptActivity = {
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/activities/${crypto.randomUUID()}`,
+			type: "Accept",
+			actor: `${baseUrl}/activitypub/users/${user.username}`,
+			object: followActivity
+		};
+
+		// Send the Accept activity to the follower's inbox
+		const response = await fetch(inboxUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/activity+json',
+				'Accept': 'application/activity+json'
+			},
+			body: JSON.stringify(acceptActivity)
+		});
+
+		if (response.ok) {
+			console.log(`Successfully sent Accept activity to ${inboxUrl}`);
+		} else {
+			console.error(`Failed to send Accept activity to ${inboxUrl}: ${response.status}`);
+		}
+	} catch (error) {
+		console.error('Error sending Accept activity:', error);
 	}
 }
 
@@ -652,6 +752,90 @@ export const getPostActivity = async (req: Request, res: Response) => {
 		res.json(activity);
 	} catch (error) {
 		res.status(500).json({ error: "Failed to retrieve post activity" });
+	}
+};
+
+// Get featured posts collection (Mastodon compatibility)
+export const getFeatured = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true, username: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		
+		// Get pinned/featured posts (you can implement pinning logic later)
+		const featuredPosts = await prisma.post.findMany({
+			where: {
+				authorId: user.uid,
+				privacy: "public"
+				// Add pinned: true when you implement post pinning
+			},
+			include: {
+				author: {
+					select: {
+						uid: true,
+						username: true,
+						name: true,
+						photoURL: true
+					}
+				}
+			},
+			orderBy: { createdAt: "desc" },
+			take: 10
+		});
+
+		const activities = await Promise.all(
+			featuredPosts.map((post: any) => convertPostToActivity(post, baseUrl))
+		);
+
+		res.setHeader('Content-Type', 'application/activity+json');
+		res.json({
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/collections/featured`,
+			type: "OrderedCollection",
+			totalItems: activities.length,
+			orderedItems: activities
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve featured posts" });
+	}
+};
+
+// Get featured tags collection (Mastodon compatibility)
+export const getFeaturedTags = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true, username: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+		// Return empty collection for now (implement hashtag featuring later)
+		res.setHeader('Content-Type', 'application/activity+json');
+		res.json({
+			"@context": "https://www.w3.org/ns/activitystreams",
+			id: `${baseUrl}/activitypub/users/${username}/collections/tags`,
+			type: "OrderedCollection",
+			totalItems: 0,
+			orderedItems: []
+		});
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve featured tags" });
 	}
 };
 

@@ -97,6 +97,22 @@ app.get('/.well-known/webfinger', async (req, res) => {
   return webfinger(req, res);
 });
 
+// Add user profile route for Mastodon compatibility (@username format)
+app.get('/@:username', async (req, res) => {
+	const { username } = req.params;
+
+	// Check if client accepts ActivityPub
+	const accept = req.headers.accept || '';
+	if (accept.includes('application/activity+json') || accept.includes('application/ld+json')) {
+		// Redirect to ActivityPub actor endpoint
+		return res.redirect(301, `/activitypub/users/${username}`);
+	}
+
+	// For web browsers, you could serve a user profile page here
+	res.status(404).json({ error: 'Profile page not implemented' });
+});
+
+
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
