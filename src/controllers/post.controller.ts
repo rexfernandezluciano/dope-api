@@ -470,8 +470,8 @@ export const createPost = async (req: Request, res: Response) => {
 		// If post is public, federate it to ActivityPub followers
 		if ((privacy || 'public') === 'public') {
 			try {
-				const baseUrl = getBaseUrl({ protocol: 'https', get: () => 'api.dopp.eu.org' });
-				const activity = await createPostActivity(newPost, authUser, baseUrl);
+				const frontendUrl = process.env.FRONTEND_URL || 'https://dopp.eu.org';
+				const activity = await createPostActivity(newPost, authUser, frontendUrl);
 
 				// Deliver to federated followers asynchronously
 				deliverActivityToFollowers(activity, authUser.username).catch(error => {
