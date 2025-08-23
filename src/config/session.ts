@@ -5,20 +5,14 @@ import geoip from 'geoip-lite';
 
 let prisma: any;
 
-(async () => {
-  prisma = await connect();
-})();
-
 export class CustomPrismaSessionStore extends PrismaSessionStore {
-  constructor() {
-    super(prisma || {} as any, {
+  constructor(prismaClient: any) {
+    super(prismaClient, {
       checkPeriod: 2 * 60 * 1000, // Clean up expired sessions every 2 minutes
       dbRecordIdIsSessionId: false,
     });
     
-    if (!prisma) {
-      console.warn("Prisma client not initialized when creating session store");
-    }
+    prisma = prismaClient;
   }
 
   set = async (sessionId: string, session: any, callback?: (err?: any) => void): Promise<void> => {

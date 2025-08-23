@@ -9,7 +9,7 @@ export const createActivityPubApp = async () => {
 		prisma = await connect();
 	}
 	const apex = ActivitypubExpress({
-		domain: process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : 'localhost:3000',
+		domain: process.env.NODE_ENV === 'production' ? 'dopp.eu.org' : '0.0.0.0:5000',
 		context: [
 			'https://www.w3.org/ns/activitystreams',
 			'https://w3id.org/security/v1',
