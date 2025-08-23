@@ -222,7 +222,7 @@ model PaymentMethod {
   userId                String
   type                  PaymentType
   provider              PaymentProvider @default(paypal)
-  paypalPaymentMethodId String          @unique
+  paypalPaymentMethodId String?          @unique
   last4                 String?
   expiryMonth           Int?
   expiryYear            Int?
