@@ -64,21 +64,24 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 		const engagementRate = totalViews > 0 ? (totalEngagement / totalViews) * 100 : 0;
 
 		// Top performing posts
-		const topPosts = userPosts
-			.sort((a: any, b: any) => { (b.analytics?.views || 0) - (a.analytics?.views || 0))
-			.slice(0, 5)
-			.map((post: any) => {
-				const content = await parseMentionsToNames(post.content);
-				return {
-				id: post.id,
-				content: content?.substring(0, 100) + "...",
-				views: post.analytics?.views || 0,
-				likes: post._count.likes,
-				comments: post._count.comments,
-				shares: post.analytics?.shares || 0,
-				earnings: (post.analytics?.earnings || 0) / 100,
-				createdAt: post.createdAt,
-			}});
+		const topPosts = await Promise.all(
+			userPosts
+				.sort((a: any, b: any) => (b.analytics?.views || 0) - (a.analytics?.views || 0))
+				.slice(0, 5)
+				.map(async (post: any) => {
+					const content = await parseMentionsToNames(post.content || "");
+					return {
+						id: post.id,
+						content: content?.substring(0, 100) + "...",
+						views: post.analytics?.views || 0,
+						likes: post._count.likes,
+						comments: post._count.comments,
+						shares: post.analytics?.shares || 0,
+						earnings: (post.analytics?.earnings || 0) / 100,
+						createdAt: post.createdAt,
+					};
+				})
+		);
 
 		res.json({
 			period: `${periodDays} days`,
@@ -96,6 +99,7 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 			topPosts,
 		});
 	} catch (error) {
+		console.error("Error fetching user analytics:", error);
 		res.status(500).json({ error: "Error fetching user analytics" });
 	}
 };
@@ -160,6 +164,7 @@ export const getPostAnalytics = async (req: Request, res: Response) => {
 			mentions: post.mentions.map((m: any) => m.username),
 		});
 	} catch (error) {
+		console.error("Error fetching post analytics:", error);
 		res.status(500).json({ error: "Error fetching post analytics" });
 	}
 };
@@ -232,6 +237,7 @@ export const getPlatformAnalytics = async (req: Request, res: Response) => {
 			},
 		});
 	} catch (error) {
+		console.error("Error fetching platform analytics:", error);
 		res.status(500).json({ error: "Error fetching platform analytics" });
 	}
 };
