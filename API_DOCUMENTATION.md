@@ -272,6 +272,76 @@ Authorization: Bearer <jwt_token>
 }
 ```
 
+#### Forgot Password
+```http
+POST /v1/auth/forgot-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "If your email is registered, you will receive a password reset code shortly.",
+  "resetId": "reset_id_here"
+}
+```
+
+**Response (400) - Social Login Account:**
+```json
+{
+  "message": "This account uses social login. Please sign in with your social account."
+}
+```
+
+#### Reset Password
+```http
+POST /v1/auth/reset-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "john@example.com",
+  "code": "123456",
+  "resetId": "reset_id_here",
+  "newPassword": "newPassword123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password reset successfully"
+}
+```
+
+**Error Responses:**
+- `400`: Invalid reset request, expired code, or incorrect code
+- `404`: User not found
+
+#### Validate Reset ID
+```http
+GET /v1/auth/validate-reset-id/:resetId
+```
+
+**Response (200):**
+```json
+{
+  "message": "Reset ID is valid",
+  "email": "john@example.com"
+}
+```
+
+**Error Responses:**
+- `400`: Reset ID is required or expired
+- `404`: Reset ID not found
+
 #### Logout
 ```http
 POST /v1/auth/logout
@@ -2611,6 +2681,27 @@ GET /.well-known/nodeinfo/2.0
 }
 ```
 
+### Password Reset
+```typescript
+{
+  resetId: string;
+  email: string;
+  code: string;
+  expireAt: Date;
+  createdAt: Date;
+}
+```
+
+### Email Verification
+```typescript
+{
+  verificationId: string;
+  email: string;
+  code: string;
+  expireAt: Date;
+}
+```
+
 ### Poll
 ```typescript
 {
@@ -2782,7 +2873,7 @@ JWT_EXPIRES_IN=638708
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
-# Email
+# Email (Brevo SMTP)
 BREVO_EMAIL_ADDRESS=your_email_address
 BREVO_EMAIL_PASSWORD=your_email_password
 EMAIL_FROM=noreply@dopp.eu.org
