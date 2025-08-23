@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { activityPubConfig, getBaseUrl } from "../config/activitypub";
@@ -372,7 +371,7 @@ async function handleFollowActivity(activity: any, user: any) {
 	try {
 		// Store the federated follow relationship
 		console.log(`${activity.actor} wants to follow ${user.username}`);
-		
+
 		await prisma.federatedFollow.upsert({
 			where: {
 				actorUrl_activityId: {
@@ -400,7 +399,7 @@ async function handleFollowActivity(activity: any, user: any) {
 
 		// TODO: Send accept activity to actor's inbox
 		console.log("Accept activity created:", acceptActivity);
-		
+
 	} catch (error) {
 		console.error("Error handling follow activity:", error);
 	}
@@ -409,7 +408,7 @@ async function handleFollowActivity(activity: any, user: any) {
 async function handleUnfollowActivity(activity: any, user: any) {
 	try {
 		console.log(`${activity.actor} unfollowed ${user.username}`);
-		
+
 		// Remove the federated follow relationship
 		await prisma.federatedFollow.deleteMany({
 			where: {
@@ -417,7 +416,7 @@ async function handleUnfollowActivity(activity: any, user: any) {
 				followingId: user.uid
 			}
 		});
-		
+
 	} catch (error) {
 		console.error("Error handling unfollow activity:", error);
 	}
@@ -426,14 +425,14 @@ async function handleUnfollowActivity(activity: any, user: any) {
 async function handleLikeActivity(activity: any, user: any) {
 	try {
 		console.log(`${activity.actor} liked ${activity.object}`);
-		
+
 		// Extract post ID from the object URL
 		const objectUrl = activity.object;
 		const postIdMatch = objectUrl.match(/\/activitypub\/posts\/([^\/]+)$/);
-		
+
 		if (postIdMatch) {
 			const postId = postIdMatch[1];
-			
+
 			// Check if the post exists and belongs to this user
 			const post = await prisma.post.findFirst({
 				where: {
@@ -441,7 +440,7 @@ async function handleLikeActivity(activity: any, user: any) {
 					authorUid: user.uid
 				}
 			});
-			
+
 			if (post) {
 				// Store the federated like
 				await prisma.federatedLike.upsert({
@@ -460,7 +459,7 @@ async function handleLikeActivity(activity: any, user: any) {
 				});
 			}
 		}
-		
+
 	} catch (error) {
 		console.error("Error handling like activity:", error);
 	}
@@ -469,9 +468,9 @@ async function handleLikeActivity(activity: any, user: any) {
 async function handleCreateNoteActivity(activity: any, user: any) {
 	try {
 		console.log(`${activity.actor} mentioned ${user.username} in a note`);
-		
+
 		const note = activity.object;
-		
+
 		// Store the federated post/note
 		await prisma.federatedPost.upsert({
 			where: {
@@ -485,11 +484,59 @@ async function handleCreateNoteActivity(activity: any, user: any) {
 				published: new Date(note.published || activity.published || new Date())
 			}
 		});
-		
+
 		// TODO: Parse mentions and create notifications for mentioned users
 		// TODO: Handle replies if this is a reply to a local post
-		
+
 	} catch (error) {
 		console.error("Error handling create note activity:", error);
 	}
 }
+
+// Handle shared inbox for efficiency (used by Mastodon and other servers)
+export const handleSharedInbox = async (req: Request, res: Response) => {
+	try {
+		const activity = req.body;
+
+		// Verify content type
+		const contentType = req.get('content-type');
+		if (!contentType || !contentType.includes('application/activity+json')) {
+			return res.status(400).json({ error: "Invalid content type" });
+		}
+
+		// Basic activity validation
+		if (!activity.type || !activity.actor) {
+			return res.status(400).json({ error: "Invalid activity" });
+		}
+
+		// For shared inbox, we need to determine the target user from the activity
+		let targetUsername = null;
+
+		if (activity.object && typeof activity.object === 'string') {
+			// Extract username from object URL
+			const match = activity.object.match(/\/activitypub\/users\/([^\/]+)/);
+			if (match) {
+				targetUsername = match[1];
+			}
+		} else if (activity.object?.attributedTo) {
+			// For Create activities
+			const match = activity.object.attributedTo.match(/\/activitypub\/users\/([^\/]+)/);
+			if (match) {
+				targetUsername = match[1];
+			}
+		}
+
+		if (!targetUsername) {
+			console.log("Could not determine target user for activity:", activity.type);
+			return res.status(202).json({ message: "Activity processed" });
+		}
+
+		// Forward to user-specific inbox handling
+		req.params = { username: targetUsername };
+		return handleInbox(req, res);
+
+	} catch (error) {
+		console.error("Error handling shared inbox activity:", error);
+		res.status(500).json({ error: "Failed to process activity" });
+	}
+};
