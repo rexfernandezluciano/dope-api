@@ -1646,7 +1646,7 @@ GET /v1/payments/providers
       "processingTime": "Instant"
     },
     {
-      "type": "debit_card", 
+      "type": "debit_card",
       "name": "Debit Card",
       "supportedCards": ["Visa", "Mastercard"],
       "fees": "3.9% + ₱15",
@@ -1660,7 +1660,7 @@ GET /v1/payments/providers
     },
     {
       "type": "grabpay",
-      "name": "GrabPay", 
+      "name": "GrabPay",
       "fees": "₱15 flat fee",
       "processingTime": "Instant"
     },
