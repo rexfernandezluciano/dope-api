@@ -121,7 +121,7 @@ export const createActivityPubApp = async () => {
 						mediaType: "image/jpeg",
 						url: user.photoURL,
 					}
-				: undefined,
+				: "",
 			inbox: `${userUrl}/inbox`,
 			outbox: `${userUrl}/outbox`,
 			followers: `${userUrl}/followers`,
