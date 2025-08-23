@@ -69,13 +69,15 @@
 		"@types/passport-google-oauth20": "^2.0.16",
 		"@types/passport-jwt": "^4.0.1",
 		"@types/passport-local": "^1.0.38",
+		"@types/swagger-jsdoc": "^6.0.4",
+		"@types/swagger-ui-express": "^4.1.8",
 		"nodemon": "^3.1.10",
 		"prisma": "^6.14.0",
 		"ts-node": "^10.9.2",
 		"typescript": "^5.9.2"
 	},
 	"engines": {
-		"node": ">=22.18.0",
+		"node": ">=22.19.3",
 		"npm": ">=10.8.2"
 	},
 	"packageManager": "npm@10.8.2"
