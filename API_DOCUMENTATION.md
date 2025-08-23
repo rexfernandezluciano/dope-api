@@ -15,6 +15,7 @@
   - [Comments](#comment-endpoints)
   - [Replies](#reply-endpoints)
   - [Likes](#like-endpoints)
+  - [Polls](#poll-endpoints)
   - [Images](#image-endpoints)
   - [Sessions](#session-endpoints)
   - [Content Moderation](#content-moderation-endpoints)
@@ -707,7 +708,34 @@ GET /v1/posts
       "privacy": "public",
       "hashtags": ["trending"],
       "mentions": ["mention"],
-      "moderationStatus": "approved"
+      "moderationStatus": "approved",
+      "poll": {
+        "id": "poll_id",
+        "question": "What's your favorite color?",
+        "expiresAt": "2024-01-20T10:30:00Z",
+        "allowMultiple": false,
+        "isExpired": false,
+        "totalVotes": 150,
+        "options": [
+          {
+            "id": "option_id_1",
+            "text": "Blue",
+            "position": 0,
+            "votes": 75,
+            "percentage": 50,
+            "isUserChoice": true
+          },
+          {
+            "id": "option_id_2",
+            "text": "Red",
+            "position": 1,
+            "votes": 75,
+            "percentage": 50,
+            "isUserChoice": false
+          }
+        ],
+        "hasUserVoted": true
+      }
     }
   ],
   "nextCursor": "cursor_string",
@@ -722,14 +750,42 @@ POST /v1/posts
 Authorization: Bearer <jwt_token>
 ```
 
-**Request Body:**
+**Request Body (Text/Image Post):**
 ```json
 {
   "content": "Hello world! #trending @mention",
   "imageUrls": ["https://example.com/image.jpg"],
+  "postType": "text",
+  "privacy": "public"
+}
+```
+
+**Request Body (Live Video Post):**
+```json
+{
   "liveVideoUrl": "https://example.com/live-stream.m3u8",
   "postType": "live_video",
   "privacy": "public"
+}
+```
+
+**Request Body (Poll Post):**
+```json
+{
+  "content": "What's your favorite programming language?",
+  "postType": "poll",
+  "privacy": "public",
+  "poll": {
+    "question": "What's your favorite programming language?",
+    "options": [
+      {"text": "JavaScript"},
+      {"text": "Python"},
+      {"text": "TypeScript"},
+      {"text": "Go"}
+    ],
+    "expiresIn": 1440,
+    "allowMultiple": false
+  }
 }
 ```
 
@@ -794,7 +850,34 @@ GET /v1/posts/:id
     "privacy": "public",
     "hashtags": ["trending"],
     "mentions": ["mention"],
-    "moderationStatus": "approved"
+    "moderationStatus": "approved",
+    "poll": {
+      "id": "poll_id",
+      "question": "What's your favorite color?",
+      "expiresAt": "2024-01-20T10:30:00Z",
+      "allowMultiple": false,
+      "isExpired": false,
+      "totalVotes": 150,
+      "options": [
+        {
+          "id": "option_id_1",
+          "text": "Blue",
+          "position": 0,
+          "votes": 75,
+          "percentage": 50,
+          "isUserChoice": true
+        },
+        {
+          "id": "option_id_2",
+          "text": "Red", 
+          "position": 1,
+          "votes": 75,
+          "percentage": 50,
+          "isUserChoice": false
+        }
+      ],
+      "hasUserVoted": true
+    }
   }
 }
 ```
@@ -897,6 +980,98 @@ Authorization: Bearer <jwt_token>
 ```json
 {
   "message": "Post deleted successfully"
+}
+```
+
+---
+
+### Poll Endpoints
+
+#### Vote on Poll
+```http
+POST /v1/polls/:pollId/vote
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "optionIds": ["option_id_1", "option_id_2"]
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Vote recorded successfully",
+  "votes": [
+    {
+      "id": "vote_id_1",
+      "pollId": "poll_id",
+      "optionId": "option_id_1",
+      "userId": "user_id",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- `400`: Poll expired, already voted, or invalid options
+- `404`: Poll not found
+
+#### Get Poll Results
+```http
+GET /v1/polls/:pollId/results
+```
+
+**Response (200):**
+```json
+{
+  "poll": {
+    "id": "poll_id",
+    "question": "What's your favorite color?",
+    "expiresAt": "2024-01-20T10:30:00Z",
+    "allowMultiple": false,
+    "totalVotes": 150,
+    "isExpired": false
+  },
+  "results": [
+    {
+      "id": "option_id_1",
+      "text": "Blue",
+      "position": 0,
+      "votes": 75,
+      "percentage": 50
+    },
+    {
+      "id": "option_id_2",
+      "text": "Red",
+      "position": 1,
+      "votes": 75,
+      "percentage": 50
+    }
+  ]
+}
+```
+
+#### Get User's Poll Vote
+```http
+GET /v1/polls/:pollId/user-vote
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "hasVoted": true,
+  "votes": [
+    {
+      "optionId": "option_id_1",
+      "optionText": "Blue",
+      "votedAt": "2024-01-15T10:30:00Z"
+    }
+  ]
 }
 ```
 
@@ -2351,7 +2526,7 @@ GET /.well-known/nodeinfo/2.0
   content?: string;
   imageUrls: string[];
   liveVideoUrl?: string;
-  postType: "text" | "live_video";
+  postType: "text" | "live_video" | "poll";
   privacy: "public" | "private" | "followers";
   hashtags: string[];
   mentions: string[];
@@ -2432,6 +2607,43 @@ GET /.well-known/nodeinfo/2.0
   userId: string;
   scope: string;
   expiresAt: Date;
+  createdAt: Date;
+}
+```
+
+### Poll
+```typescript
+{
+  id: string;
+  postId: string;
+  question: string;
+  expiresAt?: Date;
+  allowMultiple: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Poll Option
+```typescript
+{
+  id: string;
+  pollId: string;
+  text: string;
+  position: number;
+  createdAt: Date;
+}
+```
+
+### Poll Vote
+```typescript
+{
+  id: string;
+  pollId: string;
+  optionId: string;
+  userId?: string;
+  actorUrl?: string; // For federated votes
+  activityId?: string; // For federated activities
   createdAt: Date;
 }
 ```
