@@ -178,8 +178,10 @@ export const resendCode = async (
 		await prisma.email.deleteMany({ where: { email } });
 
 		// Create new code
-		const code = makeCode();
-		const verificationId = makeVerificationId();
+		const codeGenerator = await makeCode();
+		const verificationIdGenerator = await makeVerificationId();
+		const code = codeGenerator();
+		const verificationId = verificationIdGenerator();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
 		await prisma.email.create({
