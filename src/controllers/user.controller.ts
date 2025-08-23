@@ -19,6 +19,7 @@ const UpdateUserSchema = z.object({
 		.optional(),
 	gender: z.enum(["male", "female", "non_binary", "prefer_not_to_say"]).optional(),
 	birthday: z.string().datetime().optional(),
+	federatedDiscoverable: z.boolean().optional(),
 	privacy: z
 		.object({
 			profile: z.enum(["public", "private"]).optional(),
@@ -429,6 +430,7 @@ export const updateUser = async (req: Request, res: Response) => {
 				...(data.photoURL !== undefined && { photoURL: data.photoURL }),
 				...(data.gender !== undefined && { gender: data.gender }),
 				...(data.birthday !== undefined && { birthday: new Date(data.birthday) }),
+				...(data.federatedDiscoverable !== undefined && { federatedDiscoverable: data.federatedDiscoverable }),
 				...(data.privacy !== undefined && { privacy: data.privacy }),
 				// If directly updating blocked/restricted status:
 				// ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
@@ -448,6 +450,7 @@ export const updateUser = async (req: Request, res: Response) => {
 				hasVerifiedEmail: true,
 				isBlocked: true,
 				isRestricted: true,
+				federatedDiscoverable: true,
 			},
 		});
 

@@ -1,4 +1,3 @@
-
 # DOPE Network API Documentation
 
 ## Table of Contents
@@ -609,8 +608,9 @@ GET /v1/users/:username
         "stats": {
           "comments": 5,
           "likes": 25,
+          "views": 150,
           "shares": 3,
-          "views": 150
+          "clicks": 10
         },
         "postType": "text",
         "liveVideoUrl": null,
@@ -651,7 +651,8 @@ Authorization: Bearer <jwt_token>
   "bio": "Updated bio",
   "photoURL": "https://example.com/new-photo.jpg",
   "gender": "male",
-  "birthday": "1990-05-15T00:00:00.000Z",
+  "birthday": "1990-01-01T00:00:00.000Z",
+  "federatedDiscoverable": true,
   "privacy": {
     "profile": "private",
     "comments": "followers",
@@ -1014,7 +1015,7 @@ GET /v1/posts/:id
         },
         {
           "id": "option_id_2",
-          "text": "Red", 
+          "text": "Red",
           "position": 1,
           "votes": 75,
           "percentage": 50,

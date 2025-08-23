@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { activityPubConfig, getBaseUrl } from "../config/activitypub";
@@ -74,10 +68,10 @@ export const webfinger = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true, name: true },
+			select: { uid: true, username: true, name: true, federatedDiscoverable: true },
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -115,11 +109,12 @@ export const getActor = async (req: Request, res: Response) => {
 				createdAt: true,
 				followers: true,
 				following: true,
-				userKeys: true
+				userKeys: true,
+				federatedDiscoverable: true
 			}
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -208,7 +203,7 @@ export const getActor = async (req: Request, res: Response) => {
 			summary: user.bio ? `<p>${user.bio}</p>` : "",
 			url: `${frontendUrl}/@${username}`,
 			manuallyApprovesFollowers: false,
-			discoverable: true,
+			discoverable: user.federatedDiscoverable,
 			indexable: true,
 			published: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
 			memorial: false,
@@ -251,11 +246,10 @@ export const handleInbox = async (req: Request, res: Response) => {
 		// Verify the user exists
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true, username: true },
+			select: { uid: true, username: true, federatedDiscoverable: true },
 		});
 
-		if (!user) {
-			console.error(`User not found: ${username}`);
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -497,7 +491,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 			}
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: 'User not found' });
 		}
 
@@ -556,7 +550,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 			},
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -595,7 +589,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 			}
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: 'User not found' });
 		}
 
@@ -847,10 +841,10 @@ export const getFeatured = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true },
+			select: { uid: true, federatedDiscoverable: true },
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -901,10 +895,10 @@ export const getFeaturedTags = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true },
+			select: { uid: true, federatedDiscoverable: true },
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -1001,12 +995,12 @@ export const getPost = async (req: Request, res: Response) => {
 			where: { id },
 			include: {
 				author: {
-					select: { username: true, name: true }
+					select: { username: true, name: true, federatedDiscoverable: true }
 				}
 			}
 		});
 
-		if (!post || post.privacy !== 'public') {
+		if (!post || post.privacy !== 'public' || !post.author.federatedDiscoverable) {
 			return res.status(404).json({ error: "Post not found" });
 		}
 
@@ -1042,12 +1036,12 @@ export const getPostActivity = async (req: Request, res: Response) => {
 			where: { id },
 			include: {
 				author: {
-					select: { username: true, name: true }
+					select: { username: true, name: true, federatedDiscoverable: true }
 				}
 			}
 		});
 
-		if (!post || post.privacy !== 'public') {
+		if (!post || post.privacy !== 'public' || !post.author.federatedDiscoverable) {
 			return res.status(404).json({ error: "Post not found" });
 		}
 
@@ -1069,10 +1063,10 @@ export const getLiked = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true }
+			select: { uid: true, federatedDiscoverable: true }
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -1083,7 +1077,7 @@ export const getLiked = async (req: Request, res: Response) => {
 				post: {
 					include: {
 						author: {
-							select: { username: true }
+							select: { username: true, federatedDiscoverable: true }
 						}
 					}
 				}
@@ -1118,10 +1112,10 @@ export const getCollection = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			select: { uid: true }
+			select: { uid: true, federatedDiscoverable: true }
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -1168,7 +1162,7 @@ export const getBlocked = async (req: Request, res: Response) => {
 			}
 		});
 
-		if (!user) {
+		if (!user || !user.federatedDiscoverable) {
 			return res.status(404).json({ error: "User not found" });
 		}
 
@@ -1195,6 +1189,15 @@ export const getRejections = async (req: Request, res: Response) => {
 	const { username } = req.params;
 	const baseUrl = getBaseUrl(req);
 
+	const user = await prisma.user.findUnique({
+		where: { username },
+		select: { federatedDiscoverable: true },
+	});
+
+	if (!user || !user.federatedDiscoverable) {
+		return res.status(404).json({ error: "User not found" });
+	}
+
 	const rejections = {
 		"@context": "https://www.w3.org/ns/activitystreams",
 		id: `${baseUrl}/activitypub/users/${username}/rejections`,
@@ -1210,6 +1213,15 @@ export const getRejections = async (req: Request, res: Response) => {
 export const getRejected = async (req: Request, res: Response) => {
 	const { username } = req.params;
 	const baseUrl = getBaseUrl(req);
+
+	const user = await prisma.user.findUnique({
+		where: { username },
+		select: { federatedDiscoverable: true },
+	});
+
+	if (!user || !user.federatedDiscoverable) {
+		return res.status(404).json({ error: "User not found" });
+	}
 
 	const rejected = {
 		"@context": "https://www.w3.org/ns/activitystreams",
@@ -1227,6 +1239,15 @@ export const getShares = async (req: Request, res: Response) => {
 	const { username } = req.params;
 	const baseUrl = getBaseUrl(req);
 
+	const user = await prisma.user.findUnique({
+		where: { username },
+		select: { federatedDiscoverable: true },
+	});
+
+	if (!user || !user.federatedDiscoverable) {
+		return res.status(404).json({ error: "User not found" });
+	}
+
 	const shares = {
 		"@context": "https://www.w3.org/ns/activitystreams",
 		id: `${baseUrl}/activitypub/users/${username}/shares`,
@@ -1242,6 +1263,15 @@ export const getShares = async (req: Request, res: Response) => {
 export const getLikes = async (req: Request, res: Response) => {
 	const { username } = req.params;
 	const baseUrl = getBaseUrl(req);
+
+	const user = await prisma.user.findUnique({
+		where: { username },
+		select: { federatedDiscoverable: true },
+	});
+
+	if (!user || !user.federatedDiscoverable) {
+		return res.status(404).json({ error: "User not found" });
+	}
 
 	const likes = {
 		"@context": "https://www.w3.org/ns/activitystreams",

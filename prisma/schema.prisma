@@ -27,6 +27,7 @@ model User {
   isBlocked        Boolean      @default(false)
   isRestricted     Boolean      @default(false)
   credits          Int          @default(0) // Credits in centavos/cents
+  federatedDiscoverable Boolean  @default(true) // Allow discovery in fediverse
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
