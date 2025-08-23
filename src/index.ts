@@ -22,7 +22,12 @@ import contentRoutes from "./routes/content.routes";
 import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
-// Removed: import activitypubRoutes from "./routes/activitypub.routes";
+
+// Import activitypub-express and controllers
+import { createActivityPubApp } from "./config/activitypub"; // Assuming this path is correct for your setup
+import { webfinger } from "./controllers/activitypub.controller"; // Assuming this path is correct
+// Import error handlers
+import { errorHandler, notFoundHandler, asyncHandler } from "./middleware/error.middleware";
 
 dotenv.config();
 const app: Application = express();
@@ -88,14 +93,6 @@ app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
 app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
-// Removed: Register ActivityPub routes
-// Removed: app.use("/activitypub", activitypubRoutes);
-
-// Import activitypub-express and controllers
-import { createActivityPubApp } from "./config/activitypub"; // Assuming this path is correct for your setup
-import { webfinger } from "./controllers/activitypub.controller"; // Assuming this path is correct
-import asyncHandler from "express-async-handler"; // Import asyncHandler
-
 // Initialize ActivityPub
 const apex = createActivityPubApp();
 
@@ -110,19 +107,18 @@ app.get("/@:username", (req: Request, res: Response) => {
 	const { username } = req.params;
 
 	// Check if client accepts ActivityPub
-	const accept = req.headers.accept || '';
-	if (accept.includes('application/activity+json') || accept.includes('application/ld+json')) {
+	const accept = req.headers.accept || "";
+	if (
+		accept.includes("application/activity+json") ||
+		accept.includes("application/ld+json")
+	) {
 		// Redirect to ActivityPub actor endpoint
 		return res.redirect(301, `/activitypub/users/${username}`);
 	}
 
 	// For web browsers, you could serve a user profile page here
-	res.status(404).json({ error: 'Profile page not implemented' });
+	res.status(404).json({ error: "Profile page not implemented" });
 });
-
-
-// Import error handlers
-import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
 // 404 handler - must be after all routes
 app.use(notFoundHandler);
