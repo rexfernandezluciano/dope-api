@@ -56,7 +56,7 @@ export const createAdCampaign = async (req: Request, res: Response) => {
 // Get user's ad campaigns
 export const getAdCampaigns = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { page = 1, limit = 10, status } = req.query;
 
 		if (!userId) {
@@ -104,7 +104,7 @@ export const getAdCampaigns = async (req: Request, res: Response) => {
 // Update ad campaign
 export const updateAdCampaign = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { id } = req.params;
 		const { title, description, budget, status, targetAudience } = req.body;
 
@@ -218,7 +218,7 @@ export const trackAdInteraction = async (req: Request, res: Response) => {
 // Get ad analytics
 export const getAdAnalytics = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 		const { campaignId } = req.params;
 
 		if (!userId) {
@@ -277,7 +277,7 @@ export const getAdAnalytics = async (req: Request, res: Response) => {
 // Get business dashboard overview
 export const getBusinessDashboard = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 
 		if (!userId) {
 			return res.status(401).json({ error: "Authentication required" });
@@ -290,24 +290,25 @@ export const getBusinessDashboard = async (req: Request, res: Response) => {
 			},
 		});
 
-		const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0) / 100;
+		const totalSpent =
+			campaigns.reduce((sum: number, c: any) => sum + c.spent, 0) / 100;
 		const totalEarnings =
-			campaigns.reduce((sum, c) => sum + c.earnings, 0) / 100;
+			campaigns.reduce((sum: number, c: any) => sum + c.earnings, 0) / 100;
 		const totalImpressions = campaigns.reduce(
-			(sum, c) => sum + (c.analytics?.impressions || 0),
+			(sum: number, c: any) => sum + (c.analytics?.impressions || 0),
 			0,
 		);
 		const totalClicks = campaigns.reduce(
-			(sum, c) => sum + (c.analytics?.clicks || 0),
+			(sum: number, c: any) => sum + (c.analytics?.clicks || 0),
 			0,
 		);
 		const totalConversions = campaigns.reduce(
-			(sum, c) => sum + (c.analytics?.conversions || 0),
+			(sum: number, c: any) => sum + (c.analytics?.conversions || 0),
 			0,
 		);
 
 		const activeCampaigns = campaigns.filter(
-			(c) => c.status === "active",
+			(c: any) => c.status === "active",
 		).length;
 		const avgCTR =
 			totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;

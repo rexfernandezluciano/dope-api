@@ -164,7 +164,7 @@ export const getPostAnalytics = async (req: Request, res: Response) => {
 // Get platform-wide statistics (admin only)
 export const getPlatformAnalytics = async (req: Request, res: Response) => {
 	try {
-		const userId = req.user?.uid;
+		const userId = (req.user as any).uid;
 
 		// Check if user is admin (you might want to add an admin role check)
 		const user = await prisma.user.findUnique({
