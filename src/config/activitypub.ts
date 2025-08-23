@@ -65,8 +65,7 @@ export const createActivityPubApp = async () => {
 			blocked: "/activitypub/users/:username/blocked",
 			rejections: "/activitypub/users/:username/rejections",
 			rejected: "/activitypub/users/:username/rejected",
-			shares: "/activitypub/users/:username/shares",
-			liked_: "/activitypub/users/:username/liked",
+			shares: "/activitypub/users/:username/shares"
 		},
 		endpoints: {
 			proxyUrl: "/activitypub/proxy",
