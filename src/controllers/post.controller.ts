@@ -7,6 +7,7 @@ import type Comment from "../types/types.comments";
 import { deleteImage } from "./image.controller";
 import { createPostActivity, deliverActivityToFollowers } from './activitypub.controller';
 import { getBaseUrl } from '../config/activitypub';
+import type { User } from '../types/types.user'; // Import User type
 
 let prisma: any;
 
@@ -190,7 +191,7 @@ export const getPosts = async (req: Request, res: Response) => {
 				: null;
 
 		// Get current user's following list for isFollowedByCurrentUser check
-		const authUser = (req as any).user as { uid: string } | undefined;
+		const authUser = (req as any).user as User | undefined;
 		let followingIds: string[] = [];
 		let blockedByIds: string[] = [];
 		let blockingIds: string[] = [];
@@ -345,7 +346,7 @@ export const getPost = async (req: Request, res: Response) => {
 		}
 
 		// Check if current user follows the post author
-		const authUser = (req as any).user as { uid: string } | undefined;
+		const authUser = (req as any).user as User | undefined;
 		let isFollowedByCurrentUser = false;
 		if (authUser) {
 			const follow = await prisma.follow.findFirst({
@@ -406,7 +407,7 @@ export const getPost = async (req: Request, res: Response) => {
 // CREATE post (authenticated only)
 export const createPost = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 		const { content, imageUrls, liveVideoUrl, postType, privacy } =
 			CreatePostSchema.parse(req.body);
 
@@ -524,7 +525,7 @@ export const createPost = async (req: Request, res: Response) => {
 // UPDATE post (authenticated only, author only)
 export const updatePost = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 		const { id } = req.params;
 		const data = UpdatePostSchema.parse(req.body);
 
@@ -598,7 +599,7 @@ export const updatePost = async (req: Request, res: Response) => {
 // DELETE post (authenticated only, author only)
 export const deletePost = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 		const { id } = req.params;
 		if (!id) {
 			return res.status(400).json({ message: "Post ID is required" });
@@ -639,7 +640,7 @@ export const deletePost = async (req: Request, res: Response) => {
 // LIKE/UNLIKE post (authenticated only)
 export const toggleLike = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 		const { id } = req.params;
 		if (!id) {
 			return res.status(400).json({ message: "Post ID is required" });
@@ -706,7 +707,7 @@ export const toggleLike = async (req: Request, res: Response) => {
 // GET posts from users that current user follows
 export const getFollowingFeed = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 		const { limit = "20", cursor } = req.query;
 		const limitNum = Math.min(parseInt(limit as string), 100);
 
@@ -1018,7 +1019,7 @@ export const sharePost = async (req: Request, res: Response) => {
 // Get current user's posts
 export const getCurrentUserPosts = async (req: Request, res: Response) => {
 	try {
-		const authUser = (req as any).user as { uid: string };
+		const authUser = (req as any).user as User;
 
 		// Fetch posts authored by the current user
 		const posts = await prisma.post.findMany({
