@@ -772,7 +772,7 @@ export const getFeatured = async (req: Request, res: Response) => {
 		// Get featured/pinned posts (you can add a 'pinned' field to posts later)
 		const featuredPosts = await prisma.post.findMany({
 			where: {
-				authorUid: user.uid,
+				authorId: user.uid,
 				privacy: "public",
 				// Add pinned: true when you implement pinning functionality
 			},
@@ -993,7 +993,7 @@ export const getLiked = async (req: Request, res: Response) => {
 
 		// Get liked posts
 		const likedPosts = await prisma.like.findMany({
-			where: { userUid: user.uid },
+			where: { userId: user.uid },
 			include: {
 				post: {
 					include: {
