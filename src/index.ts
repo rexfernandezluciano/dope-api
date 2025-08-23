@@ -87,7 +87,7 @@ app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
 // Register ActivityPub routes
-app.use("/", activitypubRoutes);
+app.use("/activitypub/", activitypubRoutes);
 
 // Import error handlers
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
