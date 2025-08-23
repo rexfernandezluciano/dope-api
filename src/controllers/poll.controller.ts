@@ -57,7 +57,7 @@ export const votePoll = async (req: Request, res: Response) => {
 		}
 
 		// Validate option IDs belong to this poll
-		const validOptions = poll.options.filter(option => optionIds.includes(option.id));
+		const validOptions = poll.options.filter((option: any) => optionIds.includes(option.id));
 		if (validOptions.length !== optionIds.length) {
 			return res.status(400).json({ message: "Invalid option IDs" });
 		}
@@ -128,7 +128,7 @@ export const getPollResults = async (req: Request, res: Response) => {
 		}
 
 		const totalVotes = poll._count.votes;
-		const results = poll.options.map(option => ({
+		const results = poll.options.map((option: any) => ({
 			id: option.id,
 			text: option.text,
 			position: option.position,
@@ -175,7 +175,7 @@ export const getUserVote = async (req: Request, res: Response) => {
 
 		res.json({
 			hasVoted: votes.length > 0,
-			votes: votes.map(vote => ({
+			votes: votes.map((vote: any) => ({
 				optionId: vote.optionId,
 				optionText: vote.option.text,
 				votedAt: vote.createdAt
