@@ -338,7 +338,7 @@ export const getUserApps = async (req: Request, res: Response) => {
 		});
 
 		res.json({
-			applications: apps.map((app) => ({
+			applications: apps.map((app: any) => ({
 				id: app.id,
 				name: app.name,
 				clientId: app.clientId,
@@ -384,7 +384,7 @@ export const getUserAuthorizations = async (req: Request, res: Response) => {
 		});
 
 		res.json({
-			authorizations: authorizations.map((auth) => ({
+			authorizations: authorizations.map((auth: any) => ({
 				id: auth.id,
 				application: {
 					id: auth.application.id,
