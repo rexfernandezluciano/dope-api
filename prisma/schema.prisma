@@ -76,8 +76,8 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post     Post          @relation(fields: [postId], references: [id])
-  postId   String
+  post   Post          @relation(fields: [postId], references: [id])
+  postId String
   author   User          @relation(fields: [authorId], references: [uid])
   authorId String
   parent   Comment?      @relation("CommentReplies", fields: [parentId], references: [id])
@@ -349,45 +349,45 @@ enum AdStatus {
 }
 
 model UserKeys {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  publicKey  String
-  privateKey String
+  id         String @id @default(cuid())
+  userId     String @unique
+  publicKey  String @db.Text
+  privateKey String @db.Text
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [uid])
+  user User @relation(fields: [userId], references: [uid], onDelete: Cascade)
 }
 
 model FederatedFollow {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   actorUrl    String
   followingId String
   activityId  String
   createdAt   DateTime @default(now())
 
-  following User @relation(fields: [followingId], references: [uid])
+  following User @relation(fields: [followingId], references: [uid], onDelete: Cascade)
 
   @@unique([actorUrl, activityId])
 }
 
 model FederatedLike {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   postId     String
   actorUrl   String
   activityId String
   createdAt  DateTime @default(now())
 
-  post Post @relation(fields: [postId], references: [id])
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, actorUrl])
 }
 
 model FederatedPost {
-  id         String   @id @default(cuid())
+  id         String @id @default(cuid())
   actorUrl   String
-  content    String
-  activityId String   @unique
+  content    String @db.Text
+  activityId String @unique
   published  DateTime
   createdAt  DateTime @default(now())
 }

@@ -1,6 +1,6 @@
 
 import { Router } from 'express';
-import { webfinger, getActor, getOutbox, postInbox } from '../controllers/activitypub.controller';
+import { webfinger, getActor, getOutbox, postInbox, getFollowers, getFollowing } from '../controllers/activitypub.controller';
 import { asyncHandler } from "../middleware/error.middleware";
 
 const router = Router();
@@ -12,6 +12,8 @@ router.get('/.well-known/webfinger', asyncHandler(webfinger));
 router.get('/users/:username', asyncHandler(getActor));
 router.get('/users/:username/outbox', asyncHandler(getOutbox));
 router.post('/users/:username/inbox', asyncHandler(postInbox));
+router.get('/users/:username/followers', asyncHandler(getFollowers));
+router.get('/users/:username/following', asyncHandler(getFollowing));
 
 // Shared inbox for the instance
 router.post('/inbox', asyncHandler(postInbox));

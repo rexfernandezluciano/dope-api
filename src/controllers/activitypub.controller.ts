@@ -402,3 +402,149 @@ async function handleCreateNoteActivity(activity: any) {
 		console.error("Error handling create note activity:", error);
 	}
 }
+
+// Get user followers collection
+export const getFollowers = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const { page } = req.query;
+		
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true, username: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const followersUrl = `${baseUrl}/users/${username}/followers`;
+
+		if (!page) {
+			// Return followers collection summary
+			const followerCount = await prisma.follow.count({
+				where: { followingId: user.uid }
+			});
+
+			// Also count federated followers
+			const federatedFollowerCount = await prisma.federatedFollow?.count({
+				where: { followingId: user.uid }
+			}) || 0;
+
+			const totalFollowers = followerCount + federatedFollowerCount;
+
+			res.setHeader('Content-Type', 'application/activity+json');
+			res.json({
+				"@context": "https://www.w3.org/ns/activitystreams",
+				id: followersUrl,
+				type: "OrderedCollection",
+				totalItems: totalFollowers,
+				first: `${followersUrl}?page=1`
+			});
+		} else {
+			// Return paginated followers
+			const limit = 20;
+			const offset = (parseInt(page as string) - 1) * limit;
+
+			// Get local followers
+			const localFollowers = await prisma.follow.findMany({
+				where: { followingId: user.uid },
+				include: {
+					follower: {
+						select: { username: true }
+					}
+				},
+				take: limit,
+				skip: offset
+			});
+
+			// Get federated followers
+			const federatedFollowers = await prisma.federatedFollow?.findMany({
+				where: { followingId: user.uid },
+				take: limit - localFollowers.length,
+				skip: Math.max(0, offset - localFollowers.length)
+			}) || [];
+
+			const followers = [
+				...localFollowers.map(f => `${baseUrl}/users/${f.follower.username}`),
+				...federatedFollowers.map((f: any) => f.actorUrl)
+			];
+
+			res.setHeader('Content-Type', 'application/activity+json');
+			res.json({
+				"@context": "https://www.w3.org/ns/activitystreams",
+				id: `${followersUrl}?page=${page}`,
+				type: "OrderedCollectionPage",
+				partOf: followersUrl,
+				orderedItems: followers
+			});
+		}
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve followers" });
+	}
+};
+
+// Get user following collection
+export const getFollowing = async (req: Request, res: Response) => {
+	try {
+		const { username } = req.params;
+		const { page } = req.query;
+		
+		const user = await prisma.user.findUnique({
+			where: { username },
+			select: { uid: true, username: true }
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const baseUrl = `${req.protocol}://${req.get('host')}`;
+		const followingUrl = `${baseUrl}/users/${username}/following`;
+
+		if (!page) {
+			// Return following collection summary
+			const followingCount = await prisma.follow.count({
+				where: { followerId: user.uid }
+			});
+
+			res.setHeader('Content-Type', 'application/activity+json');
+			res.json({
+				"@context": "https://www.w3.org/ns/activitystreams",
+				id: followingUrl,
+				type: "OrderedCollection",
+				totalItems: followingCount,
+				first: `${followingUrl}?page=1`
+			});
+		} else {
+			// Return paginated following
+			const limit = 20;
+			const offset = (parseInt(page as string) - 1) * limit;
+
+			const following = await prisma.follow.findMany({
+				where: { followerId: user.uid },
+				include: {
+					following: {
+						select: { username: true }
+					}
+				},
+				take: limit,
+				skip: offset
+			});
+
+			const followingUrls = following.map(f => `${baseUrl}/users/${f.following.username}`);
+
+			res.setHeader('Content-Type', 'application/activity+json');
+			res.json({
+				"@context": "https://www.w3.org/ns/activitystreams",
+				id: `${followingUrl}?page=${page}`,
+				type: "OrderedCollectionPage",
+				partOf: followingUrl,
+				orderedItems: followingUrls
+			});
+		}
+	} catch (error) {
+		res.status(500).json({ error: "Failed to retrieve following" });
+	}
+};
