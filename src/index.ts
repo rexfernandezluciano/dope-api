@@ -39,7 +39,7 @@ dotenv.config();
 const app: Application = express();
 
 // Trust proxy for proper IP detection behind reverse proxy
-app.set('trust proxy', false);
+app.set('trust proxy', true);
 
 // Global middleware setup
 app.use(cors({ origin: "*" }));

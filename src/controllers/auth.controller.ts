@@ -45,10 +45,14 @@ const googleClient = new OAuth2Client(
 	process.env.GOOGLE_CLIENT_SECRET,
 );
 
-export const register = async (req: Request, res: Response, next: NextFunction) => {
+export const register = async (
+	req: Request,
+	res: Response,
+	next: NextFunction,
+) => {
 	try {
 		const prisma = await connect();
-		
+
 		const parsed = RegisterSchema.parse(req.body);
 		const { name, email, username, photoURL, password } = parsed;
 		const subscription = (parsed.subscription ?? "free") as Subscription;
@@ -69,7 +73,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
 				name,
 				email,
 				username,
-				photoURL,
+				photoURL: photoURL ?? "https://i.pravatar.cc/500",
 				password: passwordHash,
 				subscription,
 				hasBlueCheck: computeBlueCheck(subscription),
@@ -131,9 +135,9 @@ export const verifyEmail = async (
 
 		await prisma.user.update({
 			where: { email },
-			data: { 
+			data: {
 				hasVerifiedEmail: true,
-				nextBillingDate: dayjs().add(30, 'day').toDate()
+				nextBillingDate: dayjs().add(30, "day").toDate(),
 			},
 		});
 
@@ -210,7 +214,9 @@ export const login = async (
 
 				try {
 					// Create session with device tracking
-					const { createUserSession } = await import('../middleware/session.middleware');
+					const { createUserSession } = await import(
+						"../middleware/session.middleware"
+					);
 					const session = await createUserSession(user.uid, req.sessionID, req);
 
 					const token = signToken({
@@ -289,8 +295,14 @@ export const googleLogin = async (req: Request, res: Response) => {
 				}
 
 				try {
-					const { createUserSession } = await import('../middleware/session.middleware');
-					const session = await createUserSession(user!.uid, req.sessionID, req);
+					const { createUserSession } = await import(
+						"../middleware/session.middleware"
+					);
+					const session = await createUserSession(
+						user!.uid,
+						req.sessionID,
+						req,
+					);
 
 					const token = signToken({
 						uid: user!.uid,
@@ -372,7 +384,9 @@ export const googleLogin = async (req: Request, res: Response) => {
 				}
 
 				try {
-					const { createUserSession } = await import('../middleware/session.middleware');
+					const { createUserSession } = await import(
+						"../middleware/session.middleware"
+					);
 					const session = await createUserSession(user.uid, req.sessionID, req);
 
 					const token = signToken({
@@ -488,7 +502,9 @@ export const googleCallback = async (
 
 			try {
 				// Create session with device tracking
-				const { createUserSession } = await import('../middleware/session.middleware');
+				const { createUserSession } = await import(
+					"../middleware/session.middleware"
+				);
 				const session = await createUserSession(user.uid, req.sessionID, req);
 
 				const token = signToken({
@@ -498,7 +514,8 @@ export const googleCallback = async (
 				});
 
 				// Redirect to frontend with token and session info
-				const frontendUrl = process.env.FRONTEND_URL || 'https://www.dopp.eu.org';
+				const frontendUrl =
+					process.env.FRONTEND_URL || "https://www.dopp.eu.org";
 				const redirectUrl = `${frontendUrl}/auth/google/callback?token=${token}&sessionId=${session.id}&uid=${user.uid}`;
 
 				return res.redirect(redirectUrl);
@@ -524,10 +541,10 @@ export const logout = async (req: Request, res: Response) => {
 			if (userId) {
 				try {
 					await prisma.session.deleteMany({
-						where: { userId }
+						where: { userId },
 					});
 				} catch (sessionError) {
-					console.error('Failed to clear user sessions:', sessionError);
+					console.error("Failed to clear user sessions:", sessionError);
 					// Don't fail the logout if session cleanup fails
 				}
 			}
@@ -535,7 +552,7 @@ export const logout = async (req: Request, res: Response) => {
 			res.json({ message: "Logged out successfully" });
 		});
 	} catch (error) {
-		console.error('Logout error:', error);
+		console.error("Logout error:", error);
 		res.status(500).json({ message: "Logout failed" });
 	}
 };
