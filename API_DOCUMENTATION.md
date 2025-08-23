@@ -100,6 +100,8 @@ POST /v1/auth/register
   "username": "johndoe",
   "password": "password123",
   "photoURL": "https://example.com/photo.jpg",
+  "gender": "male",
+  "birthday": "1990-01-01T00:00:00.000Z",
   "subscription": "free",
   "privacy": {
     "profile": "public",
@@ -109,6 +111,19 @@ POST /v1/auth/register
   }
 }
 ```
+
+**Required Fields:**
+- `name`: User's display name
+- `email`: Valid email address
+- `username`: Unique username (3+ characters)
+- `password`: Password (6+ characters)
+
+**Optional Fields:**
+- `photoURL`: Profile picture URL
+- `gender`: One of "male", "female", "non_binary", "prefer_not_to_say"
+- `birthday`: ISO 8601 datetime string
+- `subscription`: Subscription tier ("free", "premium", "pro") - defaults to "free"
+- `privacy`: Privacy settings object with profile, comments, sharing, and chat preferences
 
 **Response (201):**
 ```json
