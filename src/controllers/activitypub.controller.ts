@@ -449,7 +449,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 		// Get total count of public posts
 		const totalItems = await prisma.post.count({
 			where: {
-				authorUid: user.uid,
+				authorId: user.uid,
 				privacy: "public",
 			},
 		});
@@ -477,7 +477,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 		// Get posts for this page
 		const posts = await prisma.post.findMany({
 			where: {
-				authorUid: user.uid,
+				authorId: user.uid,
 				privacy: "public",
 			},
 			orderBy: { createdAt: "desc" },
@@ -848,7 +848,7 @@ export const getFeaturedTags = async (req: Request, res: Response) => {
 		// Get hashtags from user's posts (simplified implementation)
 		const posts = await prisma.post.findMany({
 			where: {
-				authorUid: user.uid,
+				authorId: user.uid,
 				privacy: "public",
 			},
 			select: {
@@ -1095,7 +1095,7 @@ export const getBlocked = async (req: Request, res: Response) => {
 		const user = await prisma.user.findUnique({
 			where: { username },
 			include: {
-				blockedUsers: {
+				blocking: {
 					select: {
 						blocked: {
 							select: { username: true }
@@ -1113,8 +1113,8 @@ export const getBlocked = async (req: Request, res: Response) => {
 			"@context": "https://www.w3.org/ns/activitystreams",
 			id: `${baseUrl}/activitypub/users/${username}/blocked`,
 			type: "Collection",
-			totalItems: user.blockedUsers.length,
-			items: user.blockedUsers.map((block: any) => 
+			totalItems: user.blocking.length,
+			items: user.blocking.map((block: any) => 
 				`${baseUrl}/activitypub/users/${block.blocked.username}`
 			)
 		};
