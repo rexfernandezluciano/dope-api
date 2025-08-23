@@ -1,4 +1,3 @@
-/** @format */
 
 import express, { Application, Request, Response, NextFunction } from "express";
 import cors from "cors";
@@ -35,107 +34,118 @@ import {
 } from "./middleware/error.middleware";
 
 dotenv.config();
-let prisma: any;
-
-(async () => {
-	prisma = await connect();
-})();
 
 const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
-// Use CORS globally for all routes
-app.use(cors({ origin: "*" }));
+async function startServer() {
+	try {
+		// Initialize database connection
+		const prisma = await connect();
 
-// Middleware to parse JSON bodies into JS objects
-app.use(express.json());
-app.set("json spaces", 2);
+		// Use CORS globally for all routes
+		app.use(cors({ origin: "*" }));
 
-// Server Name and Powered By Headers
-app.use((req: Request, res: Response, next: NextFunction) => {
-	res.setHeader("Server", "DOPE/1.0");
-	res.setHeader("X-Powered-By", "DOPE/1.0");
-	res.setHeader("X-Origin", "DOPE/1.0");
-	res.setHeader("X-Content-Type-Options", "nosniff");
-	next();
-});
+		// Middleware to parse JSON bodies into JS objects
+		app.use(express.json());
+		app.set("json spaces", 2);
 
-// Session configuration with database storage
-app.use(
-	session({
-		secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
-		resave: false,
-		saveUninitialized: false,
-		store: new CustomPrismaSessionStore(prisma),
-		cookie: {
-			secure: process.env.NODE_ENV === "production",
-			maxAge: 24 * 60 * 60 * 1000, // 24 hours
-			httpOnly: true,
-		},
-	}),
-);
+		// Server Name and Powered By Headers
+		app.use((req: Request, res: Response, next: NextFunction) => {
+			res.setHeader("Server", "DOPE/1.0");
+			res.setHeader("X-Powered-By", "DOPE/1.0");
+			res.setHeader("X-Origin", "DOPE/1.0");
+			res.setHeader("X-Content-Type-Options", "nosniff");
+			next();
+		});
 
-// Add IP tracking middleware
-app.use(enhanceSession);
+		// Session configuration with database storage
+		app.use(
+			session({
+				secret: process.env.SESSION_SECRET || "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
+				resave: false,
+				saveUninitialized: false,
+				store: new CustomPrismaSessionStore(prisma),
+				cookie: {
+					secure: process.env.NODE_ENV === "production",
+					maxAge: 24 * 60 * 60 * 1000, // 24 hours
+					httpOnly: true,
+				},
+			}),
+		);
 
-// Initialize Passport
-app.use(passport.initialize());
-app.use(passport.session());
+		// Add IP tracking middleware
+		app.use(enhanceSession);
 
-const API_VERSION = "/v1";
+		// Initialize Passport
+		app.use(passport.initialize());
+		app.use(passport.session());
 
-app.get("/", (req: Request, res: Response) => {
-	const origin = req.headers.origin;
-	res.json({ status: "ok", message: "API is accessed on " + origin });
-});
+		const API_VERSION = "/v1";
 
-app.use(`${API_VERSION}/auth`, authRoutes);
-app.use(`${API_VERSION}/users`, userRoutes);
-app.use(`${API_VERSION}/posts`, postRoutes);
-app.use(`${API_VERSION}/comments`, commentRoutes);
-app.use(`${API_VERSION}/replies`, replyRoutes);
-app.use(`${API_VERSION}/reports`, reportRoutes);
-app.use(`${API_VERSION}/blocks`, blockRoutes);
-app.use(`${API_VERSION}/payments`, paymentRoutes);
-app.use(`${API_VERSION}/sessions`, sessionRoutes);
-app.use(`${API_VERSION}/content`, contentRoutes);
-app.use(`${API_VERSION}/images`, imageRoutes);
-app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
-app.use(`${API_VERSION}/business`, businessRoutes);
-app.use(`${API_VERSION}/analytics`, analyticsRoutes);
+		app.get("/", (req: Request, res: Response) => {
+			const origin = req.headers.origin;
+			res.json({ status: "ok", message: "API is accessed on " + origin });
+		});
 
-// ActivityPub routes
-app.use("/activitypub", activityPubRoutes);
+		app.use(`${API_VERSION}/auth`, authRoutes);
+		app.use(`${API_VERSION}/users`, userRoutes);
+		app.use(`${API_VERSION}/posts`, postRoutes);
+		app.use(`${API_VERSION}/comments`, commentRoutes);
+		app.use(`${API_VERSION}/replies`, replyRoutes);
+		app.use(`${API_VERSION}/reports`, reportRoutes);
+		app.use(`${API_VERSION}/blocks`, blockRoutes);
+		app.use(`${API_VERSION}/payments`, paymentRoutes);
+		app.use(`${API_VERSION}/sessions`, sessionRoutes);
+		app.use(`${API_VERSION}/content`, contentRoutes);
+		app.use(`${API_VERSION}/images`, imageRoutes);
+		app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
+		app.use(`${API_VERSION}/business`, businessRoutes);
+		app.use(`${API_VERSION}/analytics`, analyticsRoutes);
 
-// WebFinger endpoint (must be at root)
-app.get("/.well-known/webfinger", asyncHandler(webfinger));
+		// ActivityPub routes
+		app.use("/activitypub", activityPubRoutes);
 
-// User profile endpoint with ActivityPub content negotiation
-app.get("/@:username", (req: Request, res: Response) => {
-	const { username } = req.params;
+		// WebFinger endpoint (must be at root)
+		app.get("/.well-known/webfinger", asyncHandler(webfinger));
 
-	// Check if client accepts ActivityPub
-	const accept = req.headers.accept || "";
-	if (
-		accept.includes("application/activity+json") ||
-		accept.includes("application/ld+json")
-	) {
-		// Redirect to ActivityPub actor endpoint
-		return res.redirect(301, `/activitypub/users/${username}`);
+		// User profile endpoint with ActivityPub content negotiation
+		app.get("/@:username", (req: Request, res: Response) => {
+			const { username } = req.params;
+
+			// Check if client accepts ActivityPub
+			const accept = req.headers.accept || "";
+			if (
+				accept.includes("application/activity+json") ||
+				accept.includes("application/ld+json")
+			) {
+				// Redirect to ActivityPub actor endpoint
+				return res.redirect(301, `/activitypub/users/${username}`);
+			}
+
+			// For web browsers, you could serve a user profile page here
+			res.status(404).json({ error: "Profile page not implemented" });
+		});
+
+		// 404 handler - must be after all routes
+		app.use(notFoundHandler);
+
+		// Global error handler - must be last
+		app.use(errorHandler);
+
+		app.listen(PORT as number, "0.0.0.0", () => {
+			console.log(`Server running on port ${PORT}`);
+		});
+
+	} catch (error) {
+		console.error("Failed to start server:", error);
+		process.exit(1);
 	}
+}
 
-	// For web browsers, you could serve a user profile page here
-	res.status(404).json({ error: "Profile page not implemented" });
-});
-
-// 404 handler - must be after all routes
-app.use(notFoundHandler);
-
-// Global error handler - must be last
-app.use(errorHandler);
-
-app.listen(PORT as number, () => {
-	console.log(`Server running on port ${PORT}`);
+startServer().catch((err) => {
+	console.error("Server startup failed:", err);
+	process.exit(1);
 });
 
 export default app;
