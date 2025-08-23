@@ -15,16 +15,12 @@ import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
 import passport from "passport";
 
-// Dynamic import functions for nanoid
-const getMakeCode = async () => {
-	const { customAlphabet } = await import("nanoid");
-	return customAlphabet("0123456789", 6);
-};
+// Import nanoid at the top level
+import { customAlphabet } from "nanoid";
 
-const getMakeVerificationId = async () => {
-	const { customAlphabet } = await import("nanoid");
-	return customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
-};
+// Create the functions directly
+const makeCode = customAlphabet("0123456789", 6);
+const makeVerificationId = customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
 
 // Helper: decide BlueCheck from subscription
 function computeBlueCheck(sub: Subscription) {
@@ -101,8 +97,6 @@ export const register = async (
 		});
 
 		// Create verification record
-		const makeCode = await getMakeCode();
-		const makeVerificationId = await getMakeVerificationId();
 		const code = makeCode();
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
@@ -180,8 +174,6 @@ export const resendCode = async (
 		await prisma.email.deleteMany({ where: { email } });
 
 		// Create new code
-		const makeCode = await getMakeCode();
-		const makeVerificationId = await getMakeVerificationId();
 		const code = makeCode();
 		const verificationId = makeVerificationId();
 		const expireAt = dayjs().add(15, "minute").toDate();
