@@ -5,9 +5,14 @@ import {
 	token,
 	revoke,
 	userInfo,
-	registerApp
+	registerApp,
+	getUserApps,
+	getUserAuthorizations,
+	revokeAuthorization,
+	deleteApp
 } from '../controllers/oauth.controller';
 import { authenticateOAuth } from '../middleware/oauth.middleware';
+import { requireAuth } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error.middleware';
 
 const router = Router();
@@ -152,5 +157,73 @@ router.post('/apps', asyncHandler(registerApp));
  *               $ref: '#/components/schemas/User'
  */
 router.get('/userinfo', authenticateOAuth, asyncHandler(userInfo));
+
+/**
+ * @swagger
+ * /oauth/my-apps:
+ *   get:
+ *     summary: Get user's OAuth applications
+ *     tags: [OAuth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of user's OAuth applications
+ */
+router.get('/my-apps', requireAuth, asyncHandler(getUserApps));
+
+/**
+ * @swagger
+ * /oauth/my-authorizations:
+ *   get:
+ *     summary: Get user's granted authorizations
+ *     tags: [OAuth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of user's granted authorizations
+ */
+router.get('/my-authorizations', requireAuth, asyncHandler(getUserAuthorizations));
+
+/**
+ * @swagger
+ * /oauth/authorizations/{authorizationId}:
+ *   delete:
+ *     summary: Revoke an authorization
+ *     tags: [OAuth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: authorizationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Authorization revoked successfully
+ */
+router.delete('/authorizations/:authorizationId', requireAuth, asyncHandler(revokeAuthorization));
+
+/**
+ * @swagger
+ * /oauth/apps/{appId}:
+ *   delete:
+ *     summary: Delete an OAuth application
+ *     tags: [OAuth]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: appId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Application deleted successfully
+ */
+router.delete('/apps/:appId', requireAuth, asyncHandler(deleteApp));
 
 export default router;

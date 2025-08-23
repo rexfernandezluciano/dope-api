@@ -543,6 +543,81 @@ Authorization: Bearer <oauth_access_token>
 }
 ```
 
+#### Get User's OAuth Applications
+```http
+GET /v1/oauth/my-apps
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "applications": [
+    {
+      "id": "app_id",
+      "name": "My App",
+      "clientId": "client_id",
+      "redirectUris": ["https://myapp.com/callback"],
+      "scopes": "read write follow",
+      "website": "https://myapp.com",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "activeTokens": 3
+    }
+  ]
+}
+```
+
+#### Get User's Granted Authorizations
+```http
+GET /v1/oauth/my-authorizations
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "authorizations": [
+    {
+      "id": "auth_id",
+      "application": {
+        "id": "app_id",
+        "name": "Third Party App",
+        "website": "https://thirdparty.com"
+      },
+      "scope": "read write",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "expiresAt": "2024-01-16T10:30:00Z"
+    }
+  ]
+}
+```
+
+#### Revoke Authorization
+```http
+DELETE /v1/oauth/authorizations/:authorizationId
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "message": "Authorization revoked successfully"
+}
+```
+
+#### Delete OAuth Application
+```http
+DELETE /v1/oauth/apps/:appId
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "message": "Application deleted successfully"
+}
+```
+
 ---
 
 ### User Endpoints

@@ -47,6 +47,9 @@ model User {
   userKeys       UserKeys?
   federatedFollows FederatedFollow[]
   pollVotes      PollVote[]
+  oAuthApplications OAuthApplication[]
+  oAuthAuthorizationCodes OAuthAuthorizationCode[]
+  oAuthAccessTokens OAuthAccessToken[]
 }
 
 model Post {
@@ -458,4 +461,51 @@ model PollVote {
 
   @@unique([pollId, userId])
   @@unique([pollId, actorUrl])
+}
+
+model OAuthApplication {
+  id           String @id @default(cuid())
+  name         String
+  clientId     String @unique
+  clientSecret String
+  redirectUris String[]
+  scopes       String
+  website      String?
+  userId       String? // Optional: for user-created apps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user                User?                    @relation(fields: [userId], references: [uid], onDelete: Cascade)
+  authorizationCodes  OAuthAuthorizationCode[]
+  accessTokens        OAuthAccessToken[]
+}
+
+model OAuthAuthorizationCode {
+  id                    String @id @default(cuid())
+  code                  String @unique
+  applicationId         String
+  userId                String
+  redirectUri           String
+  scope                 String
+  codeChallenge         String?
+  codeChallengeMethod   String?
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+
+  application OAuthApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [uid], onDelete: Cascade)
+}
+
+model OAuthAccessToken {
+  id            String @id @default(cuid())
+  token         String @unique
+  refreshToken  String?
+  applicationId String
+  userId        String
+  scope         String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  application OAuthApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [uid], onDelete: Cascade)
 }

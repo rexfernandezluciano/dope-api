@@ -302,3 +302,167 @@ export const registerApp = async (req: Request, res: Response) => {
 		res.status(500).json({ error: 'server_error' });
 	}
 };
+// Get user's OAuth applications
+export const getUserApps = async (req: Request, res: Response) => {
+	try {
+		const user = (req as any).user;
+		if (!user) {
+			return res.status(401).json({ error: 'unauthorized' });
+		}
+
+		const apps = await prisma.oAuthApplication.findMany({
+			where: { userId: user.uid },
+			select: {
+				id: true,
+				name: true,
+				clientId: true,
+				redirectUris: true,
+				scopes: true,
+				website: true,
+				createdAt: true,
+				_count: {
+					select: {
+						accessTokens: true
+					}
+				}
+			},
+			orderBy: { createdAt: 'desc' }
+		});
+
+		res.json({
+			applications: apps.map(app => ({
+				id: app.id,
+				name: app.name,
+				clientId: app.clientId,
+				redirectUris: app.redirectUris,
+				scopes: app.scopes,
+				website: app.website,
+				createdAt: app.createdAt,
+				activeTokens: app._count.accessTokens
+			}))
+		});
+	} catch (error) {
+		console.error('Get user apps error:', error);
+		res.status(500).json({ error: 'server_error' });
+	}
+};
+
+// Get user's granted authorizations
+export const getUserAuthorizations = async (req: Request, res: Response) => {
+	try {
+		const user = (req as any).user;
+		if (!user) {
+			return res.status(401).json({ error: 'unauthorized' });
+		}
+
+		const authorizations = await prisma.oAuthAccessToken.findMany({
+			where: { 
+				userId: user.uid,
+				expiresAt: {
+					gt: new Date()
+				}
+			},
+			include: {
+				application: {
+					select: {
+						id: true,
+						name: true,
+						website: true,
+						redirectUris: true
+					}
+				}
+			},
+			orderBy: { createdAt: 'desc' }
+		});
+
+		res.json({
+			authorizations: authorizations.map(auth => ({
+				id: auth.id,
+				application: {
+					id: auth.application.id,
+					name: auth.application.name,
+					website: auth.application.website
+				},
+				scope: auth.scope,
+				createdAt: auth.createdAt,
+				expiresAt: auth.expiresAt
+			}))
+		});
+	} catch (error) {
+		console.error('Get user authorizations error:', error);
+		res.status(500).json({ error: 'server_error' });
+	}
+};
+
+// Revoke authorization
+export const revokeAuthorization = async (req: Request, res: Response) => {
+	try {
+		const user = (req as any).user;
+		const { authorizationId } = req.params;
+
+		if (!user) {
+			return res.status(401).json({ error: 'unauthorized' });
+		}
+
+		const authorization = await prisma.oAuthAccessToken.findFirst({
+			where: {
+				id: authorizationId,
+				userId: user.uid
+			}
+		});
+
+		if (!authorization) {
+			return res.status(404).json({ error: 'authorization_not_found' });
+		}
+
+		await prisma.oAuthAccessToken.delete({
+			where: { id: authorizationId }
+		});
+
+		res.json({ message: 'Authorization revoked successfully' });
+	} catch (error) {
+		console.error('Revoke authorization error:', error);
+		res.status(500).json({ error: 'server_error' });
+	}
+};
+
+// Delete OAuth application
+export const deleteApp = async (req: Request, res: Response) => {
+	try {
+		const user = (req as any).user;
+		const { appId } = req.params;
+
+		if (!user) {
+			return res.status(401).json({ error: 'unauthorized' });
+		}
+
+		const app = await prisma.oAuthApplication.findFirst({
+			where: {
+				id: appId,
+				userId: user.uid
+			}
+		});
+
+		if (!app) {
+			return res.status(404).json({ error: 'application_not_found' });
+		}
+
+		// Delete all related tokens and authorization codes first
+		await prisma.oAuthAccessToken.deleteMany({
+			where: { applicationId: appId }
+		});
+
+		await prisma.oAuthAuthorizationCode.deleteMany({
+			where: { applicationId: appId }
+		});
+
+		await prisma.oAuthApplication.delete({
+			where: { id: appId }
+		});
+
+		res.json({ message: 'Application deleted successfully' });
+	} catch (error) {
+		console.error('Delete app error:', error);
+		res.status(500).json({ error: 'server_error' });
+	}
+};
