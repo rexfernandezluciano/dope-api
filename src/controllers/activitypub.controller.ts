@@ -493,7 +493,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 			return res.status(404).json({ error: 'User not found' });
 		}
 
-		const activities = user.posts.map(post => ({
+		const activities = user.posts.map((post: any) => ({
 			'@context': 'https://www.w3.org/ns/activitystreams',
 			id: `${baseUrl}/activitypub/users/${username}/posts/${post.id}#activity`,
 			type: 'Create',
@@ -594,7 +594,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 			id: `${baseUrl}/activitypub/users/${username}/following`,
 			type: 'OrderedCollection',
 			totalItems: user.following.length,
-			orderedItems: user.following.map(follow => `${baseUrl}/activitypub/users/${follow.following.username}`)
+			orderedItems: user.following.map((follow: any) => `${baseUrl}/activitypub/users/${follow.following.username}`)
 		};
 
 		res.setHeader('Content-Type', 'application/activity+json');
