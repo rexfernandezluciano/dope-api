@@ -47,19 +47,19 @@ app.use(cors({ origin: "*" }));
 
 // Rate limiting middleware
 const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 100, // limit each IP to 100 requests per windowMs
+	windowMs: 3 * 60 * 1000, // 3 minutes
+	max: 200, // limit each IP to 200 requests per windowMs
 	standardHeaders: true,
 	legacyHeaders: false,
 });
 
 // Stricter rate limiting for auth endpoints
 const authLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 10, // Limit each IP to 10 auth requests per windowMs
+	windowMs: 3 * 60 * 1000, // 3 minutes
+	max: 30, // Limit each IP to 30 auth requests per windowMs
 	message: {
 		error: "Too many authentication attempts, please try again later.",
-		retryAfter: "15 minutes"
+		retryAfter: "3 minutes"
 	},
 	standardHeaders: true,
 	legacyHeaders: false,
