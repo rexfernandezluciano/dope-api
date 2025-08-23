@@ -24,6 +24,7 @@ model User {
   hasVerifiedEmail Boolean      @default(false)
   isBlocked        Boolean      @default(false)
   isRestricted     Boolean      @default(false)
+  credits          Int          @default(0) // Credits in centavos/cents
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

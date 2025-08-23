@@ -26,13 +26,36 @@ export const createAdCampaign = async (req: Request, res: Response) => {
 			return res.status(401).json({ error: "Authentication required" });
 		}
 
+		// Check user's current credits
+		const user = await prisma.user.findUnique({
+			where: { uid: userId },
+			select: { credits: true },
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: "User not found" });
+		}
+
+		const budgetInCentavos = Math.round(budget * 100);
+		
+		// Check if user has sufficient credits
+		if (user.credits < budgetInCentavos) {
+			return res.status(400).json({
+				error: "Insufficient credits",
+				message: `You need ₱${(budgetInCentavos / 100).toFixed(2)} but only have ₱${(user.credits / 100).toFixed(2)} in credits.`,
+				required: budgetInCentavos / 100,
+				available: user.credits / 100,
+				shortfall: (budgetInCentavos - user.credits) / 100,
+			});
+		}
+
 		const campaign = await prisma.adCampaign.create({
 			data: {
 				title,
 				description,
 				targetType,
 				targetId,
-				budget: Math.round(budget * 100), // Store as cents
+				budget: budgetInCentavos, // Store as centavos
 				duration,
 				targetAudience: targetAudience || {},
 				adType,
@@ -45,8 +68,9 @@ export const createAdCampaign = async (req: Request, res: Response) => {
 			message: "Ad campaign created successfully",
 			campaign: {
 				...campaign,
-				budget: campaign.budget / 100, // Return as dollars
+				budget: campaign.budget / 100, // Return as pesos
 			},
+			creditsRemaining: user.credits / 100,
 		});
 	} catch (error) {
 		res.status(500).json({ error: "Error creating ad campaign" });
@@ -197,11 +221,19 @@ export const trackAdInteraction = async (req: Request, res: Response) => {
 		}
 
 		// Update campaign spending and earnings
-		await prisma.adCampaign.update({
+		const updatedCampaign = await prisma.adCampaign.update({
 			where: { id: campaignId },
 			data: {
 				spent: { increment: Math.round(cost * 100) },
 				earnings: { increment: Math.round(earnings * 100) },
+			},
+		});
+
+		// Deduct credits from advertiser's account
+		await prisma.user.update({
+			where: { uid: updatedCampaign.advertiserId },
+			data: {
+				credits: { decrement: Math.round(cost * 100) },
 			},
 		});
 
@@ -313,6 +345,12 @@ export const getBusinessDashboard = async (req: Request, res: Response) => {
 		const avgCTR =
 			totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
+		// Get user's current credits
+		const user = await prisma.user.findUnique({
+			where: { uid: userId },
+			select: { credits: true },
+		});
+
 		res.json({
 			overview: {
 				totalCampaigns: campaigns.length,
@@ -320,6 +358,7 @@ export const getBusinessDashboard = async (req: Request, res: Response) => {
 				totalSpent,
 				totalEarnings,
 				netProfit: totalEarnings - totalSpent,
+				currentCredits: user?.credits ? user.credits / 100 : 0,
 			},
 			analytics: {
 				totalImpressions,

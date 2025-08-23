@@ -23,6 +23,7 @@ import recommendationRoutes from "./routes/recommendation.routes";
 import businessRoutes from "./routes/business.routes";
 import analyticsRoutes from "./routes/analytics.routes";
 import pollRoutes from "./routes/poll.routes";
+import creditsRoutes from './routes/credits.routes';
 
 // Import Swagger configuration
 import { specs, swaggerUi } from "./config/swagger";
@@ -143,6 +144,7 @@ app.use(`${API_VERSION}/images`, imageRoutes);
 app.use(`${API_VERSION}/recommendations`, recommendationRoutes);
 app.use(`${API_VERSION}/business`, businessRoutes);
 app.use(`${API_VERSION}/analytics`, analyticsRoutes);
+app.use(`${API_VERSION}/credits`, creditsRoutes);
 
 // ActivityPub routes
 app.use("/activitypub", activityPubRoutes);
