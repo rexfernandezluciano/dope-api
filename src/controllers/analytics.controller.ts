@@ -1,5 +1,6 @@
 
 import { Request, Response } from "express";
+import { parseMentionsToNames } from "../utils/mentions"
 import { connect } from "../database/database";
 
 let prisma: any;
@@ -64,18 +65,20 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 
 		// Top performing posts
 		const topPosts = userPosts
-			.sort((a: any, b: any) => (b.analytics?.views || 0) - (a.analytics?.views || 0))
+			.sort((a: any, b: any) => { (b.analytics?.views || 0) - (a.analytics?.views || 0))
 			.slice(0, 5)
-			.map((post: any) => ({
+			.map((post: any) => {
+				const content = await parseMentionsToNames(post.content);
+				return {
 				id: post.id,
-				content: post.content?.substring(0, 100) + "...",
+				content: content?.substring(0, 100) + "...",
 				views: post.analytics?.views || 0,
 				likes: post._count.likes,
 				comments: post._count.comments,
 				shares: post.analytics?.shares || 0,
 				earnings: (post.analytics?.earnings || 0) / 100,
 				createdAt: post.createdAt,
-			}));
+			}});
 
 		res.json({
 			period: `${periodDays} days`,
