@@ -92,8 +92,6 @@ export const getActor = async (req: Request, res: Response) => {
 				profilePic: true,
 				followersCount: true,
 				followingCount: true,
-			},
-			include: {
 				userKeys: true
 			}
 		});
