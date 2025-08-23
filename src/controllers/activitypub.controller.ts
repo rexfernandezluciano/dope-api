@@ -95,13 +95,19 @@ export const webfinger = async (req: Request, res: Response) => {
 		try {
 			const remoteWebfingerUrl = `https://${domain}/.well-known/webfinger?resource=${encodeURIComponent(resource)}`;
 			
+			// Create AbortController for timeout
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 5000);
+			
 			const response = await fetch(remoteWebfingerUrl, {
 				headers: {
 					'Accept': 'application/jrd+json, application/json',
 					'User-Agent': 'Dopp/1.0 (ActivityPub)'
 				},
-				timeout: 5000
+				signal: controller.signal
 			});
+			
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				console.log(`Remote webfinger lookup failed: ${response.status} ${response.statusText}`);
