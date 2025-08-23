@@ -120,9 +120,6 @@ app.use("/activitypub", activityPubRoutes);
 const oauthRoutes = require("./routes/oauth.routes").default;
 app.use("/oauth", oauthRoutes);
 
-// WebFinger endpoint (must be at root)
-app.get("/.well-known/webfinger", asyncHandler(webfinger));
-
 // Well-known routes
 const wellKnownRoutes = require("./routes/well-known.routes").default;
 app.use("/.well-known", wellKnownRoutes);
