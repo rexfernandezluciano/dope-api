@@ -15,15 +15,23 @@ import { OAuth2Client } from "google-auth-library";
 import { connect } from "../database/database";
 import passport from "passport";
 
-// Create the functions directly
-const makeCode = async () => {
-	const { customAlphabet } = await import("nanoid");
-	return customAlphabet("0123456789", 6);
+// Create the functions directly using crypto module
+const makeCode = () => {
+	const crypto = require("crypto");
+	return () => {
+		let code = "";
+		for (let i = 0; i < 6; i++) {
+			code += Math.floor(Math.random() * 10).toString();
+		}
+		return code;
+	};
 };
 
-const makeVerificationId = async () => {
-	const { customAlphabet } = await import("nanoid");
-	return customAlphabet("abcdefghijklmnopqrstuvwxyz0123456789", 24);
+const makeVerificationId = () => {
+	const crypto = require("crypto");
+	return () => {
+		return crypto.randomBytes(12).toString("hex");
+	};
 };
 
 // Helper: decide BlueCheck from subscription
@@ -101,8 +109,8 @@ export const register = async (
 		});
 
 		// Create new code
-		const code = (await makeCode())();
-		const verificationId = (await makeVerificationId())();
+		const code = makeCode()();
+		const verificationId = makeVerificationId()();
 		const expireAt = dayjs().add(15, "minute").toDate();
 
 		await prisma.email.create({
@@ -178,8 +186,8 @@ export const resendCode = async (
 		await prisma.email.deleteMany({ where: { email } });
 
 		// Create new code
-		const codeGenerator = await makeCode();
-		const verificationIdGenerator = await makeVerificationId();
+		const codeGenerator = makeCode();
+		const verificationIdGenerator = makeVerificationId();
 		const code = codeGenerator();
 		const verificationId = verificationIdGenerator();
 		const expireAt = dayjs().add(15, "minute").toDate();
