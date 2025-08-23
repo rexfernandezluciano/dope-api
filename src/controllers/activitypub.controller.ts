@@ -467,7 +467,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 			}) || [];
 
 			const followers = [
-				...localFollowers.map(f => `${baseUrl}/users/${f.follower.username}`),
+				...localFollowers.map((f: any) => `${baseUrl}/users/${f.follower.username}`),
 				...federatedFollowers.map((f: any) => f.actorUrl)
 			];
 
@@ -533,7 +533,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 				skip: offset
 			});
 
-			const followingUrls = following.map(f => `${baseUrl}/users/${f.following.username}`);
+			const followingUrls = following.map((f: any) => `${baseUrl}/users/${f.following.username}`);
 
 			res.setHeader('Content-Type', 'application/activity+json');
 			res.json({
