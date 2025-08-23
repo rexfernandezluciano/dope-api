@@ -157,7 +157,7 @@ export const getOutbox = async (req: Request, res: Response) => {
 		}
 
 		const baseUrl = `${req.protocol}://${req.get('host')}`;
-		const outboxUrl = `${baseUrl}/users/${username}/outbox`;
+		const outboxUrl = `${baseUrl}/activitypub/users/${username}/outbox`;
 
 		if (!page) {
 			// Return outbox collection summary
@@ -443,7 +443,7 @@ async function handleLikeActivity(activity: any) {
 		const actorUrl = activity.actor;
 		
 		// Extract post ID from object URL
-		const match = objectUrl.match(/\/posts\/(.+)$/);
+		const match = objectUrl.match(/\/(?:activitypub\/)?posts\/(.+)$/);
 		if (!match) return;
 		
 		const postId = match[1];
@@ -497,7 +497,7 @@ export const getFollowers = async (req: Request, res: Response) => {
 		}
 
 		const baseUrl = `${req.protocol}://${req.get('host')}`;
-		const followersUrl = `${baseUrl}/users/${username}/followers`;
+		const followersUrl = `${baseUrl}/activitypub/users/${username}/followers`;
 
 		if (!page) {
 			// Return followers collection summary
@@ -582,7 +582,7 @@ export const getFollowing = async (req: Request, res: Response) => {
 		}
 
 		const baseUrl = `${req.protocol}://${req.get('host')}`;
-		const followingUrl = `${baseUrl}/users/${username}/following`;
+		const followingUrl = `${baseUrl}/activitypub/users/${username}/following`;
 
 		if (!page) {
 			// Return following collection summary
