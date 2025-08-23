@@ -1,6 +1,7 @@
 
 import { Request, Response } from "express";
 import { connect } from "../database/database";
+import { parseMentionsToNames } from "../utils/mentions";
 import crypto from "crypto";
 
 let prisma: any;
@@ -186,7 +187,9 @@ export const getOutbox = async (req: Request, res: Response) => {
 				skip: offset
 			});
 
-			const activities = posts.map((post: any) => convertPostToActivity(post, baseUrl));
+			const activities = await Promise.all(
+				posts.map((post: any) => convertPostToActivity(post, baseUrl))
+			);
 
 			res.setHeader('Content-Type', 'application/activity+json');
 			res.json({
@@ -242,9 +245,12 @@ export const postInbox = async (req: Request, res: Response) => {
 };
 
 // Convert internal post to ActivityPub Note
-function convertPostToActivity(post: any, baseUrl: string) {
+async function convertPostToActivity(post: any, baseUrl: string) {
 	const userUrl = `${baseUrl}/users/${post.author.username}`;
 	const postUrl = `${baseUrl}/posts/${post.id}`;
+
+	// Parse mentions (@uid) to display names
+	const processedContent = await parseMentionsToNames(post.content || "");
 
 	return {
 		id: `${postUrl}/activity`,
@@ -255,7 +261,7 @@ function convertPostToActivity(post: any, baseUrl: string) {
 			id: postUrl,
 			type: "Note",
 			summary: null,
-			content: post.content || "",
+			content: processedContent,
 			attributedTo: userUrl,
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			published: post.createdAt.toISOString(),

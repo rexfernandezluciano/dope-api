@@ -1,6 +1,7 @@
 
 import crypto from 'crypto';
 import axios from 'axios';
+import { parseMentionsToNames } from './mentions';
 
 // Send ActivityPub activity to remote actor's inbox
 export async function sendActivity(activity: any, targetInbox: string, actorPrivateKey: string) {
@@ -109,8 +110,11 @@ export function createLikeActivity(actorUrl: string, objectUrl: string, baseUrl:
 }
 
 // Create Create Note activity (for posts)
-export function createNoteActivity(actorUrl: string, content: string, baseUrl: string, postId: string) {
+export async function createNoteActivity(actorUrl: string, content: string, baseUrl: string, postId: string) {
 	const noteUrl = `${baseUrl}/posts/${postId}`;
+	
+	// Parse mentions (@uid) to display names
+	const processedContent = await parseMentionsToNames(content);
 	
 	return {
 		"@context": "https://www.w3.org/ns/activitystreams",
@@ -123,7 +127,7 @@ export function createNoteActivity(actorUrl: string, content: string, baseUrl: s
 			id: noteUrl,
 			type: "Note",
 			attributedTo: actorUrl,
-			content: content,
+			content: processedContent,
 			to: ["https://www.w3.org/ns/activitystreams#Public"],
 			published: new Date().toISOString()
 		}
