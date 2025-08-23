@@ -27,8 +27,17 @@ export const webfinger = async (req: Request, res: Response) => {
 
 		const [, username, domain] = match;
 		const expectedDomain = req.get('host');
+		
+		// Handle domain matching more flexibly
+		const normalizedDomain = domain.toLowerCase();
+		const normalizedExpected = expectedDomain?.toLowerCase();
+		
+		// Also check against known domain variants
+		const knownDomains = ['dopp.eu.org', 'api.dopp.eu.org'];
+		const isDomainValid = normalizedDomain === normalizedExpected || knownDomains.includes(normalizedDomain);
 
-		if (domain !== expectedDomain) {
+		if (!isDomainValid) {
+			console.log(`Domain mismatch: requested=${normalizedDomain}, expected=${normalizedExpected}`);
 			return res.status(404).json({ error: "User not found on this domain" });
 		}
 
