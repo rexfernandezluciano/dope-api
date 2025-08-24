@@ -63,6 +63,78 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 		const totalEngagement = totalLikes + totalComments + totalShares;
 		const engagementRate = totalViews > 0 ? (totalEngagement / totalViews) * 100 : 0;
 
+		// Get revenue breakdown
+		// Ad revenue from campaigns
+		const adRevenue = await prisma.adCampaign.aggregate({
+			where: {
+				advertiserId: userId,
+				createdAt: { gte: startDate },
+			},
+			_sum: { earnings: true },
+		});
+
+		// Subscription revenue
+		const subscriptionRevenue = await prisma.userSubscription.aggregate({
+			where: {
+				creatorId: userId,
+				createdAt: { gte: startDate },
+				status: "active",
+			},
+			_sum: { amount: true },
+		});
+
+		// Tips and donations
+		const tipsReceived = await prisma.tip.aggregate({
+			where: {
+				receiverId: userId,
+				createdAt: { gte: startDate },
+			},
+			_sum: { amount: true },
+		});
+
+		const donationsReceived = await prisma.donation.aggregate({
+			where: {
+				receiverId: userId,
+				createdAt: { gte: startDate },
+			},
+			_sum: { amount: true },
+		});
+
+		// Calculate total revenue
+		const adRevenueAmount = (adRevenue._sum.earnings || 0) / 100;
+		const subscriptionRevenueAmount = (subscriptionRevenue._sum.amount || 0) / 100;
+		const tipsAmount = (tipsReceived._sum.amount || 0) / 100;
+		const donationsAmount = (donationsReceived._sum.amount || 0) / 100;
+		const contentEarningsAmount = totalEarnings / 100;
+		const totalRevenue = adRevenueAmount + subscriptionRevenueAmount + tipsAmount + donationsAmount + contentEarningsAmount;
+
+		// Check monetization eligibility
+		const user = await prisma.user.findUnique({
+			where: { uid: userId },
+			include: {
+				reports: {
+					where: {
+						status: { in: ["pending", "reviewed"] },
+					},
+				},
+			},
+		});
+
+		// Check if user posted within the last 24 hours
+		const lastDayPosts = await prisma.post.count({
+			where: {
+				authorId: userId,
+				createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+			},
+		});
+
+		const isEligibleForMonetization = 
+			currentFollowers >= 500 && 
+			lastDayPosts >= 1 && 
+			!user?.isBlocked && 
+			!user?.isRestricted &&
+			(user?.reports?.length || 0) === 0;
+
 		// Top performing posts
 		const topPosts = await Promise.all(
 			userPosts
@@ -91,10 +163,39 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 				totalLikes,
 				totalComments,
 				totalShares,
-				totalEarnings: totalEarnings / 100,
+				totalRevenue: Math.round(totalRevenue * 100) / 100,
 				currentFollowers,
 				followersGained,
 				engagementRate: Math.round(engagementRate * 100) / 100,
+			},
+			revenue: {
+				totalRevenue: Math.round(totalRevenue * 100) / 100,
+				contentEarnings: Math.round(contentEarningsAmount * 100) / 100,
+				adRevenue: Math.round(adRevenueAmount * 100) / 100,
+				subscriptionRevenue: Math.round(subscriptionRevenueAmount * 100) / 100,
+				tipsReceived: Math.round(tipsAmount * 100) / 100,
+				donationsReceived: Math.round(donationsAmount * 100) / 100,
+			},
+			monetization: {
+				isEligible: isEligibleForMonetization,
+				requirements: {
+					followers: {
+						current: currentFollowers,
+						required: 500,
+						met: currentFollowers >= 500,
+					},
+					recentActivity: {
+						postsLast24h: lastDayPosts,
+						required: 1,
+						met: lastDayPosts >= 1,
+					},
+					accountStatus: {
+						blocked: user?.isBlocked || false,
+						restricted: user?.isRestricted || false,
+						violations: user?.reports?.length || 0,
+						goodStanding: !user?.isBlocked && !user?.isRestricted && (user?.reports?.length || 0) === 0,
+					},
+				},
 			},
 			topPosts,
 		});

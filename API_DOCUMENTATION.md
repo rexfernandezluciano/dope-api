@@ -2100,10 +2100,39 @@ Authorization: Bearer <jwt_token>
     "totalLikes": 890,
     "totalComments": 234,
     "totalShares": 67,
-    "totalEarnings": 15.50,
+    "totalRevenue": 125.75,
     "currentFollowers": 1250,
     "followersGained": 45,
     "engagementRate": 9.52
+  },
+  "revenue": {
+    "totalRevenue": 125.75,
+    "contentEarnings": 15.50,
+    "adRevenue": 25.00,
+    "subscriptionRevenue": 75.00,
+    "tipsReceived": 8.25,
+    "donationsReceived": 2.00
+  },
+  "monetization": {
+    "isEligible": true,
+    "requirements": {
+      "followers": {
+        "current": 1250,
+        "required": 500,
+        "met": true
+      },
+      "recentActivity": {
+        "postsLast24h": 2,
+        "required": 1,
+        "met": true
+      },
+      "accountStatus": {
+        "blocked": false,
+        "restricted": false,
+        "violations": 0,
+        "goodStanding": true
+      }
+    }
   },
   "topPosts": [
     {

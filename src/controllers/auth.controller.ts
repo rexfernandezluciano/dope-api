@@ -460,6 +460,11 @@ export const me = async (req: Request, res: Response) => {
 		include: {
 			followers: true,
 			following: true,
+			reports: {
+				where: {
+					status: { in: ["pending", "reviewed"] },
+				},
+			},
 			_count: {
 				select: {
 					posts: true,
@@ -472,6 +477,23 @@ export const me = async (req: Request, res: Response) => {
 	});
 
 	if (!user) return res.status(404).json({ message: "User not found" });
+
+	// Check if user posted within the last 24 hours
+	const lastDayPosts = await prisma.post.count({
+		where: {
+			authorId: authUser.uid,
+			createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+		},
+	});
+
+	// Check monetization eligibility
+	const isEligibleForMonetization = 
+		user._count.followers >= 500 && 
+		lastDayPosts >= 1 && 
+		!user.isBlocked && 
+		!user.isRestricted &&
+		user.reports.length === 0;
+
 	const output = {
 		uid: user.uid,
 		name: user.name,
@@ -489,6 +511,27 @@ export const me = async (req: Request, res: Response) => {
 			followers: user._count.followers,
 			followings: user._count.following,
 			likes: user._count.likes,
+		},
+		monetization: {
+			isEligible: isEligibleForMonetization,
+			requirements: {
+				followers: {
+					current: user._count.followers,
+					required: 500,
+					met: user._count.followers >= 500,
+				},
+				recentActivity: {
+					postsLast24h: lastDayPosts,
+					required: 1,
+					met: lastDayPosts >= 1,
+				},
+				accountStatus: {
+					blocked: user.isBlocked,
+					restricted: user.isRestricted,
+					violations: user.reports.length,
+					goodStanding: !user.isBlocked && !user.isRestricted && user.reports.length === 0,
+				},
+			},
 		},
 		privacy: user.privacy,
 		hasVerifiedEmail: user.hasVerifiedEmail,
