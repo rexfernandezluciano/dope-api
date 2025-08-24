@@ -736,7 +736,7 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
                 subscriberId: userId,
                 creatorId: creatorId,
                 tier: tier as "basic" | "premium" | "vip",
-                amount: parseInt(amount),
+                amount: SUBSCRIPTION_PRICES[tier as keyof typeof SUBSCRIPTION_PRICES],
                 status: "active",
                 expiresAt: nextBillingDate,
               },
