@@ -226,11 +226,67 @@ export const tipUser = async (req: Request, res: Response) => {
 
     const receiver = await prisma.user.findUnique({
       where: { uid: receiverId },
-      select: { uid: true, username: true, name: true },
+      select: { 
+        uid: true, 
+        username: true, 
+        name: true,
+        isBlocked: true,
+        isRestricted: true,
+        _count: {
+          select: {
+            followers: true,
+          },
+        },
+        reports: {
+          where: {
+            status: { in: ["pending", "reviewed"] },
+          },
+        },
+      },
     });
 
     if (!receiver) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if receiver posted within the last 24 hours
+    const lastDayPosts = await prisma.post.count({
+      where: {
+        authorId: receiverId,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    // Check monetization eligibility
+    const isEligibleForMonetization = 
+      receiver._count.followers >= 500 && 
+      lastDayPosts >= 1 && 
+      !receiver.isBlocked && 
+      !receiver.isRestricted &&
+      receiver.reports.length === 0;
+
+    if (!isEligibleForMonetization) {
+      return res.status(400).json({ 
+        message: "This user is not eligible to receive tips",
+        requirements: {
+          followers: {
+            current: receiver._count.followers,
+            required: 500,
+            met: receiver._count.followers >= 500,
+          },
+          recentActivity: {
+            postsLast24h: lastDayPosts,
+            required: 1,
+            met: lastDayPosts >= 1,
+          },
+          accountStatus: {
+            blocked: receiver.isBlocked,
+            restricted: receiver.isRestricted,
+            violations: receiver.reports.length,
+            goodStanding: !receiver.isBlocked && !receiver.isRestricted && receiver.reports.length === 0,
+          },
+        },
+      });
     }
 
     // Get sender's current credits
@@ -328,11 +384,67 @@ export const donateToUser = async (req: Request, res: Response) => {
 
     const receiver = await prisma.user.findUnique({
       where: { uid: receiverId },
-      select: { uid: true, username: true, name: true },
+      select: { 
+        uid: true, 
+        username: true, 
+        name: true,
+        isBlocked: true,
+        isRestricted: true,
+        _count: {
+          select: {
+            followers: true,
+          },
+        },
+        reports: {
+          where: {
+            status: { in: ["pending", "reviewed"] },
+          },
+        },
+      },
     });
 
     if (!receiver) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Check if receiver posted within the last 24 hours
+    const lastDayPosts = await prisma.post.count({
+      where: {
+        authorId: receiverId,
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    // Check monetization eligibility
+    const isEligibleForMonetization = 
+      receiver._count.followers >= 500 && 
+      lastDayPosts >= 1 && 
+      !receiver.isBlocked && 
+      !receiver.isRestricted &&
+      receiver.reports.length === 0;
+
+    if (!isEligibleForMonetization) {
+      return res.status(400).json({ 
+        message: "This user is not eligible to receive donations",
+        requirements: {
+          followers: {
+            current: receiver._count.followers,
+            required: 500,
+            met: receiver._count.followers >= 500,
+          },
+          recentActivity: {
+            postsLast24h: lastDayPosts,
+            required: 1,
+            met: lastDayPosts >= 1,
+          },
+          accountStatus: {
+            blocked: receiver.isBlocked,
+            restricted: receiver.isRestricted,
+            violations: receiver.reports.length,
+            goodStanding: !receiver.isBlocked && !receiver.isRestricted && receiver.reports.length === 0,
+          },
+        },
+      });
     }
 
     // Get sender's current credits
@@ -613,7 +725,7 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
 
         if (parts[0] === "subscription") {
           // Handle subscription payments
-          const [, userId, creatorId, tier, amount, paymentMethodId] = parts;
+          const [, userId, creatorId, tier, paymentMethodId] = parts;
 
           if (userId && creatorId && tier) {
             const nextBillingDate = new Date();

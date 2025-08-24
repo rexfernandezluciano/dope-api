@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { parseMentionsToNames } from "../utils/mentions"
 import { connect } from "../database/database";
@@ -135,6 +134,13 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 			!user?.isRestricted &&
 			(user?.reports?.length || 0) === 0;
 
+		const actualContentEarningsAmount = isEligibleForMonetization ? contentEarningsAmount : 0;
+		const actualAdRevenueAmount = isEligibleForMonetization ? adRevenueAmount : 0;
+		const actualSubscriptionRevenueAmount = isEligibleForMonetization ? subscriptionRevenueAmount : 0;
+		const actualTipsAmount = isEligibleForMonetization ? tipsAmount : 0;
+		const actualDonationsAmount = isEligibleForMonetization ? donationsAmount : 0;
+		const actualTotalRevenue = actualAdRevenueAmount + actualSubscriptionRevenueAmount + actualTipsAmount + actualDonationsAmount + actualContentEarningsAmount;
+
 		// Top performing posts
 		const topPosts = await Promise.all(
 			userPosts
@@ -149,7 +155,7 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 						likes: post._count.likes,
 						comments: post._count.comments,
 						shares: post.analytics?.shares || 0,
-						earnings: (post.analytics?.earnings || 0) / 100,
+						earnings: isEligibleForMonetization ? (post.analytics?.earnings || 0) / 100 : 0,
 						createdAt: post.createdAt,
 					};
 				})
@@ -163,18 +169,41 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 				totalLikes,
 				totalComments,
 				totalShares,
-				totalRevenue: Math.round(totalRevenue * 100) / 100,
+				totalRevenue: Math.round(actualTotalRevenue * 100) / 100,
 				currentFollowers,
 				followersGained,
 				engagementRate: Math.round(engagementRate * 100) / 100,
 			},
 			revenue: {
-				totalRevenue: Math.round(totalRevenue * 100) / 100,
-				contentEarnings: Math.round(contentEarningsAmount * 100) / 100,
-				adRevenue: Math.round(adRevenueAmount * 100) / 100,
-				subscriptionRevenue: Math.round(subscriptionRevenueAmount * 100) / 100,
-				tipsReceived: Math.round(tipsAmount * 100) / 100,
-				donationsReceived: Math.round(donationsAmount * 100) / 100,
+				totalRevenue: actualTotalRevenue,
+				totalRevenueFormatted: `₱${actualTotalRevenue.toFixed(2)}`,
+				breakdown: {
+					adRevenue: {
+						amount: actualAdRevenueAmount,
+						formatted: `₱${actualAdRevenueAmount.toFixed(2)}`,
+						percentage: actualTotalRevenue > 0 ? Math.round((actualAdRevenueAmount / actualTotalRevenue) * 100) : 0,
+					},
+					subscriptionRevenue: {
+						amount: actualSubscriptionRevenueAmount,
+						formatted: `₱${actualSubscriptionRevenueAmount.toFixed(2)}`,
+						percentage: actualTotalRevenue > 0 ? Math.round((actualSubscriptionRevenueAmount / actualTotalRevenue) * 100) : 0,
+					},
+					tipsEarned: {
+						amount: actualTipsAmount,
+						formatted: `₱${actualTipsAmount.toFixed(2)}`,
+						percentage: actualTotalRevenue > 0 ? Math.round((actualTipsAmount / actualTotalRevenue) * 100) : 0,
+					},
+					donationsEarned: {
+						amount: actualDonationsAmount,
+						formatted: `₱${actualDonationsAmount.toFixed(2)}`,
+						percentage: actualTotalRevenue > 0 ? Math.round((actualDonationsAmount / actualTotalRevenue) * 100) : 0,
+					},
+					contentEarnings: {
+						amount: actualContentEarningsAmount,
+						formatted: `₱${actualContentEarningsAmount.toFixed(2)}`,
+						percentage: actualTotalRevenue > 0 ? Math.round((actualContentEarningsAmount / actualTotalRevenue) * 100) : 0,
+					},
+				},
 			},
 			monetization: {
 				isEligible: isEligibleForMonetization,
