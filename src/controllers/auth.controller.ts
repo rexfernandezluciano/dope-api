@@ -458,8 +458,6 @@ export const me = async (req: Request, res: Response) => {
 	const user = await prisma.user.findUnique({
 		where: { uid: authUser.uid },
 		include: {
-			followers: true,
-			following: true,
 			reports: {
 				where: {
 					status: { in: ["pending", "reviewed"] },
