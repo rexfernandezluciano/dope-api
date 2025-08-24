@@ -50,6 +50,20 @@ model User {
   oAuthApplications OAuthApplication[]
   oAuthAuthorizationCodes OAuthAuthorizationCode[]
   oAuthAccessTokens OAuthAccessToken[]
+  
+  // User subscriptions
+  userSubscriptions UserSubscription[] @relation("UserSubscriptions")
+  creatorSubscriptions UserSubscription[] @relation("CreatorSubscriptions")
+  
+  // Tips and donations
+  sentTips      Tip[]      @relation("SentTips")
+  receivedTips  Tip[]      @relation("ReceivedTips")
+  sentDonations Donation[] @relation("SentDonations")
+  receivedDonations Donation[] @relation("ReceivedDonations")
+  
+  // Stickers and perks
+  stickers      Sticker[]
+  subscriptionPerks SubscriptionPerk[]
 }
 
 model Post {
@@ -71,6 +85,7 @@ model Post {
   hashtags  Hashtag[]
   federatedLikes FederatedLike[]
   poll      Poll?
+  tips      Tip[]
 }
 
 enum PostType {
@@ -508,4 +523,101 @@ model OAuthAccessToken {
 
   application OAuthApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   user        User             @relation(fields: [userId], references: [uid], onDelete: Cascade)
+}
+
+model UserSubscription {
+  id          String              @id @default(cuid())
+  subscriberId String
+  creatorId   String
+  tier        UserSubscriptionTier @default(basic)
+  amount      Int                 // Amount in centavos/cents
+  status      SubscriptionStatus  @default(active)
+  expiresAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  subscriber  User @relation("UserSubscriptions", fields: [subscriberId], references: [uid], onDelete: Cascade)
+  creator     User @relation("CreatorSubscriptions", fields: [creatorId], references: [uid], onDelete: Cascade)
+
+  @@unique([subscriberId, creatorId])
+}
+
+model Tip {
+  id          String    @id @default(cuid())
+  senderId    String
+  receiverId  String
+  amount      Int       // Amount in centavos/cents
+  message     String?
+  postId      String?   // Optional: tip on specific post
+  stickerId   String?   // Optional: custom sticker used
+  createdAt   DateTime  @default(now())
+
+  sender    User     @relation("SentTips", fields: [senderId], references: [uid], onDelete: Cascade)
+  receiver  User     @relation("ReceivedTips", fields: [receiverId], references: [uid], onDelete: Cascade)
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sticker   Sticker? @relation(fields: [stickerId], references: [id], onDelete: SetNull)
+}
+
+model Donation {
+  id          String    @id @default(cuid())
+  senderId    String
+  receiverId  String
+  amount      Int       // Amount in centavos/cents
+  message     String?
+  isAnonymous Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  sender    User @relation("SentDonations", fields: [senderId], references: [uid], onDelete: Cascade)
+  receiver  User @relation("ReceivedDonations", fields: [receiverId], references: [uid], onDelete: Cascade)
+}
+
+model Sticker {
+  id          String      @id @default(cuid())
+  name        String
+  imageUrl    String
+  creatorId   String
+  isCustom    Boolean     @default(true)
+  price       Int?        // Price in centavos if premium sticker
+  category    StickerCategory @default(custom)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  creator User  @relation(fields: [creatorId], references: [uid], onDelete: Cascade)
+  tips    Tip[]
+}
+
+model SubscriptionPerk {
+  id          String              @id @default(cuid())
+  creatorId   String
+  tier        UserSubscriptionTier
+  title       String
+  description String
+  isActive    Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  creator User @relation(fields: [creatorId], references: [uid], onDelete: Cascade)
+
+  @@unique([creatorId, tier, title])
+}
+
+enum UserSubscriptionTier {
+  basic    // ₱50/month
+  premium  // ₱150/month
+  vip      // ₱300/month
+}
+
+enum SubscriptionStatus {
+  active
+  cancelled
+  expired
+  pending
+}
+
+enum StickerCategory {
+  custom
+  emoji
+  animated
+  premium
 }

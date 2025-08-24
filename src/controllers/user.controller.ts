@@ -209,6 +209,8 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getUserByUsername = async (req: Request, res: Response) => {
 	try {
 		const { username } = req.params;
+		const authUser = (req as any).user as { uid: string } | undefined;
+
 
 		if (!username) {
 			return res.status(400).json({ message: "Username is required" });
@@ -216,63 +218,24 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 
 		const user = await prisma.user.findUnique({
 			where: { username },
-			include: {
-				// Include blocked and restricted status directly if they are fields in the User model
-				// Otherwise, fetch them via separate queries if managed differently
-				// For now, assuming they are direct fields
-				posts: {
-					where: {
-						// Filter out posts from users who are blocked by the current user, or who have blocked the current user
-						// This logic might need refinement based on exact requirements (e.g., only filter if current user is viewing)
-						// For now, let's assume we are filtering posts made by users the viewer has blocked
-						author: {
-							// Ensure the author is not blocked by the viewer
-							// This check assumes the viewer is the authenticated user
-							// and that the 'block' relationship is properly set up
-							// and that 'isBlockedByCurrentUser' or similar is available
-							// For simplicity, let's add a check here if the author's uid is in the blockingIds
-							// This requires fetching blockingIds similar to getUsers
-						},
-					},
-					include: {
-						author: {
-							select: {
-								uid: true,
-								name: true,
-								username: true,
-								photoURL: true,
-								hasBlueCheck: true,
-								// Include blocked/restricted status here if needed for author display
-								isBlocked: true,
-								isRestricted: true,
-							},
-						},
-						likes: {
-							include: {
-								user: {
-									select: {
-										uid: true,
-										username: true,
-									},
-								},
-							},
-						},
-						_count: {
-							select: {
-								comments: true,
-								likes: true,
-							},
-						},
-					},
-					orderBy: {
-						createdAt: "desc",
-					},
-				},
+			select: {
+				uid: true,
+				username: true,
+				name: true,
+				bio: true,
+				photoURL: true,
+				hasBlueCheck: true,
+				subscription: true,
+				privacy: true,
+				createdAt: true,
 				_count: {
 					select: {
 						posts: true,
 						followers: true,
 						following: true,
+						creatorSubscriptions: {
+							where: { status: "active" }
+						},
 					},
 				},
 			},
@@ -282,63 +245,139 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "User not found" });
 		}
 
-		// Get current user's following list and block lists
-		const authUser = (req as any).user as { uid: string } | undefined;
-		let followingIds: string[] = [];
-		let blockedByIds: string[] = []; // Users who blocked the current user
-		let blockingIds: string[] = []; // Users the current user has blocked
+		// Get subscription stats and perks
+		const subscriptionStats = await prisma.userSubscription.aggregate({
+			where: { creatorId: user.uid, status: "active" },
+			_sum: { amount: true },
+			_count: { id: true },
+		});
 
-		if (authUser) {
-			const following = await prisma.follow.findMany({
-				where: { followerId: authUser.uid },
-				select: { followingId: true },
-			});
-			followingIds = following.map((f: any) => f.followingId);
+		const subscriptionPerks = await prisma.subscriptionPerk.findMany({
+			where: { creatorId: user.uid, isActive: true },
+			orderBy: [{ tier: "asc" }, { createdAt: "desc" }],
+		});
 
-			const blockedBy = await prisma.block.findMany({
-				where: { blockedId: authUser.uid },
-				select: { blockerId: true },
-			});
-			blockedByIds = blockedBy.map((b: any) => b.blockerId);
+		// Check if the current user is following this user
+		let isFollowing = false;
+		let isBlocked = false;
+		let hasRequestedToFollow = false;
+		let isSubscribed = false;
+		let subscriptionTier = null;
 
-			const blocking = await prisma.block.findMany({
-				where: { blockerId: authUser.uid },
-				select: { blockedId: true },
+		if (authUser?.uid) {
+			const followRecord = await prisma.follow.findUnique({
+				where: {
+					followerId_followingId: {
+						followerId: authUser.uid,
+						followingId: user.uid,
+					},
+				},
 			});
-			blockingIds = blocking.map((b: any) => b.blockedId);
+			isFollowing = !!followRecord;
+
+			// Check subscription status
+			const userSubscription = await prisma.userSubscription.findUnique({
+				where: { 
+					subscriberId_creatorId: { 
+						subscriberId: authUser.uid, 
+						creatorId: user.uid 
+					} 
+				},
+			});
+			isSubscribed = userSubscription?.status === "active";
+			subscriptionTier = userSubscription?.tier || null;
+
+			// Check if either user has blocked the other
+			const blockRecord = await prisma.block.findFirst({
+				where: {
+					OR: [
+						{ blockerId: authUser.uid, blockedId: user.uid },
+						{ blockerId: user.uid, blockedId: authUser.uid },
+					],
+				},
+			});
+			isBlocked = !!blockRecord;
 		}
 
-		// Filter posts if the current user is viewing:
-		// - If the author of the post is blocked by the current user, hide the post.
-		// - If the current user is blocked by the author, hide the post.
-		let filteredPosts = user.posts;
+		// Include posts, but filter them based on the viewer's relationship with the author
+		// This section needs to be carefully integrated with the existing post fetching logic
+		// For now, let's assume the post fetching is handled within the main user object or a separate query.
+		// The original code had 'posts' as an include, which we are now replacing with _count.posts.
+		// If actual posts need to be returned here, additional fetching would be required.
+
+		// Fetch posts by the user, applying visibility rules
+		let posts = await prisma.post.findMany({
+			where: {
+				authorId: user.uid,
+				// Add visibility checks here based on authUser and user's privacy settings
+				// For example, if the user's profile is private and authUser is not following, hide posts.
+				// Or if authUser is blocked by the author or vice versa.
+			},
+			include: {
+				author: {
+					select: {
+						uid: true,
+						name: true,
+						username: true,
+						photoURL: true,
+						hasBlueCheck: true,
+						isBlocked: true, // Include blocked status of the author for post display
+						isRestricted: true, // Include restricted status of the author for post display
+					},
+				},
+				likes: {
+					include: {
+						user: {
+							select: {
+								uid: true,
+								username: true,
+							},
+						},
+					},
+				},
+				_count: {
+					select: {
+						comments: true,
+						likes: true,
+					},
+				},
+			},
+			orderBy: {
+				createdAt: "desc",
+			},
+		});
+
+		// Apply filtering to posts based on blocking relationships
 		if (authUser) {
-			filteredPosts = user.posts.filter((p: any) => {
+			posts = posts.filter((p: any) => {
 				const authorId = p.author.uid;
 				// Hide post if the viewer has blocked the author OR if the author has blocked the viewer
 				return (
 					!blockingIds.includes(authorId) && !blockedByIds.includes(authorId)
 				);
 			});
-		} else {
-			// If not authenticated, we might not have blocking information, or we might want to hide posts from private users.
-			// For now, assuming non-authenticated users see all posts that aren't explicitly hidden by server-side logic.
 		}
 
-		const output = {
-			uid: user.uid,
-			name: user.name,
-			username: user.username,
-			bio: user.bio,
-			photoURL: user.photoURL,
-			hasBlueCheck: user.hasBlueCheck,
-			membership: {
-				subscription: user.subscription,
+
+		res.json({
+			user: {
+				...user,
+				followers: user._count.followers,
+				following: user._count.following,
+				posts: user._count.posts,
+				subscribers: user._count.creatorSubscriptions,
+				isFollowing,
+				isBlocked,
+				hasRequestedToFollow,
+				isSubscribed,
+				subscriptionTier,
+				subscriptionStats: {
+					totalRevenue: subscriptionStats._sum.amount || 0,
+					totalSubscribers: subscriptionStats._count.id || 0,
+				},
+				hasSubscriptionPerks: subscriptionPerks.length > 0,
 			},
-			createdAt: user.createdAt,
-			isBlocked: user.isBlocked, // Include blocked status of the user being viewed
-			isRestricted: user.isRestricted, // Include restricted status of the user being viewed
-			posts: filteredPosts.map((p: any) => {
+			posts: posts.map((p: any) => {
 				return {
 					id: p.id,
 					content: p.content,
@@ -371,21 +410,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 					},
 				};
 			}),
-			stats: {
-				posts: user._count.posts,
-				followers: user._count.followers,
-				following: user._count.following,
-			},
-			isFollowedByCurrentUser: authUser
-				? followingIds.includes(user.uid)
-				: false,
-			isBlockedByCurrentUser: authUser
-				? blockedByIds.includes(user.uid)
-				: false, // Check if current user is blocked by this user
-			isCurrentUserBlocking: authUser ? blockingIds.includes(user.uid) : false, // Check if current user is blocking this user
-		};
-
-		res.json({ status: "ok", user: output });
+		});
 	} catch (error: any) {
 		res
 			.status(500)
@@ -1401,7 +1426,7 @@ export const getPostComments = async (req: Request, res: Response) => {
 					// 3. Fetch the user objects for these IDs.
 					// 4. Replace the mentions in the content with "@" + user.name.
 
-					// For simplicity in this example, let's demonstrate the replacement logic:
+					// For this example, let's demonstrate the replacement logic:
 					// If the mention format is "@username" and we want to display "@Username", we can do this:
 					// return `@${userId}`; // This might be enough if userId is actually a username.
 
@@ -1411,12 +1436,6 @@ export const getPostComments = async (req: Request, res: Response) => {
 					// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
 
 					// If the original content is "Hello @user123", and we need to find user123's name.
-					// This requires a separate lookup.
-					// For this example, we'll just return the mention as is, or a placeholder.
-
-					// If the requirement is "mention as user id then parse the user id to be displayed as their name in the post, like @userId"
-					// This implies the content has "@userId", and we need to convert it to "@UserName".
-					// We don't have the user information for the mentioned ID directly in this `reply` object.
 					// This requires a separate fetch or pre-population of mentioned users.
 					// Let's simulate this by returning "@MentionedUser" as a placeholder.
 					// In a real app, you would fetch users by ID and replace.
