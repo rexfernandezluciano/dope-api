@@ -24,4 +24,11 @@ export interface User {
 	membership: Membership;
 	privacy: PrivacySettings;
 	hasVerifiedEmail: boolean;
+	reports?: any[];
+	_count?: {
+		posts: number;
+		followers: number;
+		following: number;
+		likes: number;
+	};
 }
