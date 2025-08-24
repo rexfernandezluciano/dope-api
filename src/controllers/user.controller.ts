@@ -475,9 +475,6 @@ export const updateUser = async (req: Request, res: Response) => {
 				...(data.birthday !== undefined && { birthday: new Date(data.birthday) }),
 				...(data.federatedDiscoverable !== undefined && { federatedDiscoverable: data.federatedDiscoverable }),
 				...(data.privacy !== undefined && { privacy: data.privacy }),
-				// If directly updating blocked/restricted status:
-				 ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
-				 ...(data.isRestricted !== undefined && { isRestricted: data.isRestricted }),
 			},
 			select: {
 				uid: true,

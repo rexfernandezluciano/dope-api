@@ -495,6 +495,11 @@ export const searchComments = async (req: Request, res: Response) => {
 						},
 					},
 				},
+				tip: {
+					select: {
+						amount: true
+					}
+				},
 			},
 			orderBy: {
 				createdAt: sortBy === "asc" ? "asc" : "desc",
