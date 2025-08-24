@@ -282,6 +282,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 					creatorId: user.uid,
 				},
 			});
+			
 			isSubscribed = userSubscription?.status === "active";
 			subscriptionTier = userSubscription?.tier || null;
 
@@ -376,11 +377,20 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 
 		res.json({
 			user: {
-				...user,
-				followers: user._count.followers,
-				following: user._count.following,
-				posts: user._count.posts,
-				subscribers: user._count.creatorSubscriptions,
+				uid: user.uid,
+				name: user.name,
+				username: user.username,
+				photoURL: user.photoURL,
+				hasBlueCheck: user.hasBlueCheck,
+				membership: {
+					subscription: user.subscription
+				},
+				stats: {
+					followers: user._count.followers,
+					following: user._count.following,
+					posts: user._count.posts,
+				subscribers: user._count.creatorSubscriptions
+				},
 				isFollowing,
 				isBlocked,
 				hasRequestedToFollow,
@@ -425,6 +435,8 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 					},
 				};
 			}),
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt
 		});
 	} catch (error: any) {
 		res
@@ -1350,14 +1362,14 @@ export const addComment = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(201).json({ 
-			message: "Comment added successfully", 
+		res.status(201).json({
+			message: "Comment added successfully",
 			comment: {
 				id: newComment.id,
 				content: newComment.content,
 				createdAt: newComment.createdAt,
-				author: newComment.author
-			}
+				author: newComment.author,
+			},
 		});
 	} catch (error: any) {
 		res
@@ -1445,7 +1457,7 @@ export const getPostComments = async (req: Request, res: Response) => {
 					})),
 					repliesCount,
 				};
-			})
+			}),
 		);
 
 		res.json({ status: "ok", comments: processedComments });
