@@ -55,8 +55,9 @@
     "GEMINI_API_KEY": "AIzaSyC3jCV47n5agKpivHqAWmcrakuX8Fiznas",
     "SESSION_SECRET": "BXvRq8D03IHvybiQ6Fjls2pkPJLXjx9x",
     "GOOGLE_CALLBACK_URL": "https://api.dopp.eu.org/v1/auth/google/callback",
-    "PAYPAL_CLIENT_ID": "AYv5Ao5cq7A49Hd19TSrw59YEiPboazIE7WXrmLkpklVCmsgQmartssMsFap9XI7lM6LOnjMHgux2nJR",
-    "PAYPAL_CLIENT_SECRET": "EBSkGiGJTe6N_csM8NV653BKehnG_n-hgTSDvGcZDNgYhxanKOfpdyib6e1vIFAzYmifnpjaIilftAGQ",
+    "PAYPAL_BASE_URL": "https://api-m.paypal.com",
+    "PAYPAL_CLIENT_ID": "AcxZKGWdYuyz4JkYrTxbf5TtL2kVBJrhzBgwd_c3JbI_dzGrPmKS-j3O0bwF3PKOnLGN_84XyfAWasO6",
+    "PAYPAL_CLIENT_SECRET": "EFGgueNmQybEPCoE0nXxo5WCXOflF8ilICg5CZ11NGt9xbAI7TCTuWQEGesAVk_RsgNosP_sRUPwzHjJ",
     "FRONTEND_URL": "https://dopp.eu.org",
     "ACTIVITYPUB_DOMAIN": "dopp.eu.org"
   }
