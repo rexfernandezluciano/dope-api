@@ -585,9 +585,9 @@ export const getSubscriptionPerks = async (req: Request, res: Response) => {
     });
 
     const groupedPerks = {
-      basic: perks.filter(p => p.tier === "basic"),
-      premium: perks.filter(p => p.tier === "premium"),
-      vip: perks.filter(p => p.tier === "vip"),
+      basic: perks.filter((p: any) => p.tier === "basic"),
+      premium: perks.filter((p: any) => p.tier === "premium"),
+      vip: perks.filter((p: any) => p.tier === "vip"),
     };
 
     res.json({ 
