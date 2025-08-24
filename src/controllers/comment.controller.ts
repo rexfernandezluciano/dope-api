@@ -3,6 +3,7 @@
 import { Request, Response } from "express";
 import { connect } from "../database/database";
 import { z } from "zod";
+import { PrismaClient } from "@prisma/client";
 
 let prisma: any;
 
@@ -209,7 +210,7 @@ export const createComment = async (req: Request, res: Response) => {
 		}
 
 		// Create comment and handle credit transfers in a transaction
-		const transactionResults = await prisma.$transaction(async (tx) => {
+		const transactionResults = await prisma.$transaction(async (tx: PrismaClient) => {
 			// Create the comment
 			const comment = await tx.comment.create({
 				data: {
