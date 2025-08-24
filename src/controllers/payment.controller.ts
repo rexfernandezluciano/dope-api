@@ -132,23 +132,20 @@ export const addPaymentMethod = async (req: Request, res: Response) => {
         paypalPaymentMethodId: paymentData.paypalPaymentMethodId || null,
         last4:
           paymentData.last4 ||
-          providerPaymentMethod?.payment_source?.card?.last_digits ||
+          providerPaymentMethod?.payment_source?.card?.last4 ||
           null,
         expiryMonth:
           paymentData.expiryMonth ||
-          (providerPaymentMethod?.payment_source?.card?.expiry?.split("/")[0]
+          (providerPaymentMethod?.payment_source?.card?.expiry_month
             ? parseInt(
-                providerPaymentMethod.payment_source.card.expiry.split("/")[0],
+                providerPaymentMethod.payment_source.card.expiry_month,
               )
             : null),
         expiryYear:
           paymentData.expiryYear ||
-          (providerPaymentMethod?.payment_source?.card?.expiry?.split("/")[1]
+          (providerPaymentMethod?.payment_source?.card?.expiry_year
             ? parseInt(
-                "20" +
-                  providerPaymentMethod.payment_source.card.expiry.split(
-                    "/",
-                  )[1],
+                providerPaymentMethod.payment_source.card.expiry_year,
               )
             : null),
         holderName:
@@ -401,20 +398,12 @@ export const handlePayPalWebhook = async (req: Request, res: Response) => {
             },
           });
 
-          const paymentMethod = await prisma.paymentMethod.findUnique({
-            where: { userId },
-          });
-
-          if (!paymentMethod) {
-            res.status(404).json({
-              error: `Payment method not found for user ${userId}`,
-            });
-          }
-
-          await prisma.paymentMethod.update({
-            where: { userId, provider: "paypal" },
+          // Fetch the user again to get the latest payment method details if necessary
+          // Or directly update the existing payment method record if it's guaranteed to exist and be unique per user for PayPal
+          await prisma.paymentMethod.updateMany({
+            where: { userId: userId, provider: "paypal" },
             data: {
-              paypalPaymentMethodId: paymentMethodId,
+              paypalPaymentMethodId: paymentMethodId, // Update or set the vault ID
             },
           });
 
@@ -431,6 +420,55 @@ export const handlePayPalWebhook = async (req: Request, res: Response) => {
     res.status(500).json({ error: "PayPal webhook handler failed" });
   }
 };
+
+// Function to check PayPal configuration
+export const checkPayPalConfig = async (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.PAYPAL_CLIENT_ID;
+    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+    const baseUrl = process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({
+        message: "PayPal client ID or client secret is missing.",
+        config: {
+          clientIdProvided: !!clientId,
+          clientSecretProvided: !!clientSecret,
+          baseUrl: baseUrl
+        }
+      });
+    }
+
+    // Optionally, try to get an access token to verify credentials more thoroughly
+    try {
+      await getPayPalAccessToken(); // This will throw if credentials are bad
+      res.json({
+        message: "PayPal configuration appears to be valid.",
+        config: {
+          clientIdProvided: true,
+          clientSecretProvided: true,
+          baseUrl: baseUrl
+        }
+      });
+    } catch (tokenError: any) {
+      console.error("PayPal token retrieval failed during config check:", tokenError.response?.data || tokenError.message);
+      res.status(500).json({
+        message: "Failed to obtain PayPal access token. Please check your credentials and network.",
+        config: {
+          clientIdProvided: true,
+          clientSecretProvided: true,
+          baseUrl: baseUrl
+        },
+        errorDetails: tokenError.response?.data?.error_description || tokenError.message
+      });
+    }
+
+  } catch (error: any) {
+    console.error("Error checking PayPal configuration:", error);
+    res.status(500).json({ error: "Error checking PayPal configuration: " + error.message });
+  }
+};
+
 
 export const getAvailablePaymentProviders = async (
   req: Request,

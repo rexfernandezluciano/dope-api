@@ -34,6 +34,18 @@ router.get('/providers', asyncHandler(getAvailablePaymentProviders));
 
 /**
  * @swagger
+ * /payments/config/check:
+ *   get:
+ *     summary: Check PayPal configuration
+ *     tags: [Payments]
+ *     responses:
+ *       200:
+ *         description: PayPal configuration status
+ */
+router.get('/config/check', asyncHandler(checkPayPalConfig));
+
+/**
+ * @swagger
  * /payments/methods:
  *   post:
  *     summary: Add payment method
