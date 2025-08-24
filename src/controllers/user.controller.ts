@@ -17,7 +17,9 @@ const UpdateUserSchema = z.object({
 		.string()
 		.regex(new RegExp(/^https?:\/\/.*/))
 		.optional(),
-	gender: z.enum(["male", "female", "non_binary", "prefer_not_to_say"]).optional(),
+	gender: z
+		.enum(["male", "female", "non_binary", "prefer_not_to_say"])
+		.optional(),
 	birthday: z.string().datetime().optional(),
 	federatedDiscoverable: z.boolean().optional(),
 	privacy: z
@@ -211,7 +213,6 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 		const { username } = req.params;
 		const authUser = (req as any).user as { uid: string } | undefined;
 
-
 		if (!username) {
 			return res.status(400).json({ message: "Username is required" });
 		}
@@ -234,7 +235,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 						followers: true,
 						following: true,
 						creatorSubscriptions: {
-							where: { status: "active" }
+							where: { status: "active" },
 						},
 					},
 				},
@@ -267,21 +268,17 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 		if (authUser?.uid) {
 			const followRecord = await prisma.follow.findUnique({
 				where: {
-					followerId_followingId: {
-						followerId: authUser.uid,
-						followingId: user.uid,
-					},
+					followerId: authUser.uid,
+					followingId: user.uid,
 				},
 			});
 			isFollowing = !!followRecord;
 
 			// Check subscription status
 			const userSubscription = await prisma.userSubscription.findUnique({
-				where: { 
-					subscriberId_creatorId: { 
-						subscriberId: authUser.uid, 
-						creatorId: user.uid 
-					} 
+				where: {
+					subscriberId: authUser.uid,
+					creatorId: user.uid,
 				},
 			});
 			isSubscribed = userSubscription?.status === "active";
@@ -375,7 +372,6 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				);
 			});
 		}
-
 
 		res.json({
 			user: {
@@ -472,8 +468,12 @@ export const updateUser = async (req: Request, res: Response) => {
 				...(data.bio !== undefined && { bio: data.bio }),
 				...(data.photoURL !== undefined && { photoURL: data.photoURL }),
 				...(data.gender !== undefined && { gender: data.gender }),
-				...(data.birthday !== undefined && { birthday: new Date(data.birthday) }),
-				...(data.federatedDiscoverable !== undefined && { federatedDiscoverable: data.federatedDiscoverable }),
+				...(data.birthday !== undefined && {
+					birthday: new Date(data.birthday),
+				}),
+				...(data.federatedDiscoverable !== undefined && {
+					federatedDiscoverable: data.federatedDiscoverable,
+				}),
 				...(data.privacy !== undefined && { privacy: data.privacy }),
 			},
 			select: {
@@ -538,11 +538,9 @@ export const toggleFollow = async (req: Request, res: Response) => {
 		});
 
 		if (isBlockedByTarget) {
-			return res
-				.status(403)
-				.json({
-					message: "You are blocked by this user and cannot follow them.",
-				});
+			return res.status(403).json({
+				message: "You are blocked by this user and cannot follow them.",
+			});
 		}
 
 		// Check if the current user has blocked the target user
@@ -554,11 +552,9 @@ export const toggleFollow = async (req: Request, res: Response) => {
 		});
 
 		if (isBlockingTarget) {
-			return res
-				.status(403)
-				.json({
-					message: "You have blocked this user and cannot follow them.",
-				});
+			return res.status(403).json({
+				message: "You have blocked this user and cannot follow them.",
+			});
 		}
 
 		const existingFollow = await prisma.follow.findFirst({
@@ -792,12 +788,10 @@ export const getTotalUserEarnings = async (req: Request, res: Response) => {
 			totalEarningsInCents: totalEarnings,
 		});
 	} catch (error: any) {
-		res
-			.status(500)
-			.json({
-				error: "Error fetching total earnings",
-				message: error?.message,
-			});
+		res.status(500).json({
+			error: "Error fetching total earnings",
+			message: error?.message,
+		});
 	}
 };
 
@@ -923,12 +917,10 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 
 		res.json({ status: "ok", replies: processedReplies });
 	} catch (error: any) {
-		res
-			.status(500)
-			.json({
-				error: "Error fetching comment replies",
-				message: error?.message,
-			});
+		res.status(500).json({
+			error: "Error fetching comment replies",
+			message: error?.message,
+		});
 	}
 };
 
@@ -1037,12 +1029,10 @@ export const togglePostLike = async (req: Request, res: Response) => {
 		// Check if the user is blocked or restricted
 		const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 		if (user?.isBlocked || user?.isRestricted) {
-			return res
-				.status(403)
-				.json({
-					message:
-						"You cannot perform this action because your account is blocked or restricted.",
-				});
+			return res.status(403).json({
+				message:
+					"You cannot perform this action because your account is blocked or restricted.",
+			});
 		}
 
 		// Check if the post author has blocked the current user or vice versa
@@ -1305,12 +1295,10 @@ export const addComment = async (req: Request, res: Response) => {
 		// Check if the user is blocked or restricted
 		const user = await prisma.user.findUnique({ where: { uid: authUser.uid } });
 		if (user?.isBlocked || user?.isRestricted) {
-			return res
-				.status(403)
-				.json({
-					message:
-						"You cannot perform this action because your account is blocked or restricted.",
-				});
+			return res.status(403).json({
+				message:
+					"You cannot perform this action because your account is blocked or restricted.",
+			});
 		}
 
 		// Check if the post author has blocked the current user or vice versa
