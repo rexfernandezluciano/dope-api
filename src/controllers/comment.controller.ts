@@ -21,14 +21,12 @@ const UpdateCommentSchema = z.object({
 const CreateCommentWithTipSchema = z.object({
 	content: z.string().min(1).max(500),
 	tipAmount: z.number().min(100).max(500000).optional(), // Min ₱1, Max ₱5000
-	paymentMethodId: z.string().optional(),
 	stickerId: z.string().optional(),
 });
 
 const CreateCommentWithDonationSchema = z.object({
 	content: z.string().min(1).max(500),
 	donationAmount: z.number().min(500).max(1000000).optional(), // Min ₱5, Max ₱10000
-	paymentMethodId: z.string().optional(),
 	isAnonymous: z.boolean().default(false),
 });
 
@@ -148,7 +146,7 @@ export const createComment = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { postId } = req.params;
-		const { content, tipAmount, donationAmount, paymentMethodId, stickerId, isAnonymous } = req.body;
+		const { content, tipAmount, donationAmount, stickerId, isAnonymous } = req.body;
 
 		// Validate input based on whether it's a tip or donation
 		let validatedData;
@@ -186,85 +184,142 @@ export const createComment = async (req: Request, res: Response) => {
 			return res.status(400).json({ message: "You cannot send tips or donations to yourself" });
 		}
 
-		// Verify payment method if tip/donation is included
-		if ((tipAmount || donationAmount) && paymentMethodId) {
-			const paymentMethod = await prisma.paymentMethod.findFirst({
-				where: {
-					id: paymentMethodId,
-					userId: authUser.uid,
+		// Check user's credits if tip/donation is included
+		let senderCredits = 0;
+		if (tipAmount || donationAmount) {
+			const sender = await prisma.user.findUnique({
+				where: { uid: authUser.uid },
+				select: { credits: true },
+			});
+
+			if (!sender) {
+				return res.status(404).json({ message: "User not found" });
+			}
+
+			senderCredits = sender.credits;
+			const requiredAmount = tipAmount || donationAmount;
+
+			if (senderCredits < requiredAmount) {
+				return res.status(400).json({
+					message: "Insufficient credits",
+					availableCredits: senderCredits,
+					requiredCredits: requiredAmount,
+				});
+			}
+		}
+
+		// Create comment and handle credit transfers in a transaction
+		const transactionResults = await prisma.$transaction(async (tx) => {
+			// Create the comment
+			const comment = await tx.comment.create({
+				data: {
+					content,
+					postId,
+					authorId: authUser.uid,
+				},
+				include: {
+					author: {
+						select: {
+							uid: true,
+							name: true,
+							username: true,
+							photoURL: true,
+							hasBlueCheck: true,
+						},
+					},
+					_count: {
+						select: {
+							likes: true,
+							replies: true,
+						},
+					},
 				},
 			});
 
-			if (!paymentMethod) {
-				return res.status(404).json({ message: "Payment method not found" });
-			}
-		}
+			let paymentResult = null;
 
-		const comment = await prisma.comment.create({
-			data: {
-				content,
-				postId,
-				authorId: authUser.uid,
-			},
-			include: {
-				author: {
-					select: {
-						uid: true,
-						name: true,
-						username: true,
-						photoURL: true,
-						hasBlueCheck: true,
-					},
-				},
-				_count: {
-					select: {
-						likes: true,
-						replies: true,
-					},
-				},
-			},
+			// Handle tip with credit transfer
+			if (tipAmount) {
+				try {
+					// Create tip record
+					const tip = await tx.tip.create({
+						data: {
+							senderId: authUser.uid,
+							receiverId: post.authorId,
+							amount: tipAmount,
+							message: `Tip with comment: ${content}`,
+							postId: postId,
+							stickerId: stickerId,
+						},
+					});
+
+					// Transfer credits
+					await tx.user.update({
+						where: { uid: authUser.uid },
+						data: { credits: { decrement: tipAmount } },
+					});
+
+					await tx.user.update({
+						where: { uid: post.authorId },
+						data: { credits: { increment: tipAmount } },
+					});
+
+					paymentResult = { 
+						type: 'tip', 
+						status: 'completed',
+						amount: tipAmount,
+						tipId: tip.id,
+						remainingCredits: senderCredits - tipAmount
+					};
+				} catch (tipError: any) {
+					console.error("Tip credit transfer failed:", tipError);
+					throw new Error("Failed to process tip: " + tipError.message);
+				}
+			}
+
+			// Handle donation with credit transfer
+			if (donationAmount) {
+				try {
+					// Create donation record
+					const donation = await tx.donation.create({
+						data: {
+							senderId: authUser.uid,
+							receiverId: post.authorId,
+							amount: donationAmount,
+							message: `Donation with comment: ${content}`,
+							isAnonymous: isAnonymous || false,
+						},
+					});
+
+					// Transfer credits
+					await tx.user.update({
+						where: { uid: authUser.uid },
+						data: { credits: { decrement: donationAmount } },
+					});
+
+					await tx.user.update({
+						where: { uid: post.authorId },
+						data: { credits: { increment: donationAmount } },
+					});
+
+					paymentResult = { 
+						type: 'donation', 
+						status: 'completed',
+						amount: donationAmount,
+						donationId: donation.id,
+						isAnonymous: isAnonymous,
+						remainingCredits: senderCredits - donationAmount
+					};
+				} catch (donationError: any) {
+					console.error("Donation credit transfer failed:", donationError);
+					throw new Error("Failed to process donation: " + donationError.message);
+				}
+			}
+
+			return { comment, paymentResult };
 		});
 
-		let paymentResult = null;
-
-		// Handle tip payment
-		if (tipAmount && paymentMethodId) {
-			try {
-				const tipPayment = await processTipPayment({
-					senderId: authUser.uid,
-					receiverId: post.authorId,
-					amount: tipAmount,
-					message: `Tip with comment: ${content}`,
-					postId: postId,
-					stickerId: stickerId,
-					paymentMethodId: paymentMethodId,
-				});
-				paymentResult = { type: 'tip', ...tipPayment };
-			} catch (tipError: any) {
-				console.error("Tip payment failed:", tipError);
-				// Continue with comment creation even if payment fails
-				paymentResult = { type: 'tip', error: tipError.message };
-			}
-		}
-
-		// Handle donation payment
-		if (donationAmount && paymentMethodId) {
-			try {
-				const donationPayment = await processDonationPayment({
-					senderId: authUser.uid,
-					receiverId: post.authorId,
-					amount: donationAmount,
-					message: `Donation with comment: ${content}`,
-					isAnonymous: isAnonymous || false,
-					paymentMethodId: paymentMethodId,
-				});
-				paymentResult = { type: 'donation', ...donationPayment };
-			} catch (donationError: any) {
-				console.error("Donation payment failed:", donationError);
-				// Continue with comment creation even if payment fails
-				paymentResult = { type: 'donation', error: donationError.message };
-			}
-		}
+		const { comment, paymentResult } = transactionResults;
 
 		const response: any = {
 			...comment,

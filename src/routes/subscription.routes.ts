@@ -69,7 +69,7 @@ router.post('/subscribe', requireAuth, asyncHandler(subscribeToUser));
  * @swagger
  * /subscriptions/tip:
  *   post:
- *     summary: Send a tip to a user
+ *     summary: Send a tip to a user using credits
  *     tags: [User Subscriptions]
  *     security:
  *       - bearerAuth: []
@@ -86,19 +86,51 @@ router.post('/subscribe', requireAuth, asyncHandler(subscribeToUser));
  *                 type: number
  *                 minimum: 100
  *                 maximum: 500000
+ *                 description: Amount in centavos (₱1 = 100 centavos)
  *               message:
  *                 type: string
  *               postId:
  *                 type: string
  *               stickerId:
  *                 type: string
- *               paymentMethodId:
- *                 type: string
  *     responses:
  *       200:
- *         description: Tip initiated
+ *         description: Tip sent successfully using credits
  */
 router.post('/tip', requireAuth, asyncHandler(tipUser));
+
+/**
+ * @swagger
+ * /subscriptions/donate:
+ *   post:
+ *     summary: Send a donation to a user using credits
+ *     tags: [User Subscriptions]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               receiverId:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *                 minimum: 500
+ *                 maximum: 1000000
+ *                 description: Amount in centavos (₱5 = 500 centavos)
+ *               message:
+ *                 type: string
+ *               isAnonymous:
+ *                 type: boolean
+ *                 default: false
+ *     responses:
+ *       200:
+ *         description: Donation sent successfully using credits
+ */
+router.post('/donate', requireAuth, asyncHandler(donateToUser));
 
 /**
  * @swagger

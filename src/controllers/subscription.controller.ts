@@ -64,7 +64,6 @@ const TipUserSchema = z.object({
   message: z.string().max(280).optional(),
   postId: z.string().optional(),
   stickerId: z.string().optional(),
-  paymentMethodId: z.string().min(1),
 });
 
 const DonateToUserSchema = z.object({
@@ -72,7 +71,6 @@ const DonateToUserSchema = z.object({
   amount: z.number().min(500).max(1000000), // Min ₱5, Max ₱10000
   message: z.string().max(500).optional(),
   isAnonymous: z.boolean().default(false),
-  paymentMethodId: z.string().min(1),
 });
 
 const CreateStickerSchema = z.object({
@@ -220,7 +218,7 @@ export const tipUser = async (req: Request, res: Response) => {
   try {
     await initializePrisma();
     const authUser = (req as any).user as { uid: string };
-    const { receiverId, amount, message, postId, stickerId, paymentMethodId } = TipUserSchema.parse(req.body);
+    const { receiverId, amount, message, postId, stickerId } = TipUserSchema.parse(req.body);
 
     if (authUser.uid === receiverId) {
       return res.status(400).json({ message: "You cannot tip yourself" });
@@ -235,79 +233,80 @@ export const tipUser = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const paymentMethod = await prisma.paymentMethod.findFirst({
-      where: { id: paymentMethodId, userId: authUser.uid },
+    // Get sender's current credits
+    const sender = await prisma.user.findUnique({
+      where: { uid: authUser.uid },
+      select: { credits: true, username: true },
     });
 
-    if (!paymentMethod) {
-      return res.status(404).json({ message: "Payment method not found" });
+    if (!sender) {
+      return res.status(404).json({ message: "Sender not found" });
     }
 
-    try {
-      const accessToken = await getPayPalAccessToken();
+    // Check if sender has enough credits
+    if (sender.credits < amount) {
+      return res.status(400).json({
+        message: "Insufficient credits",
+        availableCredits: sender.credits,
+        requiredCredits: amount,
+      });
+    }
 
-      const paypalOrder = await paypalAPI.post(
-        "/v2/checkout/orders",
-        {
-          intent: "CAPTURE",
-          purchase_units: [
-            {
-              amount: {
-                currency_code: "PHP",
-                value: (amount / 100).toFixed(2),
-              },
-              description: `Tip to @${receiver.username}`,
-              custom_id: `tip_${authUser.uid}_${receiverId}_${amount}_${paymentMethodId}`,
-            },
-          ],
-          payment_source:
-            paymentMethod.type === "paypal_wallet"
-              ? {
-                  paypal: {
-                    email_address: paymentMethod.paypalEmail,
-                    experience_context: {
-                      return_url: `${process.env.FRONTEND_URL}/tip/success`,
-                      cancel_url: `${process.env.FRONTEND_URL}/tip/cancel`,
-                    },
-                  },
-                }
-              : {
-                  card: {
-                    vault_id: paymentMethod.paypalPaymentMethodId,
-                  },
-                },
+    // Process the tip transaction
+    const [tip] = await prisma.$transaction([
+      // Create tip record
+      prisma.tip.create({
+        data: {
+          senderId: authUser.uid,
+          receiverId: receiverId,
+          amount: amount,
+          message: message || `Tip from @${sender.username}`,
+          postId: postId,
+          stickerId: stickerId,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
+      }),
+      // Deduct credits from sender
+      prisma.user.update({
+        where: { uid: authUser.uid },
+        data: {
+          credits: {
+            decrement: amount,
           },
         },
-      );
+      }),
+      // Add credits to receiver
+      prisma.user.update({
+        where: { uid: receiverId },
+        data: {
+          credits: {
+            increment: amount,
+          },
+        },
+      }),
+    ]);
 
-      const approveUrl = paypalOrder.data.links?.find(
-        (link: any) => link.rel === "approve" || link.rel === "payer-action"
-      )?.href || null;
-
-      res.json({
-        message: "Tip payment initiated",
-        paymentIntentId: paypalOrder.data.id,
-        provider: "paypal",
-        approveUrl: approveUrl,
+    res.json({
+      message: "Tip sent successfully",
+      tip: {
+        id: tip.id,
         amount: amount,
         currency: "PHP",
         receiver: {
           username: receiver.username,
           name: receiver.name,
         },
-        status: paypalOrder.data.status,
-      });
-    } catch (providerError: any) {
-      console.error("PayPal tip error:", providerError);
-      return res.status(400).json({
-        message: "Payment failed",
-        error: providerError.response?.data || providerError.message,
-      });
-    }
+        sender: {
+          username: sender.username,
+        },
+        createdAt: tip.createdAt,
+      },
+      transaction: {
+        type: "credit_transfer",
+        status: "completed",
+        amount: amount,
+        remainingCredits: sender.credits - amount,
+      },
+    });
   } catch (error: any) {
     if (error.name === "ZodError") {
       return res.status(400).json({ message: "Invalid input", errors: error.errors });
@@ -321,7 +320,7 @@ export const donateToUser = async (req: Request, res: Response) => {
   try {
     await initializePrisma();
     const authUser = (req as any).user as { uid: string };
-    const { receiverId, amount, message, isAnonymous, paymentMethodId } = DonateToUserSchema.parse(req.body);
+    const { receiverId, amount, message, isAnonymous } = DonateToUserSchema.parse(req.body);
 
     if (authUser.uid === receiverId) {
       return res.status(400).json({ message: "You cannot donate to yourself" });
@@ -336,79 +335,80 @@ export const donateToUser = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const paymentMethod = await prisma.paymentMethod.findFirst({
-      where: { id: paymentMethodId, userId: authUser.uid },
+    // Get sender's current credits
+    const sender = await prisma.user.findUnique({
+      where: { uid: authUser.uid },
+      select: { credits: true, username: true },
     });
 
-    if (!paymentMethod) {
-      return res.status(404).json({ message: "Payment method not found" });
+    if (!sender) {
+      return res.status(404).json({ message: "Sender not found" });
     }
 
-    try {
-      const accessToken = await getPayPalAccessToken();
+    // Check if sender has enough credits
+    if (sender.credits < amount) {
+      return res.status(400).json({
+        message: "Insufficient credits",
+        availableCredits: sender.credits,
+        requiredCredits: amount,
+      });
+    }
 
-      const paypalOrder = await paypalAPI.post(
-        "/v2/checkout/orders",
-        {
-          intent: "CAPTURE",
-          purchase_units: [
-            {
-              amount: {
-                currency_code: "PHP",
-                value: (amount / 100).toFixed(2),
-              },
-              description: `Donation to @${receiver.username}`,
-              custom_id: `donation_${authUser.uid}_${receiverId}_${amount}_${paymentMethodId}_${isAnonymous}`,
-            },
-          ],
-          payment_source:
-            paymentMethod.type === "paypal_wallet"
-              ? {
-                  paypal: {
-                    email_address: paymentMethod.paypalEmail,
-                    experience_context: {
-                      return_url: `${process.env.FRONTEND_URL}/donation/success`,
-                      cancel_url: `${process.env.FRONTEND_URL}/donation/cancel`,
-                    },
-                  },
-                }
-              : {
-                  card: {
-                    vault_id: paymentMethod.paypalPaymentMethodId,
-                  },
-                },
+    // Process the donation transaction
+    const [donation] = await prisma.$transaction([
+      // Create donation record
+      prisma.donation.create({
+        data: {
+          senderId: authUser.uid,
+          receiverId: receiverId,
+          amount: amount,
+          message: message || `Donation from ${isAnonymous ? "Anonymous" : `@${sender.username}`}`,
+          isAnonymous: isAnonymous,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
+      }),
+      // Deduct credits from sender
+      prisma.user.update({
+        where: { uid: authUser.uid },
+        data: {
+          credits: {
+            decrement: amount,
           },
         },
-      );
+      }),
+      // Add credits to receiver
+      prisma.user.update({
+        where: { uid: receiverId },
+        data: {
+          credits: {
+            increment: amount,
+          },
+        },
+      }),
+    ]);
 
-      const approveUrl = paypalOrder.data.links?.find(
-        (link: any) => link.rel === "approve" || link.rel === "payer-action"
-      )?.href || null;
-
-      res.json({
-        message: "Donation payment initiated",
-        paymentIntentId: paypalOrder.data.id,
-        provider: "paypal",
-        approveUrl: approveUrl,
+    res.json({
+      message: "Donation sent successfully",
+      donation: {
+        id: donation.id,
         amount: amount,
         currency: "PHP",
         receiver: {
           username: receiver.username,
           name: receiver.name,
         },
-        status: paypalOrder.data.status,
-      });
-    } catch (providerError: any) {
-      console.error("PayPal donation error:", providerError);
-      return res.status(400).json({
-        message: "Payment failed",
-        error: providerError.response?.data || providerError.message,
-      });
-    }
+        sender: isAnonymous ? "Anonymous" : {
+          username: sender.username,
+        },
+        isAnonymous: isAnonymous,
+        createdAt: donation.createdAt,
+      },
+      transaction: {
+        type: "credit_transfer",
+        status: "completed",
+        amount: amount,
+        remainingCredits: sender.credits - amount,
+      },
+    });
   } catch (error: any) {
     if (error.name === "ZodError") {
       return res.status(400).json({ message: "Invalid input", errors: error.errors });
