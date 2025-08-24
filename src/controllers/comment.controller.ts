@@ -109,9 +109,25 @@ export const getComments = async (req: Request, res: Response) => {
 					},
 				},
 				tip: {
-				  select: {
-				    amount: true
-				  }
+					select: {
+						amount: true,
+					},
+				},
+				replies: {
+					take: 5, // Limit to 5 replies per comment
+					select: {
+						id: true,
+						content: true,
+						createdAt: true,
+						author: {
+							select: {
+								uid: true,
+								name: true,
+								username: true,
+								photoURL: true,
+							},
+						},
+					},
 				},
 				_count: {
 					select: {
@@ -127,17 +143,37 @@ export const getComments = async (req: Request, res: Response) => {
 
 		const hasMore = comments.length > limitNum;
 		const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
-		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1]?.id : null;
+		const nextCursor = hasMore
+			? commentsToReturn[commentsToReturn.length - 1]?.id
+			: null;
+
+		const commentList = commentsToReturn.map((comment: any) => ({
+			id: comment.id,
+			content: comment.content,
+			createdAt: comment.createdAt,
+			author: comment.author,
+			tip: comment.tip,
+			replies: comment.replies.map((reply: any) => ({
+				id: reply.id,
+				content: reply.content,
+				createdAt: reply.createdAt,
+				author: reply.author
+			})),
+			stats: {
+				likes: comment._count.likes,
+				replies: comment._count.replies
+			}
+		}));
 
 		res.json({
-			comments: commentsToReturn,
+			comments: commentList,
 			nextCursor,
 			hasMore,
 			limit: limitNum,
 			sortBy,
 		});
-	} catch (error) {
-		res.status(500).json({ error: "Error fetching comments" });
+	} catch (error: any) {
+		res.status(500).json({ error: "Error fetching comments: " + error.message });
 	}
 };
 
@@ -146,7 +182,8 @@ export const createComment = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { postId } = req.params;
-		const { content, tipAmount, donationAmount, stickerId, isAnonymous } = req.body;
+		const { content, tipAmount, donationAmount, stickerId, isAnonymous } =
+			req.body;
 
 		// Validate input based on whether it's a tip or donation
 		let validatedData;
@@ -181,7 +218,9 @@ export const createComment = async (req: Request, res: Response) => {
 
 		// Check if user is trying to tip/donate to themselves
 		if ((tipAmount || donationAmount) && authUser.uid === post.authorId) {
-			return res.status(400).json({ message: "You cannot send tips or donations to yourself" });
+			return res
+				.status(400)
+				.json({ message: "You cannot send tips or donations to yourself" });
 		}
 
 		// Check user's credits if tip/donation is included
@@ -209,120 +248,124 @@ export const createComment = async (req: Request, res: Response) => {
 		}
 
 		// Create comment and handle credit transfers in a transaction
-		const transactionResults = await prisma.$transaction(async (tx: PrismaClient) => {
-			// Create the comment
-			const comment = await tx.comment.create({
-				data: {
-					content,
-					postId,
-					authorId: authUser.uid,
-				},
-				include: {
-					author: {
-						select: {
-							uid: true,
-							name: true,
-							username: true,
-							photoURL: true,
-							hasBlueCheck: true,
+		const transactionResults = await prisma.$transaction(
+			async (tx: PrismaClient) => {
+				// Create the comment
+				const comment = await tx.comment.create({
+					data: {
+						content,
+						postId,
+						authorId: authUser.uid,
+					},
+					include: {
+						author: {
+							select: {
+								uid: true,
+								name: true,
+								username: true,
+								photoURL: true,
+								hasBlueCheck: true,
+							},
+						},
+						_count: {
+							select: {
+								likes: true,
+								replies: true,
+							},
 						},
 					},
-					_count: {
-						select: {
-							likes: true,
-							replies: true,
-						},
-					},
-				},
-			});
+				});
 
-			let paymentResult = null;
+				let paymentResult = null;
 
-			// Handle tip with credit transfer
-			if (tipAmount) {
-				try {
-					// Create tip record
-					const tip = await tx.tip.create({
-						data: {
-							senderId: authUser.uid,
-							receiverId: post.authorId,
+				// Handle tip with credit transfer
+				if (tipAmount) {
+					try {
+						// Create tip record
+						const tip = await tx.tip.create({
+							data: {
+								senderId: authUser.uid,
+								receiverId: post.authorId,
+								amount: tipAmount,
+								message: `Tip with comment: ${content}`,
+								postId: postId,
+								stickerId: stickerId,
+							},
+						});
+
+						// Transfer credits
+						await tx.user.update({
+							where: { uid: authUser.uid },
+							data: { credits: { decrement: tipAmount } },
+						});
+
+						await tx.user.update({
+							where: { uid: post.authorId },
+							data: { credits: { increment: tipAmount } },
+						});
+
+						await tx.comment.update({
+							where: { id: comment.id },
+							data: { tipId: tip.id },
+						});
+
+						paymentResult = {
+							type: "tip",
+							status: "completed",
 							amount: tipAmount,
-							message: `Tip with comment: ${content}`,
-							postId: postId,
-							stickerId: stickerId,
-						},
-					});
-
-					// Transfer credits
-					await tx.user.update({
-						where: { uid: authUser.uid },
-						data: { credits: { decrement: tipAmount } },
-					});
-
-					await tx.user.update({
-						where: { uid: post.authorId },
-						data: { credits: { increment: tipAmount } },
-					});
-
-					await tx.comment.update({
-						where: { id: comment.id },
-						data: { tipId: tip.id },
-					});
-
-					paymentResult = {
-						type: "tip",
-						status: "completed",
-						amount: tipAmount,
-						tipId: tip.id,
-						remainingCredits: senderCredits - tipAmount,
-					};
-				} catch (tipError: any) {
-					console.error("Tip credit transfer failed:", tipError);
-					throw new Error("Failed to process tip: " + tipError.message);
+							tipId: tip.id,
+							remainingCredits: senderCredits - tipAmount,
+						};
+					} catch (tipError: any) {
+						console.error("Tip credit transfer failed:", tipError);
+						throw new Error("Failed to process tip: " + tipError.message);
+					}
 				}
-			}
 
-			// Handle donation with credit transfer
-			if (donationAmount) {
-				try {
-					// Create donation record
-					const donation = await tx.donation.create({
-						data: {
-							senderId: authUser.uid,
-							receiverId: post.authorId,
+				// Handle donation with credit transfer
+				if (donationAmount) {
+					try {
+						// Create donation record
+						const donation = await tx.donation.create({
+							data: {
+								senderId: authUser.uid,
+								receiverId: post.authorId,
+								amount: donationAmount,
+								message: `Donation with comment: ${content}`,
+								isAnonymous: isAnonymous || false,
+							},
+						});
+
+						// Transfer credits
+						await tx.user.update({
+							where: { uid: authUser.uid },
+							data: { credits: { decrement: donationAmount } },
+						});
+
+						await tx.user.update({
+							where: { uid: post.authorId },
+							data: { credits: { increment: donationAmount } },
+						});
+
+						paymentResult = {
+							type: "donation",
+							status: "completed",
 							amount: donationAmount,
-							message: `Donation with comment: ${content}`,
-							isAnonymous: isAnonymous || false,
-						},
-					});
-
-					// Transfer credits
-					await tx.user.update({
-						where: { uid: authUser.uid },
-						data: { credits: { decrement: donationAmount } },
-					});
-
-					await tx.user.update({
-						where: { uid: post.authorId },
-						data: { credits: { increment: donationAmount } },
-					});
-
-					paymentResult = {
-						type: "donation",
-						status: "completed",
-						amount: donationAmount,
-						donationId: donation.id,
-						isAnonymous: isAnonymous,
-						remainingCredits: senderCredits - donationAmount,
-					};
-				} catch (donationError: any) {
-					console.error("Donation credit transfer failed:", donationError);
-					throw new Error("Failed to process donation: " + donationError.message);
+							donationId: donation.id,
+							isAnonymous: isAnonymous,
+							remainingCredits: senderCredits - donationAmount,
+						};
+					} catch (donationError: any) {
+						console.error("Donation credit transfer failed:", donationError);
+						throw new Error(
+							"Failed to process donation: " + donationError.message,
+						);
+					}
 				}
-			}
 
-			return { comment, paymentResult };
-		});
+				return { comment, paymentResult };
+			},
+		);
 
 		const { comment, paymentResult } = transactionResults;
 
@@ -369,7 +412,9 @@ export const createComment = async (req: Request, res: Response) => {
 		}
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error creating comment" });
 	}
@@ -395,7 +440,9 @@ export const updateComment = async (req: Request, res: Response) => {
 		}
 
 		if (existingComment.authorId !== authUser.uid) {
-			return res.status(403).json({ message: "Not authorized to update this comment" });
+			return res
+				.status(403)
+				.json({ message: "Not authorized to update this comment" });
 		}
 
 		const comment = await prisma.comment.update({
@@ -417,7 +464,9 @@ export const updateComment = async (req: Request, res: Response) => {
 		res.json(comment);
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid payload", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid payload", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error updating comment" });
 	}
@@ -426,7 +475,14 @@ export const updateComment = async (req: Request, res: Response) => {
 // SEARCH comments globally
 export const searchComments = async (req: Request, res: Response) => {
 	try {
-		const { query, limit = "20", cursor, author, postId, sortBy = "desc" } = SearchCommentsSchema.parse(req.query);
+		const {
+			query,
+			limit = "20",
+			cursor,
+			author,
+			postId,
+			sortBy = "desc",
+		} = SearchCommentsSchema.parse(req.query);
 
 		const limitNum = Math.min(parseInt(limit), 100); // Max 100 comments per request
 
@@ -497,8 +553,8 @@ export const searchComments = async (req: Request, res: Response) => {
 				},
 				tip: {
 					select: {
-						amount: true
-					}
+						amount: true,
+					},
 				},
 			},
 			orderBy: {
@@ -508,7 +564,9 @@ export const searchComments = async (req: Request, res: Response) => {
 
 		const hasMore = comments.length > limitNum;
 		const commentsToReturn = hasMore ? comments.slice(0, limitNum) : comments;
-		const nextCursor = hasMore ? commentsToReturn[commentsToReturn.length - 1]?.id : null;
+		const nextCursor = hasMore
+			? commentsToReturn[commentsToReturn.length - 1]?.id
+			: null;
 
 		res.json({
 			comments: commentsToReturn,
@@ -520,7 +578,9 @@ export const searchComments = async (req: Request, res: Response) => {
 		});
 	} catch (err: any) {
 		if (err.name === "ZodError") {
-			return res.status(400).json({ message: "Invalid query parameters", errors: err.errors });
+			return res
+				.status(400)
+				.json({ message: "Invalid query parameters", errors: err.errors });
 		}
 		res.status(500).json({ error: "Error searching comments" });
 	}
@@ -545,7 +605,9 @@ export const deleteComment = async (req: Request, res: Response) => {
 		}
 
 		if (existingComment.authorId !== authUser.uid) {
-			return res.status(403).json({ message: "Not authorized to delete this comment" });
+			return res
+				.status(403)
+				.json({ message: "Not authorized to delete this comment" });
 		}
 
 		await prisma.comment.delete({
@@ -578,12 +640,16 @@ const processTipPayment = async (tipData: {
 	});
 
 	// Get PayPal access token (simplified - in production you'd want to use the same token caching logic)
-	const tokenResponse = await paypalAPI.post("/v1/oauth2/token", "grant_type=client_credentials", {
-		headers: {
-			Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
-			"Content-Type": "application/x-www-form-urlencoded",
+	const tokenResponse = await paypalAPI.post(
+		"/v1/oauth2/token",
+		"grant_type=client_credentials",
+		{
+			headers: {
+				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
 		},
-	});
+	);
 
 	const accessToken = tokenResponse.data.access_token;
 
@@ -624,12 +690,12 @@ const processTipPayment = async (tipData: {
 									cancel_url: `${process.env.FRONTEND_URL}/tip/cancel`,
 								},
 							},
-					  }
+						}
 					: {
 							card: {
 								vault_id: paymentMethod.paypalPaymentMethodId,
 							},
-					  },
+						},
 		},
 		{
 			headers: {
@@ -638,7 +704,10 @@ const processTipPayment = async (tipData: {
 		},
 	);
 
-	const approveUrl = paypalOrder.data.links?.find((link: any) => link.rel === "approve" || link.rel === "payer-action")?.href || null;
+	const approveUrl =
+		paypalOrder.data.links?.find(
+			(link: any) => link.rel === "approve" || link.rel === "payer-action",
+		)?.href || null;
 
 	return {
 		paymentIntentId: paypalOrder.data.id,
@@ -668,12 +737,16 @@ const processDonationPayment = async (donationData: {
 	});
 
 	// Get PayPal access token
-	const tokenResponse = await paypalAPI.post("/v1/oauth2/token", "grant_type=client_credentials", {
-		headers: {
-			Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
-			"Content-Type": "application/x-www-form-urlencoded",
+	const tokenResponse = await paypalAPI.post(
+		"/v1/oauth2/token",
+		"grant_type=client_credentials",
+		{
+			headers: {
+				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
 		},
-	});
+	);
 
 	const accessToken = tokenResponse.data.access_token;
 
@@ -714,12 +787,12 @@ const processDonationPayment = async (donationData: {
 									cancel_url: `${process.env.FRONTEND_URL}/donation/cancel`,
 								},
 							},
-					  }
+						}
 					: {
 							card: {
 								vault_id: paymentMethod.paypalPaymentMethodId,
 							},
-					  },
+						},
 		},
 		{
 			headers: {
@@ -728,7 +801,10 @@ const processDonationPayment = async (donationData: {
 		},
 	);
 
-	const approveUrl = paypalOrder.data.links?.find((link: any) => link.rel === "approve" || link.rel === "payer-action")?.href || null;
+	const approveUrl =
+		paypalOrder.data.links?.find(
+			(link: any) => link.rel === "approve" || link.rel === "payer-action",
+		)?.href || null;
 
 	return {
 		paymentIntentId: paypalOrder.data.id,
