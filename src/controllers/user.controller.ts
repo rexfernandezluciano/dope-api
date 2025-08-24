@@ -269,20 +269,19 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 		if (authUser?.uid) {
 			const followRecord = await prisma.follow.findUnique({
 				where: {
-					followerId: authUser.uid,
-					followingId: user.uid,
+					OR: [{ followerId: authUser.uid }, { followingId: user.uid }],
 				},
 			});
+
 			isFollowing = !!followRecord;
 
 			// Check subscription status
 			const userSubscription = await prisma.userSubscription.findUnique({
 				where: {
-					subscriberId: authUser.uid,
-					creatorId: user.uid,
+					OR: [{ subscriberId: authUser.uid }, { creatorId: user.uid }],
 				},
 			});
-			
+
 			isSubscribed = userSubscription?.status === "active";
 			subscriptionTier = userSubscription?.tier || null;
 
@@ -383,13 +382,13 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				photoURL: user.photoURL,
 				hasBlueCheck: user.hasBlueCheck,
 				membership: {
-					subscription: user.subscription
+					subscription: user.subscription,
 				},
 				stats: {
 					followers: user._count.followers,
 					following: user._count.following,
 					posts: user._count.posts,
-				subscribers: user._count.creatorSubscriptions
+					subscribers: user._count.creatorSubscriptions,
 				},
 				isFollowing,
 				isBlocked,
@@ -436,7 +435,7 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 				};
 			}),
 			createdAt: user.createdAt,
-			updatedAt: user.updatedAt
+			updatedAt: user.updatedAt,
 		});
 	} catch (error: any) {
 		res
@@ -761,24 +760,6 @@ export const getUserFollowing = async (req: Request, res: Response) => {
 			.status(500)
 			.json({ error: "Error fetching following", message: error?.message });
 	}
-};
-
-// Mock function for processing payments, placeholder for PayPal integration
-const processPayment = async (
-	paymentMethod: string,
-	amount: number,
-	userId: string,
-) => {
-	if (paymentMethod === "paypal") {
-		console.log(`Processing PayPal payment of ${amount} for user ${userId}`);
-		// In a real application, you would integrate with PayPal SDK here
-		// This is a placeholder and does not actually process payments
-		return { success: true, transactionId: `paypal_${Date.now()}` };
-	}
-	// Add other payment methods here
-	// if (paymentMethod === 'credit_card') { ... }
-
-	return { success: false, message: "Payment method not supported" };
 };
 
 export const getTotalUserEarnings = async (req: Request, res: Response) => {
