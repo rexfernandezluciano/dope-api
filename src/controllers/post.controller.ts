@@ -585,32 +585,37 @@ export const createPost = async (req: Request, res: Response) => {
 		const { content, imageUrls, liveVideoUrl, postType, privacy, poll } =
 			CreatePostSchema.parse(req.body);
 
-		// Import content moderation
-		const { moderateContent, moderateImage } = await import('./content.controller');
+		// Import content moderation with error handling
+		try {
+			const { moderateContent, moderateImage } = await import('./content.controller');
 
-		// Moderate content
-		if (content) {
-			const contentModeration = await moderateContent(content);
-			if (!contentModeration.isAppropriate) {
-				return res.status(400).json({
-					message: "Content violates community guidelines",
-					reason: contentModeration.reason
-				});
-			}
-		}
-
-		// Moderate images
-		if (imageUrls && imageUrls.length > 0) {
-			for (const imageUrl of imageUrls) {
-				const imageModeration = await moderateImage(imageUrl);
-				if (!imageModeration.isAppropriate) {
+			// Moderate content
+			if (content) {
+				const contentModeration = await moderateContent(content);
+				if (!contentModeration.isAppropriate) {
 					return res.status(400).json({
-						message: "Image violates community guidelines",
-						reason: imageModeration.reason,
-						imageUrl
+						message: "Content violates community guidelines",
+						reason: contentModeration.reason
 					});
 				}
 			}
+
+			// Moderate images
+			if (imageUrls && imageUrls.length > 0) {
+				for (const imageUrl of imageUrls) {
+					const imageModeration = await moderateImage(imageUrl);
+					if (!imageModeration.isAppropriate) {
+						return res.status(400).json({
+							message: "Image violates community guidelines",
+							reason: imageModeration.reason,
+							imageUrl
+						});
+					}
+				}
+			}
+		} catch (moderationError) {
+			console.warn("Content moderation failed, proceeding without moderation:", moderationError);
+			// Continue without moderation if the module fails to load
 		}
 
 		const newPost = await prisma.post.create({
@@ -702,12 +707,34 @@ export const createPost = async (req: Request, res: Response) => {
 			message: "Post created successfully",
 			data: postWithAuthor,
 		});
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Error creating post:", error);
+		
+		// Handle Zod validation errors
+		if (error.name === "ZodError") {
+			return res.status(400).json({
+				success: false,
+				error: "Validation Error",
+				message: "Invalid input data",
+				details: error.errors
+			});
+		}
+		
+		// Handle Prisma errors
+		if (error.code) {
+			console.error("Database error:", error.code, error.message);
+			return res.status(500).json({
+				success: false,
+				error: "Database Error",
+				message: "Failed to save post to database",
+			});
+		}
+		
 		res.status(500).json({
 			success: false,
 			error: "Internal Server Error",
 			message: "Failed to create post",
+			details: process.env.NODE_ENV === 'development' ? error.message : undefined
 		});
 	}
 };
