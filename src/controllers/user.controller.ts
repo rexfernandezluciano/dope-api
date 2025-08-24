@@ -1276,8 +1276,7 @@ export const searchUsers = async (req: Request, res: Response) => {
 	}
 };
 
-// Export the functions for comments and likes
-export { getCommentReplies, getPostLikes, togglePostLike, addComment, getPostComments };
+// Functions are exported individually above
 
 // Endpoint to add a comment to a post
 export const addComment = async (req: Request, res: Response) => {
