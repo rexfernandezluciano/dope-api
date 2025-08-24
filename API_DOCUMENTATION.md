@@ -25,6 +25,7 @@
   - [Business/Advertising](#business-endpoints)
   - [Credits](#credits-endpoints)
   - [Payments](#payment-endpoints)
+  - [User Subscriptions](#user-subscriptions-endpoints)
   - [ActivityPub Federation](#activitypub-endpoints)
   - [Well-Known](#well-known-endpoints)
 - [Data Models](#data-models)
@@ -1430,10 +1431,28 @@ POST /v1/comments/post/:postId
 Authorization: Bearer <jwt_token>
 ```
 
-**Request Body:**
+**Request Body (Simple Comment):**
 ```json
 {
   "content": "Great post! #awesome @user"
+}
+```
+
+**Request Body (Comment with Tip):**
+```json
+{
+  "content": "Great post! Here's a tip!",
+  "tipAmount": 500,
+  "stickerId": "sticker_123"
+}
+```
+
+**Request Body (Comment with Donation):**
+```json
+{
+  "content": "Love your content! Here's a donation!",
+  "donationAmount": 1000,
+  "isAnonymous": false
 }
 ```
 
@@ -1448,12 +1467,21 @@ Authorization: Bearer <jwt_token>
   "authorId": "user_id",
   "hashtags": ["awesome"],
   "mentions": ["user"],
+  "tipAmount": 500,
+  "donationAmount": null,
   "author": {
     "uid": "user_id",
     "name": "John Doe",
     "username": "johndoe",
     "photoURL": "https://example.com/photo.jpg",
     "hasBlueCheck": false
+  },
+  "payment": {
+    "type": "tip",
+    "status": "completed",
+    "amount": 500,
+    "tipId": "tip_123",
+    "remainingCredits": 9500
   }
 }
 ```
@@ -2606,6 +2634,365 @@ Handles PayPal webhook events for payment processing.
 
 ---
 
+### User Subscriptions Endpoints
+
+#### Get Subscription Tiers
+```http
+GET /v1/subscriptions/tiers
+```
+
+**Response (200):**
+```json
+{
+  "tiers": [
+    {
+      "tier": "basic",
+      "name": "Basic",
+      "price": 100,
+      "currency": "PHP",
+      "interval": "month",
+      "description": "Basic subscription tier",
+      "features": ["Basic access", "Community support"]
+    },
+    {
+      "tier": "premium",
+      "name": "Premium",
+      "price": 300,
+      "currency": "PHP",
+      "interval": "month",
+      "description": "Premium subscription tier",
+      "features": ["Premium content", "Priority support", "Exclusive stickers"]
+    },
+    {
+      "tier": "vip",
+      "name": "VIP",
+      "price": 500,
+      "currency": "PHP",
+      "interval": "month",
+      "description": "VIP subscription tier",
+      "features": ["All premium features", "VIP access", "Custom stickers", "Direct messaging"]
+    }
+  ]
+}
+```
+
+#### Subscribe to User
+```http
+POST /v1/subscriptions/subscribe
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "creatorId": "user_id",
+  "tier": "premium",
+  "paymentMethodId": "pm_123456789"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Subscription initiated - complete payment to activate",
+  "subscription": {
+    "id": "sub_123",
+    "creatorId": "user_id",
+    "tier": "premium",
+    "status": "pending"
+  },
+  "paymentIntentId": "pi_123456789",
+  "approveUrl": "https://paypal.com/approve/..."
+}
+```
+
+#### Send Tip to User
+```http
+POST /v1/subscriptions/tip
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "receiverId": "user_id",
+  "amount": 500,
+  "message": "Great content!",
+  "postId": "post_id",
+  "stickerId": "sticker_id"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Tip sent successfully",
+  "tip": {
+    "id": "tip_123",
+    "amount": 500,
+    "currency": "PHP",
+    "receiver": {
+      "username": "creator",
+      "name": "Creator Name"
+    },
+    "sender": {
+      "username": "sender"
+    },
+    "createdAt": "2024-01-15T10:30:00Z"
+  },
+  "transaction": {
+    "type": "credit_transfer",
+    "status": "completed",
+    "amount": 500,
+    "remainingCredits": 9500
+  }
+}
+```
+
+#### Send Donation to User
+```http
+POST /v1/subscriptions/donate
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "receiverId": "user_id",
+  "amount": 1000,
+  "message": "Keep up the great work!",
+  "isAnonymous": false
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Donation sent successfully",
+  "donation": {
+    "id": "donation_123",
+    "amount": 1000,
+    "currency": "PHP",
+    "receiver": {
+      "username": "creator",
+      "name": "Creator Name"
+    },
+    "isAnonymous": false,
+    "createdAt": "2024-01-15T10:30:00Z"
+  },
+  "transaction": {
+    "type": "credit_transfer",
+    "status": "completed",
+    "amount": 1000,
+    "remainingCredits": 9000
+  }
+}
+```
+
+#### Get User Subscriptions
+```http
+GET /v1/subscriptions/my-subscriptions
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "subscriptions": [
+    {
+      "id": "sub_123",
+      "creator": {
+        "uid": "creator_id",
+        "username": "creator",
+        "name": "Creator Name",
+        "photoURL": "https://example.com/photo.jpg"
+      },
+      "tier": "premium",
+      "status": "active",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "expiresAt": "2024-02-15T10:30:00Z"
+    }
+  ]
+}
+```
+
+#### Get Creator Subscribers
+```http
+GET /v1/subscriptions/my-subscribers
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200):**
+```json
+{
+  "subscribers": [
+    {
+      "id": "sub_123",
+      "subscriber": {
+        "uid": "user_id",
+        "username": "subscriber",
+        "name": "Subscriber Name",
+        "photoURL": "https://example.com/photo.jpg"
+      },
+      "tier": "premium",
+      "status": "active",
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "stats": {
+    "totalSubscribers": 150,
+    "basicSubscribers": 50,
+    "premiumSubscribers": 75,
+    "vipSubscribers": 25,
+    "monthlyRevenue": 45000
+  }
+}
+```
+
+#### Create Custom Sticker
+```http
+POST /v1/subscriptions/stickers
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "name": "My Custom Sticker",
+  "imageUrl": "https://example.com/sticker.png",
+  "price": 100,
+  "category": "custom"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Sticker created successfully",
+  "sticker": {
+    "id": "sticker_123",
+    "name": "My Custom Sticker",
+    "imageUrl": "https://example.com/sticker.png",
+    "price": 100,
+    "category": "custom",
+    "creator": {
+      "uid": "user_id",
+      "username": "creator"
+    },
+    "createdAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Get Stickers
+```http
+GET /v1/subscriptions/stickers
+```
+
+**Query Parameters:**
+- `creatorId`: Filter by creator ID
+- `category`: Filter by category (custom, emoji, animated, premium)
+- `limit`: Number of stickers (default: 20)
+- `cursor`: Pagination cursor
+
+**Response (200):**
+```json
+{
+  "stickers": [
+    {
+      "id": "sticker_123",
+      "name": "My Custom Sticker",
+      "imageUrl": "https://example.com/sticker.png",
+      "price": 100,
+      "category": "custom",
+      "creator": {
+        "uid": "user_id",
+        "username": "creator",
+        "name": "Creator Name"
+      },
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "nextCursor": "cursor_string",
+  "hasMore": true
+}
+```
+
+#### Create Subscription Perk
+```http
+POST /v1/subscriptions/perks
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "tier": "premium",
+  "title": "Exclusive Content Access",
+  "description": "Get access to premium content and early releases"
+}
+```
+
+**Response (201):**
+```json
+{
+  "message": "Subscription perk created successfully",
+  "perk": {
+    "id": "perk_123",
+    "tier": "premium",
+    "title": "Exclusive Content Access",
+    "description": "Get access to premium content and early releases",
+    "createdAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Get Subscription Perks
+```http
+GET /v1/subscriptions/perks/:creatorId
+```
+
+**Response (200):**
+```json
+{
+  "perks": {
+    "basic": [
+      {
+        "id": "perk_1",
+        "tier": "basic",
+        "title": "Basic Access",
+        "description": "Access to basic content"
+      }
+    ],
+    "premium": [
+      {
+        "id": "perk_2",
+        "tier": "premium",
+        "title": "Premium Content",
+        "description": "Access to premium content and features"
+      }
+    ],
+    "vip": [
+      {
+        "id": "perk_3",
+        "tier": "vip",
+        "title": "VIP Access",
+        "description": "Full access to all content and features"
+      }
+    ]
+  }
+}
+```
+
+#### Subscription Webhook Handler
+```http
+POST /v1/subscriptions/webhook
+```
+
+Handles PayPal webhook events for subscription payments, tips, and donations.
+
+---
+
 ### ActivityPub Endpoints
 
 #### Get User Actor
@@ -3105,6 +3492,75 @@ GET /.well-known/nodeinfo/2.0
   adType: "promotion" | "boost";
   status: "pending" | "active" | "paused" | "completed";
   targetAudience: object;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### User Subscription
+```typescript
+{
+  id: string;
+  subscriberId: string;
+  creatorId: string;
+  tier: "basic" | "premium" | "vip";
+  status: "active" | "cancelled" | "expired";
+  paymentMethodId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  expiresAt: Date;
+}
+```
+
+### Tip
+```typescript
+{
+  id: string;
+  senderId: string;
+  receiverId: string;
+  amount: number; // in centavos
+  message?: string;
+  postId?: string;
+  stickerId?: string;
+  createdAt: Date;
+}
+```
+
+### Donation
+```typescript
+{
+  id: string;
+  senderId: string;
+  receiverId: string;
+  amount: number; // in centavos
+  message?: string;
+  isAnonymous: boolean;
+  createdAt: Date;
+}
+```
+
+### Custom Sticker
+```typescript
+{
+  id: string;
+  name: string;
+  imageUrl: string;
+  price: number; // in centavos
+  category: "custom" | "emoji" | "animated" | "premium";
+  creatorId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### Subscription Perk
+```typescript
+{
+  id: string;
+  creatorId: string;
+  tier: "basic" | "premium" | "vip";
+  title: string;
+  description: string;
   createdAt: Date;
   updatedAt: Date;
 }
