@@ -339,24 +339,25 @@ export const purchaseMembership = async (req: Request, res: Response) => {
         },
       );
 
-      const subscriptionResult = {
-        id: paypalOrder.data.id,
-        provider: "paypal",
-        status: paypalOrder.data.status,
-        approveUrl: paypalOrder.data.links?.find(
-          (link: any) => link.rel === "approve",
-        )?.href,
-      };
+      // Extract approve URL from PayPal response
+      const approveUrl = paypalOrder.data.links?.find(
+        (link: any) => link.rel === "approve" || link.rel === "payer-action"
+      )?.href || null;
+
+      // Log the full response for debugging
+      console.log("PayPal Order Response:", JSON.stringify(paypalOrder.data, null, 2));
 
       res.json({
         message:
           "Payment initiated - complete payment to activate subscription",
-        paymentIntentId: subscriptionResult.id,
+        paymentIntentId: paypalOrder.data.id,
         provider: "paypal",
-        approveUrl: subscriptionResult.approveUrl,
+        approveUrl: approveUrl,
         amount: selectedPlan.php_amount,
         currency: "PHP",
         description: selectedPlan.description,
+        status: paypalOrder.data.status,
+        links: paypalOrder.data.links || []
       });
     } catch (providerError: any) {
       console.error("PayPal error:", providerError);

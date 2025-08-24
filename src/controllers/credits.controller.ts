@@ -147,16 +147,24 @@ export const purchaseCredits = async (req: Request, res: Response) => {
         },
       );
 
+      // Extract approve URL from PayPal response
+      const approveUrl = paypalOrder.data.links?.find(
+        (link: any) => link.rel === "approve" || link.rel === "payer-action"
+      )?.href || null;
+
+      // Log the full response for debugging
+      console.log("PayPal Order Response:", JSON.stringify(paypalOrder.data, null, 2));
+
       res.json({
         message: "Credit purchase initiated - complete payment to add credits",
         paymentIntentId: paypalOrder.data.id,
         provider: "paypal",
-        approveUrl: paypalOrder.data.links?.find(
-          (link: any) => link.rel === "approve",
-        )?.href,
+        approveUrl: approveUrl,
         amount: amount,
         currency: "PHP",
         description: `Ad Campaign Credits - ₱${(amount / 100).toFixed(2)}`,
+        status: paypalOrder.data.status,
+        links: paypalOrder.data.links || []
       });
     } catch (providerError: any) {
       console.error("PayPal error:", providerError);
