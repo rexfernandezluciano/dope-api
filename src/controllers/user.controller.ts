@@ -3,6 +3,7 @@
 import { Request, Response } from "express";
 import { z } from "zod";
 import { connect } from "../database/database";
+import { parseMentionsToNames } from "../utils/mentions";
 
 let prisma: any;
 
@@ -203,7 +204,7 @@ export const getUsers = async (req: Request, res: Response) => {
 	} catch (error: any) {
 		res
 			.status(500)
-			.json({ error: "Error fetcing users", message: error?.message });
+			.json({ error: "Error fetching users", message: error?.message });
 	}
 };
 
@@ -883,9 +884,6 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 			},
 		});
 
-		// Import mention parsing utility
-		const { parseMentionsToNames } = await import("../utils/mentions.ts");
-
 		const processedReplies = await Promise.all(
 			replies.map(async (reply: any) => {
 				const processedContent = await parseMentionsToNames(reply.content);
@@ -895,17 +893,16 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 					content: processedContent,
 					createdAt: reply.createdAt,
 					author: {
-						uid: reply.user.uid,
-						name: reply.user.name,
-						username: reply.user.username,
-						photoURL: reply.user.photoURL,
-						hasBlueCheck: reply.user.hasBlueCheck,
-						isBlocked: reply.user.isBlocked,
-						isRestricted: reply.user.isRestricted,
+						uid: reply.author.uid,
+						name: reply.author.name,
+						username: reply.author.username,
+						photoURL: reply.author.photoURL,
+						hasBlueCheck: reply.author.hasBlueCheck,
+						isBlocked: reply.author.isBlocked,
+						isRestricted: reply.author.isRestricted,
 					},
-					likesCount: reply.likes.length, // Count of likes for this reply
+					likesCount: reply.likes.length,
 					likes: reply.likes.map((l: any) => ({
-						// List of users who liked this reply
 						user: {
 							uid: l.user.uid,
 							username: l.user.username,
@@ -1279,6 +1276,9 @@ export const searchUsers = async (req: Request, res: Response) => {
 	}
 };
 
+// Export the functions for comments and likes
+export { getCommentReplies, getPostLikes, togglePostLike, addComment, getPostComments };
+
 // Endpoint to add a comment to a post
 export const addComment = async (req: Request, res: Response) => {
 	try {
@@ -1334,10 +1334,10 @@ export const addComment = async (req: Request, res: Response) => {
 				content: content,
 				postId: postId,
 				userId: authUser.uid,
-				parentCommentId: parentCommentId || null, // Handle null for top-level comments
+				parentId: parentCommentId || null, // Handle null for top-level comments
 			},
 			include: {
-				user: {
+				author: {
 					select: {
 						uid: true,
 						name: true,
@@ -1351,9 +1351,15 @@ export const addComment = async (req: Request, res: Response) => {
 			},
 		});
 
-		res
-			.status(201)
-			.json({ message: "Comment added successfully", comment: newComment });
+		res.status(201).json({ 
+			message: "Comment added successfully", 
+			comment: {
+				id: newComment.id,
+				content: newComment.content,
+				createdAt: newComment.createdAt,
+				author: newComment.author
+			}
+		});
 	} catch (error: any) {
 		res
 			.status(500)
@@ -1409,79 +1415,39 @@ export const getPostComments = async (req: Request, res: Response) => {
 		});
 
 		// Process mentions in comments
-		const processedComments = comments.map((comment: any) => {
-			let processedContent = comment.content;
-			// Regex to find mentions like @userId
-			const mentionRegex = /@(\w+)/g;
-			processedContent = processedContent.replace(
-				mentionRegex,
-				(match: string, userId: string) => {
-					// Placeholder for user ID to name lookup
-					// In a real app, you'd fetch the user by userId and return their name.
-					// For example: `return `@${getUserNameById(userId)}`;`
-					// For now, return the mention as is.
-					// If we assume the mention is @username and reply.user.username is the author of the reply:
-					// We can't use reply.user for mentioned users unless the mention is of the author itself.
+		const processedComments = await Promise.all(
+			comments.map(async (comment: any) => {
+				const processedContent = await parseMentionsToNames(comment.content);
 
-					// A practical approach:
-					// 1. Find all mentions in `reply.content`.
-					// 2. Extract the user IDs from these mentions.
-					// 3. Fetch the user objects for these IDs.
-					// 4. Replace the mentions in the content with "@" + user.name.
+				// Get replies count for this comment
+				const repliesCount = await prisma.comment.count({
+					where: { parentCommentId: comment.id },
+				});
 
-					// For this example, let's demonstrate the replacement logic:
-					// If the mention format is "@username" and we want to display "@Username", we can do this:
-					// return `@${userId}`; // This might be enough if userId is actually a username.
-
-					// If it's "@userId" and we want "@Name", we need a lookup.
-					// Let's assume for now, the mention is meant to be a username.
-					// If the `reply.user` in the `likes` section contains the username, we can potentially use that.
-					// However, `reply.user` here is the author of the `like`, not the author of the `reply`.
-
-					// If the original content is "Hello @user123", and we need to find user123's name.
-					// This requires a separate fetch or pre-population of mentioned users.
-					// Let's simulate this by returning "@MentionedUser" as a placeholder.
-					// In a real app, you would fetch users by ID and replace.
-
-					// If the mention is of the author of the reply:
-					// if (reply.user && userId === reply.user.username) {
-					//     return `@${reply.user.name}`;
-					// }
-
-					// For now, let's implement a placeholder or a simple conversion if userId is found in fetched data.
-					// This is a complex requirement and might need a dedicated function to resolve mentions.
-					// Let's assume we have a function `getUserById(userId)` that returns user object.
-					// For this context, we'll simply return the mention as is, or a placeholder.
-					// The best we can do here is to acknowledge the need for a lookup.
-					return `@${userId}`; // Placeholder: Replace with actual user name lookup
-				},
-			);
-
-			return {
-				id: comment.id,
-				content: processedContent,
-				createdAt: comment.createdAt,
-				author: {
-					uid: comment.user.uid,
-					name: comment.user.name,
-					username: comment.user.username,
-					photoURL: comment.user.photoURL,
-					hasBlueCheck: comment.user.hasBlueCheck,
-					isBlocked: comment.user.isBlocked,
-					isRestricted: comment.user.isRestricted,
-				},
-				likesCount: comment.likes.length,
-				likes: comment.likes.map((l: any) => ({
-					user: {
-						uid: l.user.uid,
-						username: l.user.username,
+				return {
+					id: comment.id,
+					content: processedContent,
+					createdAt: comment.createdAt,
+					author: {
+						uid: comment.user.uid,
+						name: comment.user.name,
+						username: comment.user.username,
+						photoURL: comment.user.photoURL,
+						hasBlueCheck: comment.user.hasBlueCheck,
+						isBlocked: comment.user.isBlocked,
+						isRestricted: comment.user.isRestricted,
 					},
-				})),
-				// Add logic here to fetch replies for this comment if needed, or indicate number of replies
-				// For now, we assume replies are fetched via a separate endpoint like getCommentReplies
-				repliesCount: 0, // Placeholder, would need to query for comments with parentCommentId
-			};
-		});
+					likesCount: comment.likes.length,
+					likes: comment.likes.map((l: any) => ({
+						user: {
+							uid: l.user.uid,
+							username: l.user.username,
+						},
+					})),
+					repliesCount,
+				};
+			})
+		);
 
 		res.json({ status: "ok", comments: processedComments });
 	} catch (error: any) {
