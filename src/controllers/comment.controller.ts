@@ -44,13 +44,7 @@ const SearchCommentsSchema = z.object({
 export const getComments = async (req: Request, res: Response) => {
 	try {
 		const { postId } = req.params;
-		const {
-			limit = "20",
-			cursor,
-			author,
-			search,
-			sortBy = "desc"
-		} = req.query;
+		const { limit = "20", cursor, author, search, sortBy = "desc" } = req.query;
 
 		if (!postId) {
 			return res.status(400).json({ message: "Post ID is required" });
@@ -67,15 +61,15 @@ export const getComments = async (req: Request, res: Response) => {
 		const limitNum = Math.min(parseInt(limit as string), 100); // Max 100 comments per request
 
 		// Build where clause for filtering
-		const where: any = { 
+		const where: any = {
 			postId,
-			parentId: null // Only get top-level comments, not replies
+			parentId: null, // Only get top-level comments, not replies
 		};
 
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
 				where: { username: author as string },
-				select: { uid: true }
+				select: { uid: true },
 			});
 
 			if (authorUser) {
@@ -88,7 +82,7 @@ export const getComments = async (req: Request, res: Response) => {
 		if (search) {
 			where.content = {
 				contains: search as string,
-				mode: "insensitive"
+				mode: "insensitive",
 			};
 		}
 
@@ -113,6 +107,11 @@ export const getComments = async (req: Request, res: Response) => {
 						photoURL: true,
 						hasBlueCheck: true,
 					},
+				},
+				tip: {
+				  select: {
+				    amount: true
+				  }
 				},
 				_count: {
 					select: {
@@ -265,12 +264,17 @@ export const createComment = async (req: Request, res: Response) => {
 						data: { credits: { increment: tipAmount } },
 					});
 
-					paymentResult = { 
-						type: 'tip', 
-						status: 'completed',
+					await tx.comment.update({
+						where: { id: comment.id },
+						data: { tipId: tip.id },
+					});
+
+					paymentResult = {
+						type: "tip",
+						status: "completed",
 						amount: tipAmount,
 						tipId: tip.id,
-						remainingCredits: senderCredits - tipAmount
+						remainingCredits: senderCredits - tipAmount,
 					};
 				} catch (tipError: any) {
 					console.error("Tip credit transfer failed:", tipError);
@@ -303,13 +307,13 @@ export const createComment = async (req: Request, res: Response) => {
 						data: { credits: { increment: donationAmount } },
 					});
 
-					paymentResult = { 
-						type: 'donation', 
-						status: 'completed',
+					paymentResult = {
+						type: "donation",
+						status: "completed",
 						amount: donationAmount,
 						donationId: donation.id,
 						isAnonymous: isAnonymous,
-						remainingCredits: senderCredits - donationAmount
+						remainingCredits: senderCredits - donationAmount,
 					};
 				} catch (donationError: any) {
 					console.error("Donation credit transfer failed:", donationError);
@@ -355,7 +359,7 @@ export const createComment = async (req: Request, res: Response) => {
 			const likes = postWithCounts._count?.likes || 0;
 			const comments = postWithCounts._count?.comments || 0;
 
-			const totalEngagement = views + (shares * 2) + (likes * 1.5) + (comments * 3);
+			const totalEngagement = views + shares * 2 + likes * 1.5 + comments * 3;
 			const newEarnings = totalEngagement >= 1000000 ? 0.01 : 0;
 
 			await prisma.postAnalytics.update({
@@ -422,14 +426,7 @@ export const updateComment = async (req: Request, res: Response) => {
 // SEARCH comments globally
 export const searchComments = async (req: Request, res: Response) => {
 	try {
-		const {
-			query,
-			limit = "20",
-			cursor,
-			author,
-			postId,
-			sortBy = "desc"
-		} = SearchCommentsSchema.parse(req.query);
+		const { query, limit = "20", cursor, author, postId, sortBy = "desc" } = SearchCommentsSchema.parse(req.query);
 
 		const limitNum = Math.min(parseInt(limit), 100); // Max 100 comments per request
 
@@ -437,15 +434,15 @@ export const searchComments = async (req: Request, res: Response) => {
 		const where: any = {
 			content: {
 				contains: query,
-				mode: "insensitive"
-			}
+				mode: "insensitive",
+			},
 		};
 
 		// Filter by author if specified
 		if (author) {
 			const authorUser = await prisma.user.findUnique({
 				where: { username: author },
-				select: { uid: true }
+				select: { uid: true },
 			});
 
 			if (authorUser) {
@@ -566,7 +563,7 @@ const processTipPayment = async (tipData: {
 	stickerId?: string;
 	paymentMethodId: string;
 }) => {
-	const paypalAPI = require('axios').create({
+	const paypalAPI = require("axios").create({
 		baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com",
 		headers: {
 			"Content-Type": "application/json",
@@ -576,16 +573,12 @@ const processTipPayment = async (tipData: {
 	});
 
 	// Get PayPal access token (simplified - in production you'd want to use the same token caching logic)
-	const tokenResponse = await paypalAPI.post(
-		"/v1/oauth2/token",
-		"grant_type=client_credentials",
-		{
-			headers: {
-				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
-				"Content-Type": "application/x-www-form-urlencoded",
-			},
+	const tokenResponse = await paypalAPI.post("/v1/oauth2/token", "grant_type=client_credentials", {
+		headers: {
+			Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+			"Content-Type": "application/x-www-form-urlencoded",
 		},
-	);
+	});
 
 	const accessToken = tokenResponse.data.access_token;
 
@@ -626,12 +619,12 @@ const processTipPayment = async (tipData: {
 									cancel_url: `${process.env.FRONTEND_URL}/tip/cancel`,
 								},
 							},
-						}
+					  }
 					: {
 							card: {
 								vault_id: paymentMethod.paypalPaymentMethodId,
 							},
-						},
+					  },
 		},
 		{
 			headers: {
@@ -640,9 +633,7 @@ const processTipPayment = async (tipData: {
 		},
 	);
 
-	const approveUrl = paypalOrder.data.links?.find(
-		(link: any) => link.rel === "approve" || link.rel === "payer-action"
-	)?.href || null;
+	const approveUrl = paypalOrder.data.links?.find((link: any) => link.rel === "approve" || link.rel === "payer-action")?.href || null;
 
 	return {
 		paymentIntentId: paypalOrder.data.id,
@@ -662,7 +653,7 @@ const processDonationPayment = async (donationData: {
 	isAnonymous: boolean;
 	paymentMethodId: string;
 }) => {
-	const paypalAPI = require('axios').create({
+	const paypalAPI = require("axios").create({
 		baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com",
 		headers: {
 			"Content-Type": "application/json",
@@ -672,16 +663,12 @@ const processDonationPayment = async (donationData: {
 	});
 
 	// Get PayPal access token
-	const tokenResponse = await paypalAPI.post(
-		"/v1/oauth2/token",
-		"grant_type=client_credentials",
-		{
-			headers: {
-				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
-				"Content-Type": "application/x-www-form-urlencoded",
-			},
+	const tokenResponse = await paypalAPI.post("/v1/oauth2/token", "grant_type=client_credentials", {
+		headers: {
+			Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+			"Content-Type": "application/x-www-form-urlencoded",
 		},
-	);
+	});
 
 	const accessToken = tokenResponse.data.access_token;
 
@@ -722,12 +709,12 @@ const processDonationPayment = async (donationData: {
 									cancel_url: `${process.env.FRONTEND_URL}/donation/cancel`,
 								},
 							},
-						}
+					  }
 					: {
 							card: {
 								vault_id: paymentMethod.paypalPaymentMethodId,
 							},
-						},
+					  },
 		},
 		{
 			headers: {
@@ -736,9 +723,7 @@ const processDonationPayment = async (donationData: {
 		},
 	);
 
-	const approveUrl = paypalOrder.data.links?.find(
-		(link: any) => link.rel === "approve" || link.rel === "payer-action"
-	)?.href || null;
+	const approveUrl = paypalOrder.data.links?.find((link: any) => link.rel === "approve" || link.rel === "payer-action")?.href || null;
 
 	return {
 		paymentIntentId: paypalOrder.data.id,

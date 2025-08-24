@@ -476,8 +476,8 @@ export const updateUser = async (req: Request, res: Response) => {
 				...(data.federatedDiscoverable !== undefined && { federatedDiscoverable: data.federatedDiscoverable }),
 				...(data.privacy !== undefined && { privacy: data.privacy }),
 				// If directly updating blocked/restricted status:
-				// ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
-				// ...(data.isRestricted !== undefined && { isRestricted: data.isRestricted }),
+				 ...(data.isBlocked !== undefined && { isBlocked: data.isBlocked }),
+				 ...(data.isRestricted !== undefined && { isRestricted: data.isRestricted }),
 			},
 			select: {
 				uid: true,
@@ -893,7 +893,7 @@ export const getCommentReplies = async (req: Request, res: Response) => {
 		});
 
 		// Import mention parsing utility
-		const { parseMentionsToNames } = await import("../utils/mentions");
+		const { parseMentionsToNames } = await import("../utils/mentions.ts");
 
 		const processedReplies = await Promise.all(
 			replies.map(async (reply: any) => {

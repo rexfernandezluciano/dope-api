@@ -1,7 +1,8 @@
 // prisma/schema.prisma
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -110,6 +111,8 @@ model Comment {
   likes    CommentLike[]
   mentions Mention[]
   hashtags Hashtag[]
+  tipId String? @unique
+  tip   Tip? @relation(fields: [tipId], references: [id])
 }
 
 model Like {
@@ -546,16 +549,18 @@ model Tip {
   id          String    @id @default(cuid())
   senderId    String
   receiverId  String
-  amount      Int       // Amount in centavos/cents
+  amount      Int
   message     String?
-  postId      String?   // Optional: tip on specific post
-  stickerId   String?   // Optional: custom sticker used
+  postId      String?
+  stickerId   String?
   createdAt   DateTime  @default(now())
 
   sender    User     @relation("SentTips", fields: [senderId], references: [uid], onDelete: Cascade)
   receiver  User     @relation("ReceivedTips", fields: [receiverId], references: [uid], onDelete: Cascade)
   post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   sticker   Sticker? @relation(fields: [stickerId], references: [id], onDelete: SetNull)
+
+  comment   Comment?
 }
 
 model Donation {
