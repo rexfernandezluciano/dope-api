@@ -18,6 +18,20 @@ const UpdateCommentSchema = z.object({
 	content: z.string().min(1).max(500),
 });
 
+const CreateCommentWithTipSchema = z.object({
+	content: z.string().min(1).max(500),
+	tipAmount: z.number().min(100).max(500000).optional(), // Min ₱1, Max ₱5000
+	paymentMethodId: z.string().optional(),
+	stickerId: z.string().optional(),
+});
+
+const CreateCommentWithDonationSchema = z.object({
+	content: z.string().min(1).max(500),
+	donationAmount: z.number().min(500).max(1000000).optional(), // Min ₱5, Max ₱10000
+	paymentMethodId: z.string().optional(),
+	isAnonymous: z.boolean().default(false),
+});
+
 const SearchCommentsSchema = z.object({
 	query: z.string().min(1).max(100),
 	limit: z.string().optional(),
@@ -134,7 +148,17 @@ export const createComment = async (req: Request, res: Response) => {
 	try {
 		const authUser = (req as any).user as { uid: string };
 		const { postId } = req.params;
-		const { content } = CreateCommentSchema.parse(req.body);
+		const { content, tipAmount, donationAmount, paymentMethodId, stickerId, isAnonymous } = req.body;
+
+		// Validate input based on whether it's a tip or donation
+		let validatedData;
+		if (tipAmount) {
+			validatedData = CreateCommentWithTipSchema.parse(req.body);
+		} else if (donationAmount) {
+			validatedData = CreateCommentWithDonationSchema.parse(req.body);
+		} else {
+			validatedData = CreateCommentSchema.parse(req.body);
+		}
 
 		if (!postId) {
 			return res.status(400).json({ message: "Post ID is required" });
@@ -142,10 +166,38 @@ export const createComment = async (req: Request, res: Response) => {
 
 		const post = await prisma.post.findUnique({
 			where: { id: postId },
+			include: {
+				author: {
+					select: {
+						uid: true,
+						username: true,
+						name: true,
+					},
+				},
+			},
 		});
 
 		if (!post) {
 			return res.status(404).json({ message: "Post not found" });
+		}
+
+		// Check if user is trying to tip/donate to themselves
+		if ((tipAmount || donationAmount) && authUser.uid === post.authorId) {
+			return res.status(400).json({ message: "You cannot send tips or donations to yourself" });
+		}
+
+		// Verify payment method if tip/donation is included
+		if ((tipAmount || donationAmount) && paymentMethodId) {
+			const paymentMethod = await prisma.paymentMethod.findFirst({
+				where: {
+					id: paymentMethodId,
+					userId: authUser.uid,
+				},
+			});
+
+			if (!paymentMethod) {
+				return res.status(404).json({ message: "Payment method not found" });
+			}
 		}
 
 		const comment = await prisma.comment.create({
@@ -173,7 +225,58 @@ export const createComment = async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(201).json(comment);
+		let paymentResult = null;
+
+		// Handle tip payment
+		if (tipAmount && paymentMethodId) {
+			try {
+				const tipPayment = await processTipPayment({
+					senderId: authUser.uid,
+					receiverId: post.authorId,
+					amount: tipAmount,
+					message: `Tip with comment: ${content}`,
+					postId: postId,
+					stickerId: stickerId,
+					paymentMethodId: paymentMethodId,
+				});
+				paymentResult = { type: 'tip', ...tipPayment };
+			} catch (tipError: any) {
+				console.error("Tip payment failed:", tipError);
+				// Continue with comment creation even if payment fails
+				paymentResult = { type: 'tip', error: tipError.message };
+			}
+		}
+
+		// Handle donation payment
+		if (donationAmount && paymentMethodId) {
+			try {
+				const donationPayment = await processDonationPayment({
+					senderId: authUser.uid,
+					receiverId: post.authorId,
+					amount: donationAmount,
+					message: `Donation with comment: ${content}`,
+					isAnonymous: isAnonymous || false,
+					paymentMethodId: paymentMethodId,
+				});
+				paymentResult = { type: 'donation', ...donationPayment };
+			} catch (donationError: any) {
+				console.error("Donation payment failed:", donationError);
+				// Continue with comment creation even if payment fails
+				paymentResult = { type: 'donation', error: donationError.message };
+			}
+		}
+
+		const response: any = {
+			...comment,
+			tipAmount: tipAmount || null,
+			donationAmount: donationAmount || null,
+		};
+
+		if (paymentResult) {
+			response.payment = paymentResult;
+		}
+
+		res.status(201).json(response);
 
 		// Update post earnings based on new comment
 		const postWithCounts = await prisma.post.findUnique({
@@ -395,4 +498,197 @@ export const deleteComment = async (req: Request, res: Response) => {
 	} catch (error) {
 		res.status(500).json({ error: "Error deleting comment" });
 	}
+};
+
+// Helper function to process tip payments
+const processTipPayment = async (tipData: {
+	senderId: string;
+	receiverId: string;
+	amount: number;
+	message: string;
+	postId: string;
+	stickerId?: string;
+	paymentMethodId: string;
+}) => {
+	const paypalAPI = require('axios').create({
+		baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+			"Accept-Language": "en_US",
+		},
+	});
+
+	// Get PayPal access token (simplified - in production you'd want to use the same token caching logic)
+	const tokenResponse = await paypalAPI.post(
+		"/v1/oauth2/token",
+		"grant_type=client_credentials",
+		{
+			headers: {
+				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+		},
+	);
+
+	const accessToken = tokenResponse.data.access_token;
+
+	const paymentMethod = await prisma.paymentMethod.findFirst({
+		where: { id: tipData.paymentMethodId, userId: tipData.senderId },
+	});
+
+	if (!paymentMethod) {
+		throw new Error("Payment method not found");
+	}
+
+	const receiver = await prisma.user.findUnique({
+		where: { uid: tipData.receiverId },
+		select: { username: true, name: true },
+	});
+
+	const paypalOrder = await paypalAPI.post(
+		"/v2/checkout/orders",
+		{
+			intent: "CAPTURE",
+			purchase_units: [
+				{
+					amount: {
+						currency_code: "PHP",
+						value: (tipData.amount / 100).toFixed(2),
+					},
+					description: `Tip to @${receiver?.username} via comment`,
+					custom_id: `tip_comment_${tipData.senderId}_${tipData.receiverId}_${tipData.amount}_${tipData.paymentMethodId}`,
+				},
+			],
+			payment_source:
+				paymentMethod.type === "paypal_wallet"
+					? {
+							paypal: {
+								email_address: paymentMethod.paypalEmail,
+								experience_context: {
+									return_url: `${process.env.FRONTEND_URL}/tip/success`,
+									cancel_url: `${process.env.FRONTEND_URL}/tip/cancel`,
+								},
+							},
+						}
+					: {
+							card: {
+								vault_id: paymentMethod.paypalPaymentMethodId,
+							},
+						},
+		},
+		{
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		},
+	);
+
+	const approveUrl = paypalOrder.data.links?.find(
+		(link: any) => link.rel === "approve" || link.rel === "payer-action"
+	)?.href || null;
+
+	return {
+		paymentIntentId: paypalOrder.data.id,
+		approveUrl: approveUrl,
+		amount: tipData.amount,
+		currency: "PHP",
+		status: paypalOrder.data.status,
+	};
+};
+
+// Helper function to process donation payments
+const processDonationPayment = async (donationData: {
+	senderId: string;
+	receiverId: string;
+	amount: number;
+	message: string;
+	isAnonymous: boolean;
+	paymentMethodId: string;
+}) => {
+	const paypalAPI = require('axios').create({
+		baseURL: process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+			"Accept-Language": "en_US",
+		},
+	});
+
+	// Get PayPal access token
+	const tokenResponse = await paypalAPI.post(
+		"/v1/oauth2/token",
+		"grant_type=client_credentials",
+		{
+			headers: {
+				Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+		},
+	);
+
+	const accessToken = tokenResponse.data.access_token;
+
+	const paymentMethod = await prisma.paymentMethod.findFirst({
+		where: { id: donationData.paymentMethodId, userId: donationData.senderId },
+	});
+
+	if (!paymentMethod) {
+		throw new Error("Payment method not found");
+	}
+
+	const receiver = await prisma.user.findUnique({
+		where: { uid: donationData.receiverId },
+		select: { username: true, name: true },
+	});
+
+	const paypalOrder = await paypalAPI.post(
+		"/v2/checkout/orders",
+		{
+			intent: "CAPTURE",
+			purchase_units: [
+				{
+					amount: {
+						currency_code: "PHP",
+						value: (donationData.amount / 100).toFixed(2),
+					},
+					description: `Donation to @${receiver?.username} via comment`,
+					custom_id: `donation_comment_${donationData.senderId}_${donationData.receiverId}_${donationData.amount}_${donationData.paymentMethodId}`,
+				},
+			],
+			payment_source:
+				paymentMethod.type === "paypal_wallet"
+					? {
+							paypal: {
+								email_address: paymentMethod.paypalEmail,
+								experience_context: {
+									return_url: `${process.env.FRONTEND_URL}/donation/success`,
+									cancel_url: `${process.env.FRONTEND_URL}/donation/cancel`,
+								},
+							},
+						}
+					: {
+							card: {
+								vault_id: paymentMethod.paypalPaymentMethodId,
+							},
+						},
+		},
+		{
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+			},
+		},
+	);
+
+	const approveUrl = paypalOrder.data.links?.find(
+		(link: any) => link.rel === "approve" || link.rel === "payer-action"
+	)?.href || null;
+
+	return {
+		paymentIntentId: paypalOrder.data.id,
+		approveUrl: approveUrl,
+		amount: donationData.amount,
+		currency: "PHP",
+		status: paypalOrder.data.status,
+	};
 };

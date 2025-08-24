@@ -26,7 +26,7 @@ const router = Router();
  * @swagger
  * /comments:
  *   post:
- *     summary: Create a new comment
+ *     summary: Create a new comment with optional tip or donation
  *     tags: [Comments]
  *     security:
  *       - bearerAuth: []
@@ -41,9 +41,28 @@ const router = Router();
  *                 type: string
  *               content:
  *                 type: string
+ *               tipAmount:
+ *                 type: number
+ *                 minimum: 100
+ *                 maximum: 500000
+ *                 description: Tip amount in centavos (₱1-₱5000)
+ *               donationAmount:
+ *                 type: number
+ *                 minimum: 500
+ *                 maximum: 1000000
+ *                 description: Donation amount in centavos (₱5-₱10000)
+ *               paymentMethodId:
+ *                 type: string
+ *                 description: Required if tipAmount or donationAmount is provided
+ *               stickerId:
+ *                 type: string
+ *                 description: Optional custom sticker for tips
+ *               isAnonymous:
+ *                 type: boolean
+ *                 description: For donations only
  *     responses:
  *       201:
- *         description: Comment created successfully
+ *         description: Comment created successfully with optional payment
  *         content:
  *           application/json:
  *             schema:
@@ -122,8 +141,46 @@ router.get("/", getComments);
  *     responses:
  *       200:
  *         description: List of comments for the post
+ *   post:
+ *     summary: Create a comment on a specific post with optional tip or donation
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               content:
+ *                 type: string
+ *               tipAmount:
+ *                 type: number
+ *                 minimum: 100
+ *                 maximum: 500000
+ *               donationAmount:
+ *                 type: number
+ *                 minimum: 500
+ *                 maximum: 1000000
+ *               paymentMethodId:
+ *                 type: string
+ *               stickerId:
+ *                 type: string
+ *               isAnonymous:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Comment created with optional payment
  */
 router.get("/post/:postId", getComments);
+router.post("/post/:postId", requireAuth, createComment);
 
 /**
  * @swagger

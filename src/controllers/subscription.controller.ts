@@ -1,4 +1,3 @@
-
 import { Request, Response } from "express";
 import { z } from "zod";
 import { connect } from "../database/database";
@@ -610,58 +609,133 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
       const customId = resource.purchase_units?.[0]?.custom_id;
 
       if (customId) {
-        const [type, ...params] = customId.split("_");
+        const parts = customId.split("_");
 
-        if (type === "subscription") {
-          const [subscriberId, creatorId, tier, paymentMethodId] = params;
+        if (parts[0] === "subscription") {
+          // Handle subscription payments
+          const [, userId, creatorId, tier, amount, paymentMethodId] = parts;
 
-          const expiresAt = new Date();
-          expiresAt.setMonth(expiresAt.getMonth() + 1);
+          if (userId && creatorId && tier) {
+            const nextBillingDate = new Date();
+            nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
-          await prisma.userSubscription.upsert({
-            where: { subscriberId_creatorId: { subscriberId, creatorId } },
-            create: {
-              subscriberId,
-              creatorId,
-              tier,
-              amount: SUBSCRIPTION_PRICES[tier as keyof typeof SUBSCRIPTION_PRICES],
-              status: "active",
-              expiresAt,
-            },
-            update: {
-              tier,
-              amount: SUBSCRIPTION_PRICES[tier as keyof typeof SUBSCRIPTION_PRICES],
-              status: "active",
-              expiresAt,
-            },
-          });
+            await prisma.userSubscription.create({
+              data: {
+                subscriberId: userId,
+                creatorId: creatorId,
+                tier: tier as "basic" | "premium" | "vip",
+                amount: parseInt(amount),
+                status: "active",
+                expiresAt: nextBillingDate,
+              },
+            });
 
-          console.log(`User subscription activated: ${subscriberId} -> ${creatorId} (${tier})`);
-        } else if (type === "tip") {
-          const [senderId, receiverId, amount, paymentMethodId] = params;
+            console.log(`User subscription created: ${userId} -> ${creatorId} (${tier})`);
+          }
+        } else if (parts[0] === "tip" && parts[1] === "comment") {
+          // Handle tip payments from comments
+          const [, , senderId, receiverId, amount, paymentMethodId] = parts;
 
-          await prisma.tip.create({
-            data: {
-              senderId,
-              receiverId,
-              amount: parseInt(amount),
-            },
-          });
+          if (senderId && receiverId && amount) {
+            await prisma.tip.create({
+              data: {
+                senderId: senderId,
+                receiverId: receiverId,
+                amount: parseInt(amount),
+                message: "Tip via comment - payment completed",
+              },
+            });
 
-          console.log(`Tip processed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
-        } else if (type === "donation") {
-          const [senderId, receiverId, amount, paymentMethodId, isAnonymous] = params;
+            // Update receiver's credits
+            await prisma.user.update({
+              where: { uid: receiverId },
+              data: {
+                credits: {
+                  increment: parseInt(amount),
+                },
+              },
+            });
 
-          await prisma.donation.create({
-            data: {
-              senderId,
-              receiverId,
-              amount: parseInt(amount),
-              isAnonymous: isAnonymous === "true",
-            },
-          });
+            console.log(`Comment tip completed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
+          }
+        } else if (parts[0] === "donation" && parts[1] === "comment") {
+          // Handle donation payments from comments
+          const [, , senderId, receiverId, amount, paymentMethodId] = parts;
 
-          console.log(`Donation processed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
+          if (senderId && receiverId && amount) {
+            await prisma.donation.create({
+              data: {
+                senderId: senderId,
+                receiverId: receiverId,
+                amount: parseInt(amount),
+                message: "Donation via comment - payment completed",
+              },
+            });
+
+            // Update receiver's credits
+            await prisma.user.update({
+              where: { uid: receiverId },
+              data: {
+                credits: {
+                  increment: parseInt(amount),
+                },
+              },
+            });
+
+            console.log(`Comment donation completed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
+          }
+        } else if (parts[0] === "tip") {
+          // Handle regular tip payments
+          const [, senderId, receiverId, amount, paymentMethodId] = parts;
+
+          if (senderId && receiverId && amount) {
+            await prisma.tip.create({
+              data: {
+                senderId: senderId,
+                receiverId: receiverId,
+                amount: parseInt(amount),
+                message: "Tip payment completed",
+              },
+            });
+
+            // Update receiver's credits
+            await prisma.user.update({
+              where: { uid: receiverId },
+              data: {
+                credits: {
+                  increment: parseInt(amount),
+                },
+              },
+            });
+
+            console.log(`Tip completed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
+          }
+        } else if (parts[0] === "donation") {
+          // Handle regular donation payments
+          const [, senderId, receiverId, amount, paymentMethodId] = parts;
+
+          if (senderId && receiverId && amount) {
+            await prisma.donation.create({
+              data: {
+                senderId: senderId,
+                receiverId: receiverId,
+                amount: parseInt(amount),
+                message: "Donation payment completed",
+              },
+            });
+
+            // Update receiver's credits
+            await prisma.user.update({
+              where: { uid: receiverId },
+              data: {
+                credits: {
+                  increment: parseInt(amount),
+                },
+              },
+            });
+
+            console.log(`Donation completed: ${senderId} -> ${receiverId} (₱${parseInt(amount) / 100})`);
+          }
         }
       }
     }
@@ -669,7 +743,7 @@ export const handleSubscriptionWebhook = async (req: Request, res: Response) => 
     res.json({ received: true });
   } catch (error: any) {
     console.error("Subscription webhook handler error:", error);
-    res.status(500).json({ error: "Webhook handler failed" });
+    res.status(500).json({ error: "Subscription webhook handler failed" });
   }
 };
 
