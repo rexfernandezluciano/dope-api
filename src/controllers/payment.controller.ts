@@ -37,7 +37,7 @@ const getPayPalAccessToken = async () => {
       "grant_type=client_credentials",
       {
         headers: {
-          Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_SECRET_KEY).toString("base64")}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
       },
@@ -360,10 +360,12 @@ export const purchaseMembership = async (req: Request, res: Response) => {
       });
     } catch (providerError: any) {
       console.error("PayPal error:", providerError);
+      console.error("PayPal error response:", providerError.response?.data);
 
       return res.status(400).json({
         message: "Payment failed",
-        error: providerError.response?.data?.message || providerError.message,
+        error: providerError.response?.data || providerError.message,
+        details: providerError.response?.data?.details || undefined,
       });
     }
   } catch (error: any) {
@@ -425,7 +427,7 @@ export const handlePayPalWebhook = async (req: Request, res: Response) => {
 export const checkPayPalConfig = async (req: Request, res: Response) => {
   try {
     const clientId = process.env.PAYPAL_CLIENT_ID;
-    const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+    const clientSecret = process.env.PAYPAL_SECRET_KEY;
     const baseUrl = process.env.PAYPAL_BASE_URL || "https://api-m.sandbox.paypal.com";
 
     if (!clientId || !clientSecret) {
