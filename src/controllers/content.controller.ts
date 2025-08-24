@@ -1,12 +1,5 @@
 import { Request, Response } from "express";
-import { connect } from "../database/database";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
-let prisma: any;
-
-(async () => {
-  prisma = await connect();
-})();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 

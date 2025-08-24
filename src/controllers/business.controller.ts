@@ -37,12 +37,12 @@ export const createAdCampaign = async (req: Request, res: Response) => {
 		}
 
 		const budgetInCentavos = Math.round(budget * 100);
-		
+
 		// Check if user has sufficient credits
 		if (user.credits < budgetInCentavos) {
 			return res.status(400).json({
 				error: "Insufficient credits",
-				message: `You need ₱${(budgetInCentavos / 100).toFixed(2)} but only have ₱${(user.credits / 100).toFixed(2)} in credits.`,
+				message: `You need $${(budgetInCentavos / 100).toFixed(2)} but only have $${(user.credits / 100).toFixed(2)} in credits.`,
 				required: budgetInCentavos / 100,
 				available: user.credits / 100,
 				shortfall: (budgetInCentavos - user.credits) / 100,
@@ -58,9 +58,22 @@ export const createAdCampaign = async (req: Request, res: Response) => {
 				budget: budgetInCentavos, // Store as centavos
 				duration,
 				targetAudience: targetAudience || {},
+				startDate: new Date(),
+				endDate: new Date(Date.now() + duration * 24 * 60 * 60 * 1000),
 				adType,
 				advertiserId: userId,
-				status: "pending",
+				status: "active",
+			},
+		});
+
+		await prisma.user.update({
+			where: { uid: userId },
+			data: {
+				credits: {
+					decrement: budgetInCentavos,
+					// Deduct credits from user's account
+					// If credits are insufficient, throw an error
+				},
 			},
 		});
 

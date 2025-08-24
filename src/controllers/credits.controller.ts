@@ -51,7 +51,7 @@ const getPayPalAccessToken = async () => {
 };
 
 const PurchaseCreditsSchema = z.object({
-  amount: z.number().min(500).max(50000), // Minimum ₱5, Maximum ₱500
+  amount: z.number().min(500).max(50000), // Minimum $5, Maximum $500
   paymentMethodId: z.string(),
 });
 
@@ -116,10 +116,10 @@ export const purchaseCredits = async (req: Request, res: Response) => {
           purchase_units: [
             {
               amount: {
-                currency_code: "PHP",
-                value: (amount / 100).toFixed(2), // Convert centavos to peso
+                currency_code: "USD",
+                value: (amount / 100).toFixed(2), // Convert centavos to dollars
               },
-              description: `Ad Campaign Credits - ₱${(amount / 100).toFixed(2)}`,
+              description: `Credits - $${(amount / 100).toFixed(2)}`,
               custom_id: `credits_${authUser.uid}_${amount}`,
             },
           ],
@@ -161,8 +161,8 @@ export const purchaseCredits = async (req: Request, res: Response) => {
         provider: "paypal",
         approveUrl: approveUrl,
         amount: amount,
-        currency: "PHP",
-        description: `Ad Campaign Credits - ₱${(amount / 100).toFixed(2)}`,
+        currency: "USD",
+        description: `Credits - $${(amount / 100).toFixed(2)}`,
         status: paypalOrder.data.status,
         links: paypalOrder.data.links || []
       });
@@ -224,35 +224,35 @@ export const getCreditPackages = async (req: Request, res: Response) => {
   try {
     const packages = [
       {
-        amount: 500, // ₱5
+        amount: 500, // $5
         credits: 500,
         bonus: 0,
         popular: false,
         description: "Starter pack for small campaigns",
       },
       {
-        amount: 1000, // ₱10
+        amount: 1000, // $10
         credits: 1000,
         bonus: 100, // 10% bonus
         popular: false,
-        description: "Good for medium campaigns",
+        description: "Good for medium creators",
       },
       {
-        amount: 2500, // ₱25
+        amount: 2500, // $25
         credits: 2500,
         bonus: 375, // 15% bonus
         popular: true,
         description: "Most popular package",
       },
       {
-        amount: 5000, // ₱50
+        amount: 5000, // $50
         credits: 5000,
         bonus: 1000, // 20% bonus
         popular: false,
         description: "Best value for large campaigns",
       },
       {
-        amount: 10000, // ₱100
+        amount: 10000, // $100
         credits: 10000,
         bonus: 2500, // 25% bonus
         popular: false,
@@ -264,8 +264,8 @@ export const getCreditPackages = async (req: Request, res: Response) => {
       packages: packages.map(pkg => ({
         ...pkg,
         totalCredits: pkg.credits + pkg.bonus,
-        priceInPHP: pkg.amount / 100,
-        priceDisplay: `₱${(pkg.amount / 100).toFixed(2)}`,
+        priceInUSD: pkg.amount / 100,
+        priceDisplay: `$${(pkg.amount / 100).toFixed(2)}`,
       })),
     });
   } catch (error: any) {
