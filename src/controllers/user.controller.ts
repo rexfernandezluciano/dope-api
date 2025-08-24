@@ -347,6 +347,24 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 			},
 		});
 
+		// Get current user's blocking lists for post filtering
+		let blockingIds: string[] = [];
+		let blockedByIds: string[] = [];
+
+		if (authUser) {
+			const blocking = await prisma.block.findMany({
+				where: { blockerId: authUser.uid },
+				select: { blockedId: true },
+			});
+			blockingIds = blocking.map((b: any) => b.blockedId);
+
+			const blockedBy = await prisma.block.findMany({
+				where: { blockedId: authUser.uid },
+				select: { blockerId: true },
+			});
+			blockedByIds = blockedBy.map((b: any) => b.blockerId);
+		}
+
 		// Apply filtering to posts based on blocking relationships
 		if (authUser) {
 			posts = posts.filter((p: any) => {
