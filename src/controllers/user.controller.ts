@@ -267,18 +267,20 @@ export const getUserByUsername = async (req: Request, res: Response) => {
 		let subscriptionTier = null;
 
 		if (authUser?.uid) {
-			const followRecord = await prisma.follow.findUnique({
+			const followRecord = await prisma.follow.findFirst({
 				where: {
-					OR: [{ followerId: authUser.uid }, { followingId: user.uid }],
+					followerId: authUser.uid,
+					followingId: user.uid,
 				},
 			});
 
 			isFollowing = !!followRecord;
 
 			// Check subscription status
-			const userSubscription = await prisma.userSubscription.findUnique({
+			const userSubscription = await prisma.userSubscription.findFirst({
 				where: {
-					OR: [{ subscriberId: authUser.uid }, { creatorId: user.uid }],
+					subscriberId: authUser.uid,
+					creatorId: user.uid,
 				},
 			});
 
