@@ -38,7 +38,7 @@ const CreatePollSchema = z.object({
 
 const CreatePostSchema = z
 	.object({
-		content: z.string().min(1).max(1000).optional(),
+		content: z.string().min(1).max(280).optional(),
 		imageUrls: z.array(z.string().url()).max(10).optional(),
 		liveVideoUrl: z
 			.string()
@@ -65,7 +65,7 @@ const CreatePostSchema = z
 	);
 
 const UpdatePostSchema = z.object({
-	content: z.string().min(1).max(1000).optional(),
+	content: z.string().min(1).max(280).optional(),
 	imageUrls: z.array(z.string().url()).max(10).optional(),
 	liveVideoUrl: z.string().url().optional(),
 	postType: z.enum(["text", "live_video", "poll"]).optional(),
