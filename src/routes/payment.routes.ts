@@ -6,7 +6,8 @@ import {
   deletePaymentMethod, 
   getAvailablePaymentProviders,
   purchaseMembership,
-  handlePayPalWebhook
+  handlePayPalWebhook,
+  checkPayPalConfig
 } from '../controllers/payment.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 import { asyncHandler } from "../middleware/error.middleware";
