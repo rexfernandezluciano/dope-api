@@ -24,8 +24,10 @@ export interface User {
 	membership: Membership;
 	privacy: PrivacySettings;
 	hasVerifiedEmail: boolean;
-	reports?: any[];
-	_count?: {
+	isBlocked?: boolean;
+	isRestricted?: boolean;
+	reports: any[];
+	_count: {
 		posts: number;
 		followers: number;
 		following: number;
