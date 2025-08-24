@@ -1,7 +1,7 @@
 /** @format */
 
 import { Request, Response, NextFunction } from "express";
-import { Subscription } from "@prisma/client";
+import { Subscription, Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import dayjs from "dayjs";
 import {
@@ -455,6 +455,24 @@ export const me = async (req: Request, res: Response) => {
 	const prisma = await connect();
 	const authUser = (req as any).user as { uid: string };
 
+	type UserWithCountAndReports = Prisma.UserGetPayload<{
+		include: {
+			reports: {
+				where: {
+					status: { in: ["pending", "reviewed"] };
+				};
+			};
+			_count: {
+				select: {
+					posts: true;
+					followers: true;
+					following: true;
+					likes: true;
+				};
+			};
+		};
+	}>;
+
 	const user = await prisma.user.findUnique({
 		where: { uid: authUser.uid },
 		include: {
@@ -472,7 +490,7 @@ export const me = async (req: Request, res: Response) => {
 				},
 			},
 		},
-	});
+	}) as UserWithCountAndReports | null;
 
 	if (!user) return res.status(404).json({ message: "User not found" });
 
