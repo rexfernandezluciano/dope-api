@@ -35,7 +35,7 @@ const getPayPalAccessToken = async () => {
       "grant_type=client_credentials",
       {
         headers: {
-          Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_SECRET_KEY).toString("base64")}`,
+          Authorization: `Basic ${Buffer.from(process.env.PAYPAL_CLIENT_ID + ":" + process.env.PAYPAL_CLIENT_SECRET).toString("base64")}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
       },
