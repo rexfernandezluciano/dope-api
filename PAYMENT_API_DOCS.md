@@ -25,21 +25,21 @@ Returns information about available payment methods and subscription plans.
 ```json
 {
   "providers": ["PayPal"],
-  "availableIn": "Philippines",
+  "availableIn": "United States, Philippines, Canada",
   "paymentMethods": [
     {
       "type": "paypal_card",
       "name": "Credit/Debit Card (PayPal)",
       "provider": "paypal",
       "supportedCards": ["Visa", "Mastercard", "American Express", "Discover"],
-      "fees": "4.4% + ₱15",
+      "fees": "4.4% + $0.15",
       "processingTime": "Instant"
     },
     {
       "type": "paypal_wallet",
       "name": "PayPal Wallet",
       "provider": "paypal",
-      "fees": "4.4% + ₱15",
+      "fees": "4.4% + $0.15",
       "processingTime": "Instant"
     }
   ],
@@ -47,8 +47,8 @@ Returns information about available payment methods and subscription plans.
     {
       "type": "premium",
       "name": "Premium",
-      "price": 560,
-      "currency": "PHP",
+      "price": 9.99,
+      "currency": "USD",
       "interval": "month",
       "features": [
         "Ad-free experience",
@@ -60,8 +60,8 @@ Returns information about available payment methods and subscription plans.
     {
       "type": "pro",
       "name": "Pro",
-      "price": 1120,
-      "currency": "PHP",
+      "price": 25,
+      "currency": "USD",
       "interval": "month",
       "features": [
         "All Premium features",

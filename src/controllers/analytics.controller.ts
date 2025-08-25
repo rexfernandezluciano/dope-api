@@ -105,7 +105,6 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 		const tipsAmount = (tipsReceived._sum.amount || 0) / 100;
 		const donationsAmount = (donationsReceived._sum.amount || 0) / 100;
 		const contentEarningsAmount = totalEarnings / 100;
-		const totalRevenue = adRevenueAmount + subscriptionRevenueAmount + tipsAmount + donationsAmount + contentEarningsAmount;
 
 		// Check monetization eligibility
 		const user = await prisma.user.findUnique({
@@ -176,31 +175,31 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 			},
 			revenue: {
 				totalRevenue: actualTotalRevenue,
-				totalRevenueFormatted: `₱${actualTotalRevenue.toFixed(2)}`,
+				totalRevenueFormatted: `$${actualTotalRevenue.toFixed(2)}`,
 				breakdown: {
 					adRevenue: {
 						amount: actualAdRevenueAmount,
-						formatted: `₱${actualAdRevenueAmount.toFixed(2)}`,
+						formatted: `$${actualAdRevenueAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualAdRevenueAmount / actualTotalRevenue) * 100) : 0,
 					},
 					subscriptionRevenue: {
 						amount: actualSubscriptionRevenueAmount,
-						formatted: `₱${actualSubscriptionRevenueAmount.toFixed(2)}`,
+						formatted: `$ ${actualSubscriptionRevenueAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualSubscriptionRevenueAmount / actualTotalRevenue) * 100) : 0,
 					},
 					tipsEarned: {
 						amount: actualTipsAmount,
-						formatted: `₱${actualTipsAmount.toFixed(2)}`,
+						formatted: `$${actualTipsAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualTipsAmount / actualTotalRevenue) * 100) : 0,
 					},
 					donationsEarned: {
 						amount: actualDonationsAmount,
-						formatted: `₱${actualDonationsAmount.toFixed(2)}`,
+						formatted: `$${actualDonationsAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualDonationsAmount / actualTotalRevenue) * 100) : 0,
 					},
 					contentEarnings: {
 						amount: actualContentEarningsAmount,
-						formatted: `₱${actualContentEarningsAmount.toFixed(2)}`,
+						formatted: `$${actualContentEarningsAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualContentEarningsAmount / actualTotalRevenue) * 100) : 0,
 					},
 				},
