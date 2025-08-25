@@ -88,8 +88,8 @@ const CreatePerkSchema = z.object({
 
 // Subscription tier pricing in PHP centavos
 const SUBSCRIPTION_PRICES = {
-  basic: 5000,   // ₱50
-  premium: 15000, // ₱150
+  basic: 2500,   // $25
+  premium: 5000, // $50
   vip: 30000,    // ₱300
 };
 
@@ -867,7 +867,7 @@ export const getSubscriptionTiers = async (req: Request, res: Response) => {
           id: "basic",
           name: "Basic Supporter",
           price: SUBSCRIPTION_PRICES.basic,
-          currency: "PHP",
+          currency: "USD",
           interval: "month",
           description: "Support your favorite creator",
           features: [
@@ -881,7 +881,7 @@ export const getSubscriptionTiers = async (req: Request, res: Response) => {
           id: "premium",
           name: "Premium Supporter",
           price: SUBSCRIPTION_PRICES.premium,
-          currency: "PHP",
+          currency: "USD",
           interval: "month",
           description: "Enhanced creator support",
           features: [
@@ -897,7 +897,7 @@ export const getSubscriptionTiers = async (req: Request, res: Response) => {
           id: "vip",
           name: "VIP Supporter",
           price: SUBSCRIPTION_PRICES.vip,
-          currency: "PHP",
+          currency: "USD",
           interval: "month",
           description: "Ultimate creator support",
           features: [
