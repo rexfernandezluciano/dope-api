@@ -188,7 +188,7 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 					},
 					subscriptionRevenue: {
 						amount: actualSubscriptionRevenueAmount,
-						formatted: `$ ${actualSubscriptionRevenueAmount.toFixed(2)}`,
+						formatted: `$${actualSubscriptionRevenueAmount.toFixed(2)}`,
 						percentage: actualTotalRevenue > 0 ? Math.round((actualSubscriptionRevenueAmount / actualTotalRevenue) * 100) : 0,
 					},
 					tipsEarned: {

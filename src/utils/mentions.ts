@@ -41,14 +41,15 @@ export const saveMentions = async (
 export const parseMentionsToNames = async (
   content: string,
 ): Promise<string> => {
-  const mentionRegex = /@(\w+)/g;
+  // Updated regex to match @[displayName](userId) format
+  const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
   let parsedContent = content;
-  const matches = content.match(mentionRegex);
+  const matches = [...content.matchAll(mentionRegex)];
 
-  if (!matches) return content;
+  if (!matches.length) return content;
 
-  // Extract user IDs from mentions
-  const userIds = matches.map((match) => match.substring(1)); // Remove @ symbol
+  // Extract user IDs from mentions (from the parentheses part)
+  const userIds = matches.map((match) => match[2]); // match[2] is the userId in parentheses
 
   // Fetch users by IDs
   const users = await prisma.user.findMany({
@@ -56,9 +57,10 @@ export const parseMentionsToNames = async (
     select: { uid: true, name: true, username: true },
   });
 
-  // Replace user IDs with names
+  // Replace mentions with actual names
   users.forEach((user: any) => {
-    const mentionPattern = new RegExp(`@${user.uid}`, "g");
+    // Find the original mention pattern for this user
+    const mentionPattern = new RegExp(`@\\[([^\\]]+)\\]\\(${user.uid}\\)`, "g");
     parsedContent = parsedContent.replace(
       mentionPattern,
       `${user.name || "@" + user.username}`,
