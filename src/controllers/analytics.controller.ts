@@ -99,12 +99,15 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 			_sum: { amount: true },
 		});
 
-		// Calculate total revenue
+		// Calculate total revenue including tips in total earnings
 		const adRevenueAmount = (adRevenue._sum.earnings || 0) / 100;
 		const subscriptionRevenueAmount = (subscriptionRevenue._sum.amount || 0) / 100;
 		const tipsAmount = (tipsReceived._sum.amount || 0) / 100;
 		const donationsAmount = (donationsReceived._sum.amount || 0) / 100;
 		const contentEarningsAmount = totalEarnings / 100;
+		
+		// Add tip earnings to total earnings for summary
+		const totalEarningsWithTips = totalEarnings + (tipsReceived._sum.amount || 0);
 
 		// Check monetization eligibility
 		const user = await prisma.user.findUnique({
@@ -169,6 +172,7 @@ export const getUserAnalytics = async (req: Request, res: Response) => {
 				totalComments,
 				totalShares,
 				totalRevenue: Math.round(actualTotalRevenue * 100) / 100,
+				totalEarnings: Math.round((totalEarningsWithTips / 100) * 100) / 100,
 				currentFollowers,
 				followersGained,
 				engagementRate: Math.round(engagementRate * 100) / 100,
